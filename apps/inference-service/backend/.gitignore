@@ -1,0 +1,28 @@
+# --- Python bytecode & caches ---
+__pycache__/
+*.py[cod]
+*.$py.class
+
+# Explicit (your paths that caused conflicts)
+app/__pycache__/
+app/core/__pycache__/
+db/__pycache__/
+
+# --- Python tooling caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Builds / dists ---
+build/
+dist/
+*.egg-info/
+
+# --- Virtual envs ---
+venv/
+.venv/
+
+# --- Env / secrets ---
+.env
+.env.*
