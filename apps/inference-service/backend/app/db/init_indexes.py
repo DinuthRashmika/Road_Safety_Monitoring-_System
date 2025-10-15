@@ -14,3 +14,7 @@ async def ensure_indexes():
     # Vehicles
     await db.vehicles.create_index("plateNo", unique=True)
     await db.vehicles.create_index([("ownerId", 1)])
+
+        # ---- DMS collections ----
+    await db.sessions.create_index([("ownerId", 1), ("startedAt", -1)])
+    await db.events.create_index([("sessionId", 1), ("createdAt", -1)])
