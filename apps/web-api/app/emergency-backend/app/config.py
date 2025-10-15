@@ -15,6 +15,7 @@ class Settings(BaseModel):
     MOCK_MODE: str = os.getenv("MOCK_MODE", "drip")
     MOCK_DRIP_RATE: str = os.getenv("MOCK_DRIP_RATE", "5s")
     ROUTING_MODE: str = os.getenv("ROUTING_MODE", "dummy")
+    GOOGLE_MAPS_API_KEY: str | None = os.getenv("GOOGLE_MAPS_API_KEY")
     CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else ["*"]
 
 settings = Settings()
