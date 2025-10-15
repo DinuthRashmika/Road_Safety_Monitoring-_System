@@ -6,6 +6,7 @@ import 'screens/home_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/vehicle_add_screen.dart';
 import 'screens/vehicle_detail_screen.dart';
+import 'screens/start_trip_screen.dart';
 
 void main() {
   runApp(const RoadGuruApp());
@@ -35,6 +36,7 @@ class RoadGuruApp extends StatelessWidget {
         '/profile': (_) => const ProfileScreen(),
         '/vehicle-add': (_) => const VehicleAddScreen(),
         '/vehicle-detail': (_) => const VehicleDetailScreen(),
+        '/monitor': (_) => const StartTripScreen(), // Placeholder for MonitorScreen
       },
     );
   }
