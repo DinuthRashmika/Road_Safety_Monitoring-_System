@@ -20,4 +20,9 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "uploads"
     BASE_URL: str = "http://localhost:8000"
 
+    # ---- DMS (seatbelt/phone stage) ----
+    YOLO_MODEL: str = "weights/best.pt"  # path to your trained model
+    MAX_FPS: int = 2
+    LOG_LEVEL: str = "INFO"
+
 settings = Settings()
