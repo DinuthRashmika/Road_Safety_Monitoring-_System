@@ -5,6 +5,8 @@ from app.db.init_indexes import ensure_indexes
 from app.routes import auth, owners, vehicles
 from app.core.config import settings
 from app.utils.images import ensure_dir
+# new DMS routers
+from app.routes import sessions_rest, sessions_ws, debug_yolo
 
 app = FastAPI(title="Road Safety – Owner & Vehicles API", version="1.0.0")
 
@@ -24,3 +26,10 @@ async def shutdown():
 app.include_router(auth.router)
 app.include_router(owners.router)
 app.include_router(vehicles.router)
+
+# DMS
+app.include_router(sessions_rest.router)
+app.include_router(sessions_ws.router)
+app.include_router(debug_yolo.router)
+
+
