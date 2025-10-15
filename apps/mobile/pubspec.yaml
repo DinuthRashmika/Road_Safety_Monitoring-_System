@@ -1,0 +1,35 @@
+name: road_safety_app
+description: A Flutter app for road safety management
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  http: ^1.1.0
+  shared_preferences: ^2.2.2
+  image_picker: ^1.0.4
+  flutter_dotenv: ^6.0.0
+  intl: ^0.20.2
+  dio: ^5.7.0
+  font_awesome_flutter: ^10.7.0
+
+  dotted_border: ^2.1.0
+  cached_network_image: ^3.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    
