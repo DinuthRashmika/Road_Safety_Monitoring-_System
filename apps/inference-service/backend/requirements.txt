@@ -13,3 +13,5 @@ python-slugify==8.0.4
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
 ultralytics==8.3.23
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
