@@ -16,11 +16,20 @@ app = FastAPI(title="Road Safety – Owner & Vehicles API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*",                    # or e.g. "http://localhost:3000", "http://10.0.2.2:8080"
+        "http://localhost:8000",
+        "http://127.0.0.1:8000", 
+        "http://10.0.2.2:8000",        # Android emulator
+        "http://localhost",             # Web
+        "http://127.0.0.1",            # Web
+        "http://10.0.2.2",             # Android emulator
+        "http://192.168.8.196:8000",   # ← YOUR PC's IP with port
+        "http://192.168.8.196",        # ← YOUR PC's IP without port
+        "http://192.168.8.196:8000",   # Physical device
+        "http://192.168.8.196",        # Physical device
     ],
     allow_credentials=True,
-    allow_methods=["*"],       # enables OPTIONS, POST, etc.
-    allow_headers=["*"],       # e.g., Authorization, Content-Type
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
