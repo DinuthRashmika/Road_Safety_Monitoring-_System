@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from bson import ObjectId
 from pymongo.errors import DuplicateKeyError
 
 from app.db.mongo import get_db
 
-
+# ---------- Helpers ----------
 def _id(doc: Dict[str, Any]) -> str:
     return str(doc["_id"])
-
 
 def _norm_user(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -18,7 +17,6 @@ def _norm_user(doc: Dict[str, Any]) -> Dict[str, Any]:
         "email": doc.get("email"),
         "role": doc.get("role"),
     }
-
 
 def _norm_unit(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -30,8 +28,7 @@ def _norm_unit(doc: Dict[str, Any]) -> Dict[str, Any]:
         "status": doc.get("status"),
     }
 
-
-# ---------- Users ----------
+# ---------- Users (Responders) ----------
 async def create_user(name: str, email: str, role: str, password_hash: str) -> str:
     db = get_db()
     email_norm = email.strip().lower()
@@ -43,38 +40,62 @@ async def create_user(name: str, email: str, role: str, password_hash: str) -> s
     except DuplicateKeyError:
         raise ValueError("email_exists")
 
-
 async def list_users() -> List[Dict[str, Any]]:
     db = get_db()
     cur = db["users"].find({}, {"password_hash": 0})
     return [_norm_user(x) async for x in cur]
 
+async def get_user(user_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    doc = await db["users"].find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
+    return _norm_user(doc) if doc else None
+
+async def update_user(user_id: str, patch: Dict[str, Any]) -> None:
+    """
+    patch may include: name, email (normalized), role, password_hash
+    """
+    db = get_db()
+    if "email" in patch and isinstance(patch["email"], str):
+        patch["email"] = patch["email"].strip().lower()
+    try:
+        await db["users"].update_one({"_id": ObjectId(user_id)}, {"$set": patch})
+    except DuplicateKeyError:
+        raise ValueError("email_exists")
 
 async def delete_user(user_id: str) -> None:
     db = get_db()
     await db["users"].delete_one({"_id": ObjectId(user_id)})
 
-
 # ---------- Units ----------
 async def create_unit(doc: Dict[str, Any]) -> str:
     db = get_db()
+    # Normalize/guard
+    if "code" in doc and isinstance(doc["code"], str):
+        doc["code"] = doc["code"].strip().upper()
     try:
         res = await db["units"].insert_one(doc)
         return str(res.inserted_id)
     except DuplicateKeyError:
         raise ValueError("unit_code_exists")
 
-
 async def list_units() -> List[Dict[str, Any]]:
     db = get_db()
     cur = db["units"].find({})
     return [_norm_unit(x) async for x in cur]
 
+async def get_unit(unit_id: str) -> Optional[Dict[str, Any]]:
+    db = get_db()
+    doc = await db["units"].find_one({"_id": ObjectId(unit_id)})
+    return _norm_unit(doc) if doc else None
 
 async def update_unit(unit_id: str, patch: Dict[str, Any]) -> None:
     db = get_db()
-    await db["units"].update_one({"_id": ObjectId(unit_id)}, {"$set": patch})
-
+    if "code" in patch and isinstance(patch["code"], str):
+        patch["code"] = patch["code"].strip().upper()
+    try:
+        await db["units"].update_one({"_id": ObjectId(unit_id)}, {"$set": patch})
+    except DuplicateKeyError:
+        raise ValueError("unit_code_exists")
 
 async def delete_unit(unit_id: str) -> None:
     db = get_db()
