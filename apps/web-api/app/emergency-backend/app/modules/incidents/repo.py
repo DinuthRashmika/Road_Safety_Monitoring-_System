@@ -1,4 +1,3 @@
-# app/modules/incidents/repo.py
 from __future__ import annotations
 
 from typing import Optional, List, Dict
@@ -33,25 +32,51 @@ async def update_incident(incident_id: str, patch: dict) -> None:
     await db["incidents"].update_one({"_id": ObjectId(incident_id)}, {"$set": patch})
 
 
-async def list_queue(limit: int = 50, role: Optional[str] = None) -> List[Dict]:
+async def list_queue(limit: int = 50, role: Optional[str] = None, user_location: Optional[dict] = None) -> List[Dict]:
     """
-    Return 'new' incidents sorted by score desc, reported_at desc.
-
+    Return 'new' incidents, sorted by score OR distance.
     Role filtering:
-      - admin: see all 'new' incidents
-      - police/ambulance/fire: only see incidents where that role is in required_units
-        (e.g., fire sees only incidents with fire_required = true in required_units)
+      - admin: see all 'new' incidents, sorted by score
+      - police/ambulance/fire: see 'new' incidents that are GEOGRAPHICALLY NEARBY
+        and require their role.
     """
     db = get_db()
-    query: dict = {"status": "new"}
+    
+    # --- Admin View: See all incidents, sorted by highest score ---
+    if role == "admin":
+        query: dict = {"status": "new"}
+        cursor = (
+            db["incidents"]
+            .find(query)
+            .sort([("score", -1), ("reported_at", -1)])
+            .limit(limit)
+        )
+        return [_norm(x) async for x in cursor]
 
-    if role and role != "admin":
-        query["required_units"] = {"$in": [role]}
+    # --- Responder View: See incidents geographically near them ---
+    if not user_location:
+        return [] # Responders must have a location
 
-    cursor = (
-        db["incidents"]
-        .find(query)
-        .sort([("score", -1), ("reported_at", -1)])
-        .limit(limit)
-    )
+    # This is a MongoDB Geospatial Aggregation.
+    # It finds incidents near the user's coordinates.
+    pipeline = [
+        {
+            "$geoNear": {
+                "near": {
+                    "type": "Point",
+                    "coordinates": [user_location["lng"], user_location["lat"]]
+                },
+                "distanceField": "distance_m", # Adds a "distance_m" field (in meters)
+                "query": {
+                    "status": "new",
+                    "required_roles": {"$in": [role]}
+                },
+                "spherical": True
+            }
+        },
+        { "$sort": {"distance_m": 1} }, # Sort by closest first
+        { "$limit": limit }
+    ]
+    
+    cursor = db["incidents"].aggregate(pipeline)
     return [_norm(x) async for x in cursor]

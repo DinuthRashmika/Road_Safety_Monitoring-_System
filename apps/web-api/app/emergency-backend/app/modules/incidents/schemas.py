@@ -1,14 +1,17 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Optional
 
+# Import Location from responders
+from app.modules.responders.schemas import Location
+
 Severity = Literal["low","medium","high"]
 Risk = Literal["low","medium","high"]
 Status = Literal["new","accepted","enroute","arrived","resolved"]
 
-class Location(BaseModel):
-    lat: float
-    lng: float
-    address: Optional[str] = None
+# class Location(BaseModel):  <- MOVED
+#     lat: float
+#     lng: float
+#     address: Optional[str] = None
 
 class Accident(BaseModel):
     vehicles_involved: int = 1
@@ -33,7 +36,7 @@ class Incident(BaseModel):
     violence: Optional[Violence] = None
     media: Optional[Media] = None
     score: int = 0
-    required_units: list[str] = Field(default_factory=list)
+    required_roles: list[str] = Field(default_factory=list) # <-- RENAMED
     status: Status = "new"
-    assignee_unit_id: Optional[str] = None
+    assignee_responder_id: Optional[str] = None # <-- RENAMED
     explain: list[str] = Field(default_factory=list)

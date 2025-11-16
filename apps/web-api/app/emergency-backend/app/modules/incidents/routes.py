@@ -1,10 +1,10 @@
-# app/modules/incidents/routes.py
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.security.roles import require_roles, current_user
+# Import the new dependency
+from app.deps import get_current_responder_doc, require_roles
 from app.utils.sse import event_stream
 from .repo import list_queue, get_incident, update_incident
 from .service import accept_incident
@@ -17,15 +17,18 @@ router = APIRouter()
 @router.get("/incidents/queue")
 async def get_queue_route(
     limit: int = 50,
-    payload: dict = Depends(current_user),
+    responder: dict = Depends(get_current_responder_doc), # <-- CHANGED
 ):
     """
-    Role-aware queue:
-      - admin: all 'new' incidents
-      - police/ambulance/fire: only incidents where their role is in required_units
+    Role-aware, location-aware queue:
+      - admin: all 'new' incidents sorted by score
+      - police/ambulance/fire: only incidents near them that require their role
     """
-    role = payload.get("role")
-    return await list_queue(limit=limit, role=role)
+    role = responder.get("role")
+    location = responder.get("location")
+    
+    # Admins might not have a location, but list_queue handles role="admin" separately
+    return await list_queue(limit=limit, role=role, user_location=location)
 
 
 @router.get("/incidents/{incident_id}")
@@ -40,11 +43,12 @@ async def get_incident_route(incident_id: str):
     "/incidents/{incident_id}/accept",
     dependencies=[Depends(require_roles("police", "ambulance", "fire", "admin"))],
 )
-async def accept_route(incident_id: str, body: dict):
-    unit_id = body.get("unit_id")
-    if not unit_id:
-        raise HTTPException(400, "unit_id required")
-    await accept_incident(incident_id, unit_id)
+async def accept_route(incident_id: str, responder: dict = Depends(get_current_responder_doc)):
+    """
+    Accept an incident. The system knows who the responder is from their token.
+    """
+    responder_id = responder.get("id")
+    await accept_incident(incident_id, responder_id)
     return {"ok": True}
 
 

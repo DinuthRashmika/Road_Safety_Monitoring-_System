@@ -1,10 +1,10 @@
-# app/seed/seed_cli.py
 import asyncio, argparse
-from app.db.mongo import get_db, ensure_indexes
+from app.db.mongo import get_db
+from app.db.indexes import ensure_all # Use the new ensure_all
 
 async def create_admin():
     db = get_db()
-    await ensure_indexes()
+    await ensure_all(db) # Use ensure_all
     if await db["users"].count_documents({"email": "admin@example.com"}):
         print("🟡 Admin user already exists.")
         return
@@ -14,7 +14,8 @@ async def create_admin():
         "name": "System Admin",
         "email": "admin@example.com",
         "role": "admin",
-        "password_hash": "Admin@123",  # plaintext; OK for local dev
+        "password_hash": "Admin@123",
+        "location": {"lat": 0.0, "lng": 0.0, "address": "Default Admin Location"} # <-- ADDED
     })
     print("✅ Admin user: admin@example.com / Admin@123 created successfully.")
 

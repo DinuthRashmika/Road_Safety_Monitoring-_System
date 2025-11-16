@@ -16,25 +16,16 @@ def _norm_user(doc: Dict[str, Any]) -> Dict[str, Any]:
         "name": doc.get("name"),
         "email": doc.get("email"),
         "role": doc.get("role"),
-    }
-
-def _norm_unit(doc: Dict[str, Any]) -> Dict[str, Any]:
-    return {
-        "id": _id(doc),
-        "code": doc.get("code"),
-        "type": doc.get("type"),
-        "home_lat": doc.get("home_lat"),
-        "home_lng": doc.get("home_lng"),
-        "status": doc.get("status"),
+        "location": doc.get("location"), # <-- ADDED
     }
 
 # ---------- Users (Responders) ----------
-async def create_user(name: str, email: str, role: str, password_hash: str) -> str:
+async def create_user(name: str, email: str, role: str, password_hash: str, location: dict) -> str:
     db = get_db()
     email_norm = email.strip().lower()
     try:
         res = await db["users"].insert_one(
-            {"name": name, "email": email_norm, "role": role, "password_hash": password_hash}
+            {"name": name, "email": email_norm, "role": role, "password_hash": password_hash, "location": location}
         )
         return str(res.inserted_id)
     except DuplicateKeyError:
@@ -49,10 +40,15 @@ async def get_user(user_id: str) -> Optional[Dict[str, Any]]:
     db = get_db()
     doc = await db["users"].find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
     return _norm_user(doc) if doc else None
+    
+async def get_user_by_email(email: str) -> Optional[dict]:
+    db = get_db()
+    return await db["users"].find_one({"email": email.strip().lower()})
+
 
 async def update_user(user_id: str, patch: Dict[str, Any]) -> None:
     """
-    patch may include: name, email (normalized), role, password_hash
+    patch may include: name, email (normalized), role, password_hash, location
     """
     db = get_db()
     if "email" in patch and isinstance(patch["email"], str):
@@ -66,37 +62,4 @@ async def delete_user(user_id: str) -> None:
     db = get_db()
     await db["users"].delete_one({"_id": ObjectId(user_id)})
 
-# ---------- Units ----------
-async def create_unit(doc: Dict[str, Any]) -> str:
-    db = get_db()
-    # Normalize/guard
-    if "code" in doc and isinstance(doc["code"], str):
-        doc["code"] = doc["code"].strip().upper()
-    try:
-        res = await db["units"].insert_one(doc)
-        return str(res.inserted_id)
-    except DuplicateKeyError:
-        raise ValueError("unit_code_exists")
-
-async def list_units() -> List[Dict[str, Any]]:
-    db = get_db()
-    cur = db["units"].find({})
-    return [_norm_unit(x) async for x in cur]
-
-async def get_unit(unit_id: str) -> Optional[Dict[str, Any]]:
-    db = get_db()
-    doc = await db["units"].find_one({"_id": ObjectId(unit_id)})
-    return _norm_unit(doc) if doc else None
-
-async def update_unit(unit_id: str, patch: Dict[str, Any]) -> None:
-    db = get_db()
-    if "code" in patch and isinstance(patch["code"], str):
-        patch["code"] = patch["code"].strip().upper()
-    try:
-        await db["units"].update_one({"_id": ObjectId(unit_id)}, {"$set": patch})
-    except DuplicateKeyError:
-        raise ValueError("unit_code_exists")
-
-async def delete_unit(unit_id: str) -> None:
-    db = get_db()
-    await db["units"].delete_one({"_id": ObjectId(unit_id)})
+# ---------- Units ---------- (ALL REMOVED)

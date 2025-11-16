@@ -3,8 +3,14 @@ from typing import Literal, Optional
 
 # ----- Shared role/type enums -----
 Role = Literal["admin", "police", "ambulance", "fire"]
-UnitType = Literal["police", "ambulance", "fire"]
-UnitStatus = Literal["available", "busy", "off"]
+# UnitType = Literal["police", "ambulance", "fire"]  <- REMOVED
+# UnitStatus = Literal["available", "busy", "off"]  <- REMOVED
+
+# ----- Location (re-used by Responders and Incidents) -----
+class Location(BaseModel):
+    lat: float
+    lng: float
+    address: Optional[str] = None
 
 # ----- Users (Responders) -----
 class UserCreate(BaseModel):
@@ -12,31 +18,20 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: Role
     password: str
+    location: Location # <-- ADDED
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[Role] = None
     password: Optional[str] = None  # optional; only set if changing password
+    location: Optional[Location] = None # <-- ADDED
 
 class UserView(BaseModel):
     id: str
     name: str
     email: EmailStr
     role: Role
+    location: Location # <-- ADDED
 
-# ----- Units -----
-class Unit(BaseModel):
-    id: str | None = None
-    code: str
-    type: UnitType
-    home_lat: float
-    home_lng: float
-    status: UnitStatus = "available"
-
-class UnitUpdate(BaseModel):
-    code: Optional[str] = None
-    type: Optional[UnitType] = None
-    home_lat: Optional[float] = None
-    home_lng: Optional[float] = None
-    status: Optional[UnitStatus] = None
+# ----- Units ----- (ALL REMOVED)

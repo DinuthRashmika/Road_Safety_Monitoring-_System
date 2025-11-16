@@ -34,6 +34,5 @@ async def login(payload: LoginRequest):
 
 @router.get("/me")
 async def me():
-    # Minimal placeholder; UI may store name/role from login or call
-    # a protected /responders/me later if you add one.
+
     return {"ok": True}
