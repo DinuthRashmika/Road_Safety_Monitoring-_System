@@ -1,16 +1,14 @@
 from __future__ import annotations
 import hashlib, hmac
 
-# Try bcrypt via passlib; fall back to dev SHA256 if anything fails.
 _HAS_BCRYPT = True
 try:
-    from passlib.context import CryptContext  # type: ignore
+    from passlib.context import CryptContext  
     _ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 except Exception:
     _HAS_BCRYPT = False
-    _ctx = None  # type: ignore
+    _ctx = None  
 
-# Simple dev salt for fallback hashing (DO NOT use in production)
 _DEV_SALT = b"ers-dev-fallback-salt"
 
 
@@ -28,7 +26,6 @@ def hash_password(pw: str) -> str:
         try:
             return _ctx.hash(pw[:72])  # bcrypt safe length
         except Exception:
-            # Any backend/self-test error -> fallback
             return _sha256_dev(pw)
     return _sha256_dev(pw)
 
@@ -40,15 +37,12 @@ def verify_password(pw: str, stored: str) -> bool:
     if not isinstance(stored, str) or not stored:
         return False
 
-    # Plaintext (used by some dev seeds)
     if not stored.startswith("$") and not stored.startswith("sha256$"):
         return hmac.compare_digest(stored, pw)
 
-    # Dev sha256 fallback
     if stored.startswith("sha256$"):
         return hmac.compare_digest(stored, _sha256_dev(pw))
 
-    # bcrypt
     if _HAS_BCRYPT and _ctx is not None and stored.startswith("$2"):
         try:
             return _ctx.verify(pw, stored)

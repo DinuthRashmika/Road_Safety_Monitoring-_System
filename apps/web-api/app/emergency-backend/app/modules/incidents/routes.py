@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-# Import the new dependency
 from app.deps import get_current_responder_doc, require_roles
 from app.utils.sse import event_stream
 from .repo import list_queue, get_incident, update_incident
@@ -17,7 +16,7 @@ router = APIRouter()
 @router.get("/incidents/queue")
 async def get_queue_route(
     limit: int = 50,
-    responder: dict = Depends(get_current_responder_doc), # <-- CHANGED
+    responder: dict = Depends(get_current_responder_doc), 
 ):
     """
     Role-aware, location-aware queue:
@@ -27,7 +26,6 @@ async def get_queue_route(
     role = responder.get("role")
     location = responder.get("location")
     
-    # Admins might not have a location, but list_queue handles role="admin" separately
     return await list_queue(limit=limit, role=role, user_location=location)
 
 

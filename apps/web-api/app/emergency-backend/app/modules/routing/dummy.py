@@ -21,7 +21,7 @@ async def route(from_lat: float, from_lng: float, to_lat: float, to_lng: float) 
         "eta_min": minutes,
         "mode": "dummy",
         "provider": "haversine",
-        "polyline": None,  # we return a simple path array in dummy mode
+        "polyline": None, 
         "path": [
             {"lat": from_lat, "lng": from_lng},
             {"lat": to_lat, "lng": to_lng},

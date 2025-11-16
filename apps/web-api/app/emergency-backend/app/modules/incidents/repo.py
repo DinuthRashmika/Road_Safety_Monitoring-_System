@@ -42,7 +42,6 @@ async def list_queue(limit: int = 50, role: Optional[str] = None, user_location:
     """
     db = get_db()
     
-    # --- Admin View: See all incidents, sorted by highest score ---
     if role == "admin":
         query: dict = {"status": "new"}
         cursor = (
@@ -53,12 +52,9 @@ async def list_queue(limit: int = 50, role: Optional[str] = None, user_location:
         )
         return [_norm(x) async for x in cursor]
 
-    # --- Responder View: See incidents geographically near them ---
     if not user_location:
-        return [] # Responders must have a location
+        return [] 
 
-    # This is a MongoDB Geospatial Aggregation.
-    # It finds incidents near the user's coordinates.
     pipeline = [
         {
             "$geoNear": {
@@ -66,7 +62,7 @@ async def list_queue(limit: int = 50, role: Optional[str] = None, user_location:
                     "type": "Point",
                     "coordinates": [user_location["lng"], user_location["lat"]]
                 },
-                "distanceField": "distance_m", # Adds a "distance_m" field (in meters)
+                "distanceField": "distance_m", 
                 "query": {
                     "status": "new",
                     "required_roles": {"$in": [role]}
@@ -74,7 +70,7 @@ async def list_queue(limit: int = 50, role: Optional[str] = None, user_location:
                 "spherical": True
             }
         },
-        { "$sort": {"distance_m": 1} }, # Sort by closest first
+        { "$sort": {"distance_m": 1} }, 
         { "$limit": limit }
     ]
     

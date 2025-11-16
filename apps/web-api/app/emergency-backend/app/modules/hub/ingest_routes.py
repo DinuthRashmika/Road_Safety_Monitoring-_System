@@ -1,4 +1,3 @@
-# app/modules/hub/ingest_routes.py
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Body
@@ -40,24 +39,18 @@ async def ingest(payload: dict = Body(...)):
     required_units are computed server-side from the incident details.
     """
     try:
-        # pull override not in model schema
         provided_score = payload.pop("score", None)
 
-        # validate as Incident
         inc = Incident(**payload)
 
-        # compute server-side (sets required_units based on fire_present, etc.)
         inc = compute_scores(inc)
 
-        # optional score override from Central Hub
         if provided_score is not None:
             inc.score = _coerce_score(provided_score)
 
-        # persist
         doc = inc.model_dump()
         inserted_id = await insert_incident(doc)
 
-        # broadcast JSON-safe
         out = _sanitize({**doc, "mongo_id": inserted_id})
         await broadcast_incident_update(out)
 

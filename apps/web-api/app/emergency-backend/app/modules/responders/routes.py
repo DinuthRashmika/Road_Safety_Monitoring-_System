@@ -4,19 +4,15 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.security.roles import require_roles
 from .schemas import (
     UserCreate, UserUpdate, UserView,
-    # Unit, UnitUpdate  <- REMOVED
+ 
 )
 from .service import admin_create_user, admin_update_user
 from .repo import (
     list_users, get_user, delete_user,
-    # create_unit, list_units, get_unit, update_unit, delete_unit <- REMOVED
 )
 
 router = APIRouter()
 
-# =========================
-# Responders (Users) – Admin only
-# =========================
 @router.post("/responders", dependencies=[Depends(require_roles("admin"))])
 async def create_responder(body: UserCreate):
     try:
@@ -38,7 +34,7 @@ async def get_responder(user_id: str):
     u = await get_user(user_id)
     if not u:
         raise HTTPException(status_code=404, detail="Responder not found")
-    return u  # matches UserView
+    return u  
 
 @router.put("/responders/{user_id}", dependencies=[Depends(require_roles("admin"))])
 async def edit_responder(user_id: str, body: UserUpdate):
@@ -54,7 +50,3 @@ async def edit_responder(user_id: str, body: UserUpdate):
 async def remove_responder(user_id: str):
     await delete_user(user_id)
     return {"ok": True}
-
-# =========================
-# Units – Admin only (ALL REMOVED)
-# =========================

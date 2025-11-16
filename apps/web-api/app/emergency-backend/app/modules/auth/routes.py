@@ -19,7 +19,7 @@ class TokenResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest):
-    # Normalize email to match how we store it (lowercased, trimmed)
+    
     email = payload.email.strip().lower()
     password = payload.password
 

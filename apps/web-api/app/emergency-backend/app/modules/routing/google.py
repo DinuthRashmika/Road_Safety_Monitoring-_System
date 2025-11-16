@@ -4,7 +4,7 @@ from app.utils.geo import haversine_km
 
 def _try_google_client():
     try:
-        import googlemaps  # type: ignore
+        import googlemaps  
         if not settings.GOOGLE_MAPS_API_KEY:
             return None
         return googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
@@ -77,7 +77,7 @@ async def route(from_lat: float, from_lng: float, to_lat: float, to_lng: float) 
                     "eta_min": round(leg["duration"]["value"] / 60.0, 1),
                     "mode": "google",
                     "provider": "google_directions",
-                    "polyline": overview.get("points"),  # Encoded polyline string
+                    "polyline": overview.get("points"),  
                     "bounds": bounds,
                     "start": leg.get("start_location"),
                     "end": leg.get("end_location"),
@@ -86,7 +86,6 @@ async def route(from_lat: float, from_lng: float, to_lat: float, to_lng: float) 
         except Exception:
             pass
 
-    # Fallback: straight line polyline not encoded (keep simple)
     km = haversine_km(from_lat, from_lng, to_lat, to_lng)
     minutes = round((km / 30.0) * 60.0, 1) if km > 0 else 0.0
     return {
@@ -95,7 +94,7 @@ async def route(from_lat: float, from_lng: float, to_lat: float, to_lng: float) 
         "mode": "google",
         "provider": "fallback",
         "polyline": None,
-        "path": [  # simple 2-point path (frontend can draw a line)
+        "path": [ 
             {"lat": from_lat, "lng": from_lng},
             {"lat": to_lat, "lng": to_lng},
         ],

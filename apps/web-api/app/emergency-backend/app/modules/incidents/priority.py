@@ -23,32 +23,30 @@ def score_incident(inc: Incident) -> Incident:
 
     if inc.accident:
         if inc.accident.fire_present:
-            # hard override + require fire responders
             inc.score = 100
             explain.append("Fire detected → hard override to 100")
-            inc.required_roles = ["ambulance", "police", "fire"] # <-- RENAMED
+            inc.required_roles = ["ambulance", "police", "fire"] 
         else:
             V = clamp01((inc.accident.vehicles_involved - 1) / 3)
             inc.score = round(100 * (0.50 * G + 0.35 * V + 0.15 * R))
             explain.append(f"Accident: G={G:.2f}, V={V:.2f}, R={R:.2f}")
-            inc.required_roles = ["ambulance", "police"] # <-- RENAMED
+            inc.required_roles = ["ambulance", "police"] 
 
     elif inc.violence:
         W = clamp01(inc.violence.weapon_conf)
         P = clamp01((inc.violence.participants_count - 1) / 4)
         inc.score = round(100 * (0.40 * G + 0.35 * W + 0.15 * P + 0.10 * R))
         explain.append(f"Violence: G={G:.2f}, W={W:.2f}, P={P:.2f}, R={R:.2f}")
-        inc.required_roles = ["police"] # <-- RENAMED
+        inc.required_roles = ["police"] 
 
     else:
         inc.score = round(100 * G)
-        inc.required_roles = [] # <-- RENAMED
+        inc.required_roles = [] 
 
     inc.explain = explain
     return inc
 
 def tie_breaker_key(doc: dict):
-    # severity > older reported_at first > accidents preferred > risk
     sev = {"high": 3, "medium": 2, "low": 1}.get(doc.get("severity_grade"), 1)
     is_acc = 1 if doc.get("accident") else 0
     risk = {"high": 3, "medium": 2, "low": 1}.get(doc.get("camera_risk_class"), 1)

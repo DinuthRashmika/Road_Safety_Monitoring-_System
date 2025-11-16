@@ -9,17 +9,9 @@ from app.db.mongo import get_db
 from app.security.jwt import decode_token
 from app.modules.responders.repo import get_user
 
-
-# ---------------------------------------------------------------------
-# Database dependency
-# ---------------------------------------------------------------------
 async def get_database():
     return get_db()
 
-
-# ---------------------------------------------------------------------
-# Authentication dependency
-# ---------------------------------------------------------------------
 bearer_scheme = HTTPBearer(auto_error=False)
 
 async def get_current_user(
@@ -56,7 +48,7 @@ async def get_current_responder_doc(payload: dict = Depends(get_current_user)) -
     return user_doc
 
 
-def require_roles(*roles: str): # <--- THIS IS THE FIX (was 'async def')
+def require_roles(*roles: str): 
     """
     Usage:
         @router.get("/admin", dependencies=[Depends(require_roles("admin"))])
