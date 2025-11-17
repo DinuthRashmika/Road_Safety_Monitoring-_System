@@ -26,6 +26,9 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
   bool _agree = false;
   String? _imgPath;
 
+  final _nicReg = RegExp(r'^(\d{9}[VvXx]|\d{12})$');
+  final _phoneReg = RegExp(r'^[0-9]{9,10}$');
+
   Future<void> _pickImage() async {
     final x = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -33,9 +36,6 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
     );
     if (x != null) setState(() => _imgPath = x.path);
   }
-
-  // Sri Lanka NIC: old 9 digits + [VvXx] OR new 12 digits
-  final _nicReg = RegExp(r'^(\d{9}[VvXx]|\d{12})$');
 
   double get _pwdStrength {
     final p = _password.text;
@@ -50,9 +50,15 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
   }
 
   Color _pwdColor(double v) {
-    if (v < 0.34) return const Color(0xFFEF5350); // red
-    if (v < 0.67) return const Color(0xFFFFB300); // amber
-    return const Color(0xFF43A047); // green
+    if (v < 0.34) return const Color(0xFFEF5350);
+    if (v < 0.67) return const Color(0xFFFFB300);
+    return const Color(0xFF43A047);
+  }
+
+  String _pwdText(double v) {
+    if (v < 0.34) return 'Weak';
+    if (v < 0.67) return 'Medium';
+    return 'Strong';
   }
 
   Future<void> _submit() async {
@@ -60,7 +66,11 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_agree) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please accept the Privacy Policy and Terms.')),
+        SnackBar(
+          content: const Text('Please accept the Privacy Policy and Terms.'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       );
       return;
     }
@@ -77,331 +87,610 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registered. Please log in.')),
+        SnackBar(
+          content: const Text('Registration successful! Please log in.'),
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       );
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registration failed')),
+        SnackBar(
+          content: const Text('Registration failed. Please try again.'),
+          backgroundColor: Colors.red.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       );
     } finally {
       setState(() => _loading = false);
     }
   }
 
-  InputDecoration _decoration(String hint, {Widget? suffix, int? maxLines}) {
+  InputDecoration _decoration({
+    required String label,
+    required String hint,
+    Widget? prefix,
+    Widget? suffix,
+    bool isRequired = true,
+  }) {
     return InputDecoration(
+      labelText: label,
       hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      prefixIcon: prefix,
       suffixIcon: suffix,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: Color(0xFF1A73E8), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
       ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      labelStyle: TextStyle(
+        color: Colors.grey.shade600,
+        fontWeight: FontWeight.w500,
+      ),
+      hintStyle: TextStyle(color: Colors.grey.shade400),
     );
+  }
+
+  String? _validateRequired(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName is required';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) return 'Email is required';
+    final ok = RegExp(r"^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,}$").hasMatch(value);
+    return ok ? null : 'Please enter a valid email address';
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) return 'Phone number is required';
+    return _phoneReg.hasMatch(value.replaceAll(RegExp(r'[-\s]'), ''))
+        ? null
+        : 'Please enter a valid phone number';
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Password is required';
+    if (value.length < 6) return 'Password must be at least 6 characters';
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2563EB);
+    const primaryColor = Color(0xFF2563EB);
+    const secondaryColor = Color(0xFF64748B);
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
-        title: const Text('Registration'),
+        title: const Text(
+          'Create Account',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
-      backgroundColor: const Color(0xFFF7F8FA),
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 10),
-                  ),
-                ],
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Form(
-                key: _formKey,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar picker (dotted)
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: _imgPath == null
-                            ? DottedBorder(
-                                borderType: BorderType.Circle,
-                                dashPattern: const [6, 6],
-                                color: Colors.grey.shade400,
-                                strokeWidth: 1.6,
-                                child: Container(
-                                  width: 86,
-                                  height: 86,
-                                  alignment: Alignment.center,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.photo_camera_outlined,
-                                          size: 26, color: Colors.grey.shade700),
-                                      const SizedBox(height: 2),
-                                      Text('+',
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: Colors.grey.shade700)),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : CircleAvatar(
-                                radius: 43,
-                                backgroundImage: FileImage(File(_imgPath!)),
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    const Text(
-                      'Owner Details',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Full name
-                    const Text('Full Name',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _name,
-                      decoration: _decoration('Enter your full name'),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Email
-                    const Text('Email',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: _decoration('Enter your email address'),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Required';
-                        final ok = RegExp(
-                                r"^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,}$")
-                            .hasMatch(v);
-                        return ok ? null : 'Please enter a valid email';
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // NIC/ID
-                    const Text('NIC/ID',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _nic,
-                      decoration: _decoration('Enter your NIC/ID'),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Required';
-                        return _nicReg.hasMatch(v)
-                            ? null
-                            : 'Please enter a valid NIC/ID.';
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Contact Number
-                    const Text('Contact Number',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _phone,
-                      keyboardType: TextInputType.phone,
-                      decoration: _decoration('Enter your contact number'),
-                      validator: (v) =>
-                          (v == null || v.trim().length < 7) ? 'Invalid number' : null,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Address
-                    const Text('Address',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _address,
-                      maxLines: 3,
-                      decoration: _decoration('Enter your address'),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Required' : null,
-                    ),
-
-                    const SizedBox(height: 16),
-                    Divider(color: Colors.grey.shade300, height: 32),
-
-                    const Text(
-                      'Security',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Password
-                    const Text('Password',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      controller: _password,
-                      obscureText: _obscure,
-                      onChanged: (_) => setState(() {}),
-                      decoration: _decoration(
-                        'Create a password',
-                        suffix: IconButton(
-                          splashRadius: 20,
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          icon: Icon(
-                            _obscure
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                      validator: (v) =>
-                          (v == null || v.length < 6) ? 'Min 6 characters' : null,
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Strength bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: _pwdStrength == 0 ? 0.02 : _pwdStrength,
-                        minHeight: 6,
-                        backgroundColor: const Color(0xFFECEFF1),
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(_pwdColor(_pwdStrength)),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Terms
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    // Profile Picture Section
+                    Column(
                       children: [
-                        Checkbox(
-                          value: _agree,
-                          onChanged: (v) => setState(() => _agree = v ?? false),
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: _imgPath == null
+                              ? DottedBorder(
+                                  borderType: BorderType.Circle,
+                                  dashPattern: const [6, 6],
+                                  color: Colors.grey.shade400,
+                                  strokeWidth: 2,
+                                  child: Container(
+                                    width: 100,
+                                    height: 100,
+                                    alignment: Alignment.center,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.add_a_photo,
+                                            size: 32, color: Colors.grey.shade600),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Add Photo',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : Stack(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 50,
+                                      backgroundImage: FileImage(File(_imgPath!)),
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: primaryColor,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 13.5,
-                              ),
-                              children: [
-                                const TextSpan(text: 'I agree to the '),
-                                TextSpan(
-                                  text: 'Privacy Policy',
-                                  style: const TextStyle(
-                                      color: Color(0xFF2563EB),
-                                      fontWeight: FontWeight.w700),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = () {
-                                      Navigator.pushNamed(context, '/privacy');
-                                    },
-                                ),
-                                const TextSpan(text: ' and '),
-                                TextSpan(
-                                  text: 'Terms of Service',
-                                  style: const TextStyle(
-                                      color: Color(0xFF2563EB),
-                                      fontWeight: FontWeight.w700),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = () {
-                                      Navigator.pushNamed(context, '/terms');
-                                    },
-                                ),
-                                const TextSpan(text: '.'),
-                              ],
-                            ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add profile picture (Optional)',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 12),
-
-                    // Register button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: _loading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor:
-                                      AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Register',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Join RoadGuru Today',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black87,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create your account to get started',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: secondaryColor,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
+
+              const SizedBox(height: 16),
+
+              // Registration Form
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                  border: Border.all(color: Colors.grey.shade100, width: 1),
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      // Personal Details Section
+                      const Row(
+                        children: [
+                          Icon(Icons.person_outline, size: 20, color: Color(0xFF2563EB)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Personal Details',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Full Name
+                      TextFormField(
+                        controller: _name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: _decoration(
+                          label: 'Full Name',
+                          hint: 'Enter your full name',
+                          prefix: Icon(
+                            Icons.person_outline,
+                            color: Colors.grey.shade500,
+                            size: 22,
+                          ),
+                        ),
+                        validator: (v) => _validateRequired(v, 'Full name'),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Email
+                      TextFormField(
+                        controller: _email,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: _decoration(
+                          label: 'Email Address',
+                          hint: 'Enter your email address',
+                          prefix: Icon(
+                            Icons.email_outlined,
+                            color: Colors.grey.shade500,
+                            size: 22,
+                          ),
+                        ),
+                        validator: _validateEmail,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // NIC/ID
+                      TextFormField(
+                        controller: _nic,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: _decoration(
+                          label: 'NIC/ID Number',
+                          hint: 'Enter your NIC or ID number',
+                          prefix: Icon(
+                            Icons.badge_outlined,
+                            color: Colors.grey.shade500,
+                            size: 22,
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'NIC/ID is required';
+                          return _nicReg.hasMatch(v)
+                              ? null
+                              : 'Please enter a valid NIC/ID number';
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Contact Number
+                      TextFormField(
+                        controller: _phone,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: _decoration(
+                          label: 'Contact Number',
+                          hint: 'Enter your phone number',
+                          prefix: Icon(
+                            Icons.phone_outlined,
+                            color: Colors.grey.shade500,
+                            size: 22,
+                          ),
+                        ),
+                        validator: _validatePhone,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Address
+                      TextFormField(
+                        controller: _address,
+                        maxLines: 3,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: _decoration(
+                          label: 'Address',
+                          hint: 'Enter your complete address',
+                          prefix: Icon(
+                            Icons.home_outlined,
+                            color: Colors.grey.shade500,
+                            size: 22,
+                          ),
+                        ),
+                        validator: (v) => _validateRequired(v, 'Address'),
+                      ),
+
+                      const SizedBox(height: 32),
+                      Divider(color: Colors.grey.shade300, height: 1),
+                      const SizedBox(height: 32),
+
+                      // Security Section
+                      const Row(
+                        children: [
+                          Icon(Icons.lock_outline, size: 20, color: Color(0xFF2563EB)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Security',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Password
+                      TextFormField(
+                        controller: _password,
+                        obscureText: _obscure,
+                        onChanged: (_) => setState(() {}),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: _decoration(
+                          label: 'Password',
+                          hint: 'Create a strong password',
+                          prefix: Icon(
+                            Icons.lock_outline,
+                            color: Colors.grey.shade500,
+                            size: 22,
+                          ),
+                          suffix: IconButton(
+                            splashRadius: 20,
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                            icon: Icon(
+                              _obscure
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey.shade500,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        validator: _validatePassword,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Password Strength Indicator
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Password Strength',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                _pwdText(_pwdStrength),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _pwdColor(_pwdStrength),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: _pwdStrength == 0 ? 0.02 : _pwdStrength,
+                              minHeight: 8,
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                  _pwdColor(_pwdStrength)),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Use 8+ characters with mix of letters, numbers & symbols',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Terms and Conditions
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Checkbox(
+                              value: _agree,
+                              onChanged: (v) => setState(() => _agree = v ?? false),
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                  children: [
+                                    const TextSpan(text: 'I agree to the '),
+                                    TextSpan(
+                                      text: 'Privacy Policy',
+                                      style: const TextStyle(
+                                        color: Color(0xFF2563EB),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () {
+                                          Navigator.pushNamed(context, '/privacy');
+                                        },
+                                    ),
+                                    const TextSpan(text: ' and '),
+                                    TextSpan(
+                                      text: 'Terms of Service',
+                                      style: const TextStyle(
+                                        color: Color(0xFF2563EB),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      recognizer: TapGestureRecognizer()
+                                        ..onTap = () {
+                                          Navigator.pushNamed(context, '/terms');
+                                        },
+                                    ),
+                                    const TextSpan(text:
+                                        '. I understand that my data will be processed in accordance with RoadGuru\'s policies.'),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Register Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            shadowColor: primaryColor.withOpacity(0.3),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Create Account',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward, size: 20),
+                                  ],
+                                ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Login Link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Already have an account? ',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 15,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _loading ? null : () => Navigator.pop(context),
+                            child: const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Color(0xFF2563EB),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
       ),

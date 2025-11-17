@@ -26,6 +26,43 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _picking = false;
 
+  // Colors
+  final Color _primaryColor = const Color(0xFF2563EB);
+  final Color _primaryDark = const Color(0xFF1D4ED8);
+  final Color _successColor = const Color(0xFF10B981);
+  final Color _warningColor = const Color(0xFFF59E0B);
+  final Color _errorColor = const Color(0xFFEF4444);
+  final Color _surfaceColor = Colors.white;
+  final Color _backgroundColor = const Color(0xFFF8FAFC);
+  final Color _borderColor = const Color(0xFFE2E8F0);
+  final Color _textPrimary = const Color(0xFF1E293B);
+  final Color _textSecondary = const Color(0xFF64748B);
+  final Color _textDisabled = const Color(0xFF94A3B8);
+
+  // Text Styles
+  TextStyle get _titleStyle => const TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        color: Colors.black87,
+      );
+
+  TextStyle get _sectionTitleStyle => const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      );
+
+  TextStyle get _labelStyle => const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      );
+
+  TextStyle get _hintStyle => TextStyle(
+        fontSize: 14,
+        color: _textSecondary,
+      );
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -33,6 +70,20 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       firstDate: DateTime(now.year - 50),
       lastDate: now,
       initialDate: now,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: _primaryColor,
+              onPrimary: Colors.white,
+              surface: _surfaceColor,
+              onSurface: _textPrimary,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked != null && mounted) setState(() => _regDate = picked);
   }
@@ -74,14 +125,24 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       debugPrint('ImagePicker PlatformException: ${err.code} - ${err.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: ${err.message ?? err.code}')),
+          SnackBar(
+            content: Text('Failed to pick image: ${err.message ?? err.code}'),
+            backgroundColor: _errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
         );
       }
     } catch (e) {
       debugPrint('ImagePicker unknown error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to pick image')),
+          SnackBar(
+            content: const Text('Failed to pick image'),
+            backgroundColor: _errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
         );
       }
     } finally {
@@ -91,7 +152,14 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
 
   Future<void> _submit() async {
     if (_regDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select registration date')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Select registration date'),
+          backgroundColor: _warningColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
       return;
     }
     setState(() => _saving = true);
@@ -108,11 +176,29 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         imagePlate: fPlate,
       );
       if (!mounted) return;
+      
+      // Show success feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Vehicle added successfully!'),
+          backgroundColor: _successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+      
       Navigator.pop(context);
     } catch (e) {
       debugPrint('Vehicle create failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create vehicle')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to create vehicle'),
+            backgroundColor: _errorColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -122,32 +208,48 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   Widget _buildImageUpload(String label, String? path, VoidCallback onPick, {bool required = false}) {
     final bool disabled = _picking;
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE6E9EF)),
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.photo_camera_outlined,
+                  size: 16,
+                  color: _primaryColor,
+                ),
+              ),
+              const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+                style: _labelStyle,
               ),
               if (required) ...[
                 const SizedBox(width: 4),
-                const Text(
+                Text(
                   '*',
                   style: TextStyle(
-                    color: Colors.red,
+                    color: _errorColor,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -155,54 +257,118 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               ],
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Container(
-            height: 120,
+            height: 140,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: _backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _borderColor, width: 1.5),
             ),
             child: path != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(File(path), fit: BoxFit.cover, errorBuilder: (c, e, s) {
-                      // show fallback if file can't be displayed
-                      return Center(child: Text('Cannot open image', style: TextStyle(color: Colors.grey[600])));
-                    }),
+                ? Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(
+                          File(path),
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (c, e, s) {
+                            return Container(
+                              color: _backgroundColor,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.error_outline, color: _textDisabled, size: 32),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Cannot display image',
+                                    style: TextStyle(color: _textDisabled),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.check_circle,
+                            color: _successColor,
+                            size: 16,
+                          ),
+                        ),
+                      ),
+                    ],
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
-                        Icons.camera_alt_outlined,
-                        size: 32,
-                        color: Colors.grey[400],
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.camera_alt_outlined,
+                          size: 24,
+                          color: _primaryColor,
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       Text(
                         'Upload $label Photo',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
+                        style: _hintStyle.copyWith(fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Tap to select from gallery',
+                        style: _hintStyle.copyWith(fontSize: 12),
                       ),
                     ],
                   ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
+            child: FilledButton.icon(
               onPressed: disabled ? null : onPick,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF2563EB),
-                side: const BorderSide(color: Color(0xFF2563EB)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+              style: FilledButton.styleFrom(
+                backgroundColor: path == null ? _primaryColor : Colors.transparent,
+                foregroundColor: path == null ? Colors.white : _primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: path == null ? BorderSide.none : BorderSide(color: _primaryColor, width: 1.5),
+                ),
+                elevation: 0,
               ),
-              child: Text(path == null ? (disabled ? 'Picking...' : 'Upload') : (disabled ? 'Picking...' : 'Change Photo')),
+              icon: Icon(
+                path == null ? Icons.cloud_upload_outlined : Icons.edit_outlined,
+                size: 18,
+              ),
+              label: Text(
+                path == null 
+                  ? (disabled ? 'Selecting...' : 'Upload Photo')
+                  : (disabled ? 'Selecting...' : 'Change Photo'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
         ],
@@ -215,196 +381,175 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Vehicle Type
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE6E9EF)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Vehicle Type*',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+        _buildSection(
+          title: 'Vehicle Type',
+          subtitle: 'Select the type of your vehicle.',
+          required: true,
+          child: DropdownButtonFormField<String>(
+            value: _type.text,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderColor),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Select the type of your vehicle.',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _primaryColor, width: 2),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _type.text,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE6E9EF)),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                items: ['Car', 'Motorcycle', 'Truck', 'SUV', 'Van']
-                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                    .toList(),
-                onChanged: (value) => setState(() => _type.text = value ?? 'Car'),
-              ),
-            ],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            items: ['Car', 'Motorcycle', 'Truck', 'SUV', 'Van']
+                .map((type) => DropdownMenuItem(
+                      value: type,
+                      child: Text(type, style: const TextStyle(fontSize: 16)),
+                    ))
+                .toList(),
+            onChanged: (value) => setState(() => _type.text = value ?? 'Car'),
+            style: const TextStyle(color: Colors.black87, fontSize: 16),
+            dropdownColor: _surfaceColor,
+            borderRadius: BorderRadius.circular(10),
+            icon: Icon(Icons.arrow_drop_down, color: _primaryColor),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // Vehicle Model
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE6E9EF)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Vehicle Model*',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+        _buildSection(
+          title: 'Vehicle Model',
+          subtitle: 'Make, model, and year.',
+          required: true,
+          child: TextField(
+            controller: _model,
+            decoration: InputDecoration(
+              hintText: 'e.g., Toyota Aqua 2016',
+              hintStyle: _hintStyle,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderColor),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Make, model, and year.',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _primaryColor, width: 2),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _model,
-                decoration: InputDecoration(
-                  hintText: 'e.g., Toyota Aqua 2016',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE6E9EF)),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            style: const TextStyle(fontSize: 16),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // Registration Date
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE6E9EF)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Registration Date*',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+        _buildSection(
+          title: 'Registration Date',
+          subtitle: 'Date of first registration.',
+          required: true,
+          child: GestureDetector(
+            onTap: _pickDate,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                border: Border.all(color: _borderColor),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Date of first registration.',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE6E9EF)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _regDate == null ? 'Select Date' : DateFormat('yyyy-MM-dd').format(_regDate!),
-                      style: TextStyle(
-                        color: _regDate == null ? Colors.grey[500] : Colors.black87,
-                        fontSize: 16,
-                      ),
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_today_outlined, color: _textSecondary, size: 20),
+                  const SizedBox(width: 12),
+                  Text(
+                    _regDate == null ? 'Select Date' : DateFormat('MMMM dd, yyyy').format(_regDate!),
+                    style: TextStyle(
+                      color: _regDate == null ? _textDisabled : _textPrimary,
+                      fontSize: 16,
                     ),
-                    const Spacer(),
+                  ),
+                  const Spacer(),
+                  if (_regDate != null)
                     IconButton(
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.calendar_today, color: Color(0xFF2563EB)),
+                      onPressed: () => setState(() => _regDate = null),
+                      icon: Icon(Icons.close, color: _textSecondary, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
-                  ],
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
 
         // Number Plate
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE6E9EF)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Number Plate*',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
+        _buildSection(
+          title: 'Number Plate',
+          subtitle: 'Please enter a valid number plate.',
+          required: true,
+          child: TextField(
+            controller: _plate,
+            decoration: InputDecoration(
+              hintText: 'ABC-1234',
+              hintStyle: _hintStyle,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _borderColor),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Please enter a valid number plate.',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 14,
-                ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: _primaryColor, width: 2),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _plate,
-                decoration: InputDecoration(
-                  hintText: 'ABC-1234',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE6E9EF)),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-              ),
-            ],
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+            style: const TextStyle(fontSize: 16, letterSpacing: 1.2),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSection({
+    required String title,
+    required String subtitle,
+    required Widget child,
+    bool required = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(title, style: _labelStyle),
+              if (required) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '*',
+                  style: TextStyle(
+                    color: _errorColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(subtitle, style: _hintStyle),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
     );
   }
 
@@ -414,111 +559,222 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         // Tips Box
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: const Color(0xFFF0F9FF),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFBAE6FD)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFFF0F9FF),
+                const Color(0xFFE0F2FE),
+              ],
+            ),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.lightbulb_outline, color: Colors.blue[700]),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: _primaryColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.lightbulb_outline, color: Colors.white, size: 18),
+              ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Tips: Use good lighting and make sure the number plate is fully visible and readable.',
-                  style: TextStyle(
-                    color: Colors.blue[800],
-                    fontSize: 14,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Photo Guidelines',
+                      style: TextStyle(
+                        color: _primaryDark,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '• Use good lighting and avoid shadows\n• Ensure the number plate is fully visible and readable\n• Capture the entire vehicle in frame\n• Avoid blurry or dark photos',
+                      style: TextStyle(
+                        color: _primaryDark.withOpacity(0.8),
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
         // Photo Upload Sections
-        _buildImageUpload('Front', fFront, () => _pick('front'), required: true),
-        _buildImageUpload('Back', fBack, () => _pick('back'), required: true),
-        _buildImageUpload('Right', fRight, () => _pick('right'), required: true),
-        _buildImageUpload('Left', fLeft, () => _pick('left'), required: true),
+        _buildImageUpload('Front View', fFront, () => _pick('front'), required: true),
+        _buildImageUpload('Rear View', fBack, () => _pick('back'), required: true),
+        _buildImageUpload('Right Side', fRight, () => _pick('right'), required: true),
+        _buildImageUpload('Left Side', fLeft, () => _pick('left'), required: true),
         _buildImageUpload('Number Plate', fPlate, () => _pick('plate'), required: true),
       ],
     );
   }
 
   Widget _buildConfirmStep() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE6E9EF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Vehicle Details',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildDetailRow('Type:', _type.text),
-          _buildDetailRow('Model:', _model.text.isEmpty ? 'Not specified' : _model.text),
-          _buildDetailRow('Registration:', _regDate == null ? 'Not selected' : DateFormat('yyyy-MM-dd').format(_regDate!)),
-          _buildDetailRow('Plate:', _plate.text.isEmpty ? 'Not specified' : _plate.text),
-          const SizedBox(height: 20),
-          const Text(
-            'Photos',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (fFront != null) _buildPhotoThumbnail(fFront!, 'Front'),
-              if (fBack != null) _buildPhotoThumbnail(fBack!, 'Back'),
-              if (fRight != null) _buildPhotoThumbnail(fRight!, 'Right'),
-              if (fLeft != null) _buildPhotoThumbnail(fLeft!, 'Left'),
-              if (fPlate != null) _buildPhotoThumbnail(fPlate!, 'Plate'),
+    return Column(
+      children: [
+        // Summary Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
             ],
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: _successColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.check_circle_outline, color: _successColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Ready to Submit',
+                    style: _sectionTitleStyle,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildDetailRow('Vehicle Type:', _type.text),
+              _buildDetailRow('Vehicle Model:', _model.text.isEmpty ? 'Not specified' : _model.text),
+              _buildDetailRow('Registration Date:', _regDate == null ? 'Not selected' : DateFormat('MMMM dd, yyyy').format(_regDate!)),
+              _buildDetailRow('License Plate:', _plate.text.isEmpty ? 'Not specified' : _plate.text),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Photos Preview
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.photo_library_outlined, color: _primaryColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Uploaded Photos',
+                    style: _sectionTitleStyle,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  if (fFront != null) _buildPhotoThumbnail(fFront!, 'Front'),
+                  if (fBack != null) _buildPhotoThumbnail(fBack!, 'Rear'),
+                  if (fRight != null) _buildPhotoThumbnail(fRight!, 'Right'),
+                  if (fLeft != null) _buildPhotoThumbnail(fLeft!, 'Left'),
+                  if (fPlate != null) _buildPhotoThumbnail(fPlate!, 'Plate'),
+                ],
+              ),
+              if (fFront == null && fBack == null && fRight == null && fLeft == null && fPlate == null)
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: _backgroundColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.photo_outlined, color: _textDisabled, size: 48),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No photos uploaded',
+                        style: TextStyle(color: _textDisabled, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: _borderColor.withOpacity(0.5)),
+        ),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: 140,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
+                color: _textSecondary,
+                fontSize: 14,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: Colors.black87,
+              style: TextStyle(
+                color: _textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -531,21 +787,41 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
     return Column(
       children: [
         Container(
-          width: 80,
-          height: 60,
+          width: 100,
+          height: 75,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            image: DecorationImage(
-              image: FileImage(File(path)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.file(
+              File(path),
               fit: BoxFit.cover,
+              errorBuilder: (c, e, s) {
+                return Container(
+                  color: _backgroundColor,
+                  child: Icon(Icons.error_outline, color: _textDisabled),
+                );
+              },
             ),
-            border: Border.all(color: const Color(0xFFE6E9EF)),
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: _textSecondary,
+          ),
         ),
       ],
     );
@@ -554,65 +830,92 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // allow the scaffold to resize when keyboard shows (default true)
+      backgroundColor: _backgroundColor,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Add Vehicle',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-          ),
+          style: _titleStyle,
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: _surfaceColor,
         elevation: 0,
         foregroundColor: Colors.black87,
+        centerTitle: false,
+        shadowColor: Colors.black.withOpacity(0.1),
+        surfaceTintColor: _surfaceColor,
       ),
       body: Column(
         children: [
           // Stepper Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _surfaceColor,
               border: Border(
-                bottom: BorderSide(color: Colors.grey[200]!),
+                bottom: BorderSide(color: _borderColor),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStep(1, 'Details', _currentStep >= 0),
-                _buildStep(2, 'Photos', _currentStep >= 1),
-                _buildStep(3, 'Confirm', _currentStep >= 2),
+                _buildStep(1, 'Details', _currentStep == 0, _currentStep > 0),
+                _buildStep(2, 'Photos', _currentStep == 1, _currentStep > 1),
+                _buildStep(3, 'Confirm', _currentStep == 2, _currentStep > 2),
               ],
             ),
           ),
 
-          // Content: replaced SingleChildScrollView with ListView for reliable scrolling
+          // Content
           Expanded(
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              physics: const ClampingScrollPhysics(),
+              padding: const EdgeInsets.all(24),
               children: [
-                // show only the active step widget(s)
+                // Step title
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Text(
+                    _currentStep == 0
+                        ? 'Vehicle Information'
+                        : _currentStep == 1
+                            ? 'Vehicle Photos'
+                            : 'Review & Submit',
+                    style: _sectionTitleStyle.copyWith(fontSize: 20),
+                  ),
+                ),
+
+                // Step content
                 if (_currentStep == 0) _buildDetailsStep(),
                 if (_currentStep == 1) _buildPhotosStep(),
                 if (_currentStep == 2) _buildConfirmStep(),
-                // add some bottom spacing so last element isn't hidden under bottom bar
-                const SizedBox(height: 8),
+                
+                const SizedBox(height: 20),
               ],
             ),
           ),
 
           // Bottom Buttons
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _surfaceColor,
               border: Border(
-                top: BorderSide(color: Colors.grey[200]!),
+                top: BorderSide(color: _borderColor),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
             child: Row(
               children: [
@@ -621,13 +924,21 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                     child: OutlinedButton(
                       onPressed: () => setState(() => _currentStep--),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: _borderColor),
                       ),
-                      child: const Text('Back'),
+                      child: Text(
+                        'Back',
+                        style: TextStyle(
+                          color: _textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
-                if (_currentStep > 0) const SizedBox(width: 12),
+                if (_currentStep > 0) const SizedBox(width: 16),
                 Expanded(
                   flex: _currentStep == 0 ? 2 : 1,
                   child: FilledButton(
@@ -635,21 +946,45 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                         ? null
                         : () {
                             if (_currentStep < 2) {
-                              // ensure we scroll to top when moving steps (nice UX)
-                              // we can optionally use a ScrollController later — for now just setState
                               setState(() => _currentStep++);
                             } else {
                               _submit();
                             }
                           },
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      backgroundColor: _primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
                     ),
-                    child: Text(
-                      _saving ? 'Submitting...' : _currentStep == 2 ? 'Submit' : 'Next',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_saving)
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white.withOpacity(0.8)),
+                            ),
+                          )
+                        else if (_currentStep == 2)
+                          const Icon(Icons.check_circle_outline, size: 20),
+                        if (_saving || _currentStep == 2) const SizedBox(width: 8),
+                        Text(
+                          _saving
+                              ? 'Submitting...'
+                              : _currentStep == 2
+                                  ? 'Submit Vehicle'
+                                  : 'Continue',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -661,36 +996,53 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
     );
   }
 
-  Widget _buildStep(int number, String title, bool isActive) {
-    return Column(
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF2563EB) : Colors.grey[300],
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(
-              number.toString(),
-              style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey[600],
-                fontWeight: FontWeight.w600,
+  Widget _buildStep(int number, String title, bool isActive, bool isCompleted) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isCompleted
+                  ? _successColor
+                  : isActive
+                      ? _primaryColor
+                      : _backgroundColor,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isCompleted
+                    ? _successColor
+                    : isActive
+                        ? _primaryColor
+                        : _borderColor,
+                width: 2,
               ),
             ),
+            child: Center(
+              child: isCompleted
+                  ? Icon(Icons.check, color: Colors.white, size: 18)
+                  : Text(
+                      number.toString(),
+                      style: TextStyle(
+                        color: isActive ? Colors.white : _textDisabled,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            color: isActive ? const Color(0xFF2563EB) : Colors.grey[600],
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            fontSize: 12,
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              color: isActive || isCompleted ? _textPrimary : _textDisabled,
+              fontWeight: (isActive || isCompleted) ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 12,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
