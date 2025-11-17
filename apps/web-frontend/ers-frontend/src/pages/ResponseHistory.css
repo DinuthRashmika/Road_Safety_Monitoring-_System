@@ -1,0 +1,35 @@
+.history-list {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item-info h4 {
+  margin: 0 0 4px 0;
+}
+.history-item-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.status-resolved {
+  color: #5cb85c;
+  background-color: #eaf6ea;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
