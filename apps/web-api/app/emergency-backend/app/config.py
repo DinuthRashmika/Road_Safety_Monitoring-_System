@@ -20,8 +20,9 @@ class Settings(BaseModel):
     GOOGLE_MAPS_API_KEY: str | None = os.getenv("GOOGLE_MAPS_API_KEY")
 
     # CORS
-    CORS_ORIGINS: list[str] = (
-        os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else ["*"]
-    )
+    # CORS
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173" 
+    ]
 
 settings = Settings()

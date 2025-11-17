@@ -1,13 +1,16 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Literal, Optional
+from typing import Literal, Optional # Make sure Optional is imported
 
+# ----- Shared role/type enums -----
 Role = Literal["admin", "police", "ambulance", "fire"]
 
+# ----- Location (re-used by Responders and Incidents) -----
 class Location(BaseModel):
     lat: float
     lng: float
     address: Optional[str] = None
 
+# ----- Users (Responders) -----
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -27,4 +30,4 @@ class UserView(BaseModel):
     name: str
     email: EmailStr
     role: Role
-    location: Location 
+    location: Optional[Location] = None 
