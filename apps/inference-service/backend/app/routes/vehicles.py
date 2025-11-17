@@ -1,16 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+# app/routes/vehicles.py
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request
 from typing import Optional
 from bson import ObjectId
-import app.db.mongodb as mongodb  # <-- use module
+import app.db.mongodb as mongodb
 from app.core.deps import get_current_owner
 from app.schemas.vehicle import VehicleOut
 from app.models.vehicle_model import vehicle_doc
-from app.utils.images import save_image
+from app.utils.images import save_image, make_public_url
 
 router = APIRouter(prefix="/api/vehicles", tags=["Vehicles"])
 
+def _normalize_images_for_response(request: Request, images: dict | None) -> dict:
+    if not images:
+        return {"front": None, "back": None, "right": None, "left": None, "plate": None}
+    out = {}
+    for k, v in images.items():
+        out[k] = make_public_url(request, v)
+    # ensure keys exist
+    for k in ("front", "back", "right", "left", "plate"):
+        out.setdefault(k, None)
+    return out
+
 @router.post("", response_model=VehicleOut, status_code=201)
 async def create_vehicle(
+    request: Request,
     current=Depends(get_current_owner),
     vehicleType: str = Form(...),
     vehicleModel: str = Form(...),
@@ -29,13 +42,19 @@ async def create_vehicle(
         raise HTTPException(400, "Vehicle with this plate already exists")
 
     v_id = ObjectId()
-    images = {}
+    images: dict[str, Optional[str]] = {}
     subdir = f"vehicles/{str(current['_id'])}/{str(v_id)}"
-    if image_front: images["front"] = await save_image(image_front, subdir=subdir)
-    if image_back:  images["back"]  = await save_image(image_back,  subdir=subdir)
-    if image_right: images["right"] = await save_image(image_right, subdir=subdir)
-    if image_left:  images["left"]  = await save_image(image_left,  subdir=subdir)
-    if image_plate: images["plate"] = await save_image(image_plate, subdir=subdir)
+
+    if image_front:
+        images["front"] = await save_image(image_front, subdir=subdir)
+    if image_back:
+        images["back"] = await save_image(image_back, subdir=subdir)
+    if image_right:
+        images["right"] = await save_image(image_right, subdir=subdir)
+    if image_left:
+        images["left"] = await save_image(image_left, subdir=subdir)
+    if image_plate:
+        images["plate"] = await save_image(image_plate, subdir=subdir)
 
     doc = vehicle_doc(
         ownerId=current["_id"],
@@ -48,6 +67,8 @@ async def create_vehicle(
     doc["_id"] = v_id
     await mongodb.db.vehicles.insert_one(doc)
 
+    images_out = _normalize_images_for_response(request, doc["images"])
+
     return {
         "id": str(doc["_id"]),
         "ownerId": str(doc["ownerId"]),
@@ -55,11 +76,11 @@ async def create_vehicle(
         "vehicleModel": doc["vehicleModel"],
         "registrationDate": doc["registrationDate"],
         "plateNo": doc["plateNo"],
-        "images": doc["images"],
+        "images": images_out,
     }
 
 @router.get("/mine", response_model=list[VehicleOut])
-async def list_my_vehicles(current=Depends(get_current_owner)):
+async def list_my_vehicles(request: Request, current=Depends(get_current_owner)):
     if mongodb.db is None:
         raise HTTPException(500, "DB not initialized")
 
@@ -73,12 +94,12 @@ async def list_my_vehicles(current=Depends(get_current_owner)):
             "vehicleModel": v["vehicleModel"],
             "registrationDate": v["registrationDate"],
             "plateNo": v["plateNo"],
-            "images": v.get("images", {}),
+            "images": _normalize_images_for_response(request, v.get("images", {})),
         })
     return out
 
 @router.get("/{vehicle_id}", response_model=VehicleOut)
-async def get_vehicle(vehicle_id: str, current=Depends(get_current_owner)):
+async def get_vehicle(vehicle_id: str, request: Request, current=Depends(get_current_owner)):
     if mongodb.db is None:
         raise HTTPException(500, "DB not initialized")
 
@@ -92,12 +113,13 @@ async def get_vehicle(vehicle_id: str, current=Depends(get_current_owner)):
         "vehicleModel": v["vehicleModel"],
         "registrationDate": v["registrationDate"],
         "plateNo": v["plateNo"],
-        "images": v.get("images", {}),
+        "images": _normalize_images_for_response(request, v.get("images", {})),
     }
 
 @router.put("/{vehicle_id}", response_model=VehicleOut)
 async def update_vehicle(
     vehicle_id: str,
+    request: Request,
     current=Depends(get_current_owner),
     vehicleType: Optional[str] = Form(None),
     vehicleModel: Optional[str] = Form(None),
@@ -126,13 +148,18 @@ async def update_vehicle(
             raise HTTPException(400, "Another vehicle already has this plate number")
         update["plateNo"] = plateNo.upper()
 
-    images = v.get("images", {})
+    images = v.get("images", {}) or {}
     subdir = f"vehicles/{str(current['_id'])}/{vehicle_id}"
-    if image_front: images["front"] = await save_image(image_front, subdir=subdir)
-    if image_back:  images["back"]  = await save_image(image_back,  subdir=subdir)
-    if image_right: images["right"] = await save_image(image_right, subdir=subdir)
-    if image_left:  images["left"]  = await save_image(image_left,  subdir=subdir)
-    if image_plate: images["plate"] = await save_image(image_plate, subdir=subdir)
+    if image_front:
+        images["front"] = await save_image(image_front, subdir=subdir)
+    if image_back:
+        images["back"] = await save_image(image_back, subdir=subdir)
+    if image_right:
+        images["right"] = await save_image(image_right, subdir=subdir)
+    if image_left:
+        images["left"] = await save_image(image_left, subdir=subdir)
+    if image_plate:
+        images["plate"] = await save_image(image_plate, subdir=subdir)
     if images != v.get("images", {}):
         update["images"] = images
 
@@ -144,7 +171,7 @@ async def update_vehicle(
             "vehicleModel": v["vehicleModel"],
             "registrationDate": v["registrationDate"],
             "plateNo": v["plateNo"],
-            "images": v.get("images", {}),
+            "images": _normalize_images_for_response(request, v.get("images", {})),
         }
 
     await mongodb.db.vehicles.update_one({"_id": v["_id"]}, {"$set": update})
@@ -156,7 +183,7 @@ async def update_vehicle(
         "vehicleModel": nv["vehicleModel"],
         "registrationDate": nv["registrationDate"],
         "plateNo": str(nv["plateNo"]),
-        "images": nv.get("images", {}),
+        "images": _normalize_images_for_response(request, nv.get("images", {})),
     }
 
 @router.delete("/{vehicle_id}", status_code=204)

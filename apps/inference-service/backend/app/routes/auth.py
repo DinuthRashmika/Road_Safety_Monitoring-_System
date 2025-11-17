@@ -1,16 +1,18 @@
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
+# app/routes/auth.py
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form, Request
 from fastapi.security import OAuth2PasswordRequestForm
-import app.db.mongodb as mongodb  # <-- use module
+import app.db.mongodb as mongodb
 from app.core.security import hash_password, verify_password, create_access_token
 from app.schemas.user import OwnerOut
 from app.schemas.auth import TokenOut
 from app.models.user_model import user_doc
-from app.utils.images import save_image
+from app.utils.images import save_image, make_public_url
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
 @router.post("/register-owner", response_model=OwnerOut, status_code=201)
 async def register_owner(
+    request: Request,
     fullName: str = Form(...),
     email: str = Form(...),
     phone: str = Form(...),
@@ -29,7 +31,10 @@ async def register_owner(
 
     imageUrl = None
     if image:
-        imageUrl = await save_image(image, subdir="owners")
+        # save_image returns relative path like "owners/<file>"
+        rel = await save_image(image, subdir="owners")
+        # store relative path in DB
+        imageUrl = rel
 
     doc = user_doc(
         fullName=fullName,
@@ -41,6 +46,9 @@ async def register_owner(
         imageUrl=imageUrl,
     )
     res = await mongodb.db.users.insert_one(doc)
+
+    # return owner object with public URL built from the request
+    public_image = make_public_url(request, doc.get("imageUrl"))
     return {
         "id": str(res.inserted_id),
         "fullName": doc["fullName"],
@@ -49,7 +57,7 @@ async def register_owner(
         "address": doc["address"],
         "nic": doc["nic"],
         "role": doc["role"],
-        "imageUrl": doc["imageUrl"],
+        "imageUrl": public_image,
     }
 
 @router.post("/login", response_model=TokenOut)
@@ -65,4 +73,4 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token({"sub": str(user["_id"]), "role": user["role"]})
-    return {"access_token": token}
+    return {"access_token": token, "token_type": "bearer"}

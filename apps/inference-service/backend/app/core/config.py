@@ -1,4 +1,6 @@
+# app/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
 
 class Settings(BaseSettings):
     # Tell pydantic-settings v2 where the .env is
@@ -17,11 +19,18 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     UPLOAD_DIR: str = "uploads"
-    BASE_URL: str = "http://192.168.8.196:8000"  # ← CHANGED THIS LINE
-
+    ENVIRONMENT: Literal["development", "production"] = "development"  # ← ADDED
+    
     # ---- DMS (seatbelt/phone stage) ----
     YOLO_MODEL: str = "weights/best.pt"  # path to your trained model
     MAX_FPS: int = 2
     LOG_LEVEL: str = "INFO"
+
+    @property
+    def BASE_URL(self) -> str:
+        if self.ENVIRONMENT == "production":
+            return "https://your-production-domain.com"  # Your production URL
+        else:
+            return "http://10.0.2.2:8000"  # Default for Android emulator
 
 settings = Settings()

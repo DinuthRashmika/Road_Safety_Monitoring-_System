@@ -1,37 +1,33 @@
 # app/main.py
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware   # <-- add this
+from fastapi.middleware.cors import CORSMiddleware
 from app.db.mongodb import connect_to_mongo, close_mongo_connection
 from app.db.init_indexes import ensure_indexes
 from app.routes import auth, owners, vehicles
 from app.core.config import settings
 from app.utils.images import ensure_dir
-# new DMS routers
-from app.routes import sessions_rest, sessions_ws, debug_yolo
 
 app = FastAPI(title="Road Safety – Owner & Vehicles API", version="1.0.0")
 
-# CORS (set your mobile/web origins here)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:8000",
-        "http://127.0.0.1:8000", 
-        "http://10.0.2.2:8000",        # Android emulator
-        "http://localhost",             # Web
-        "http://127.0.0.1",            # Web
-        "http://10.0.2.2",             # Android emulator
-        "http://192.168.8.196:8000",   # ← YOUR PC's IP with port
-        "http://192.168.8.196",        # ← YOUR PC's IP without port
-        "http://192.168.8.196:8000",   # Physical device
-        "http://192.168.8.196",        # Physical device
+        "http://127.0.0.1:8000",
+        "http://10.0.2.2:8000",
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://10.0.2.2",
+        "http://192.168.8.196:8000",
+        "http://192.168.8.196",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# static mount name must be "static" so request.url_for("static", path=...) works
 app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
 
 @app.on_event("startup")
@@ -47,10 +43,3 @@ async def shutdown():
 app.include_router(auth.router)
 app.include_router(owners.router)
 app.include_router(vehicles.router)
-
-# DMS
-app.include_router(sessions_rest.router)
-app.include_router(sessions_ws.router)
-app.include_router(debug_yolo.router)
-
-

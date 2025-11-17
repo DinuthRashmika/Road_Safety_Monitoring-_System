@@ -1,5 +1,7 @@
+// lib/screens/vehicle_add_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../services/vehicle_service.dart';
@@ -20,29 +22,71 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   bool _saving = false;
   int _currentStep = 0;
 
+  // --- Image picker instance & guard ---
+  final ImagePicker _picker = ImagePicker();
+  bool _picking = false;
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
-      context: context, 
-      firstDate: DateTime(now.year - 50), 
-      lastDate: now, 
-      initialDate: now
+      context: context,
+      firstDate: DateTime(now.year - 50),
+      lastDate: now,
+      initialDate: now,
     );
-    if (picked != null) setState(() => _regDate = picked);
+    if (picked != null && mounted) setState(() => _regDate = picked);
   }
 
+  // which: 'front'|'back'|'right'|'left'|'plate'
   Future<void> _pick(String which) async {
-    final x = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
-    if (x == null) return;
-    setState(() {
-      switch (which) {
-        case 'front': fFront = x.path; break;
-        case 'back':  fBack  = x.path; break;
-        case 'right': fRight = x.path; break;
-        case 'left':  fLeft  = x.path; break;
-        case 'plate': fPlate = x.path; break;
+    if (_picking) return; // guard against re-entrancy
+    _picking = true;
+    try {
+      final XFile? x = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      // if user cancelled or no file, nothing to do
+      if (!mounted || x == null) return;
+
+      setState(() {
+        switch (which) {
+          case 'front':
+            fFront = x.path;
+            break;
+          case 'back':
+            fBack = x.path;
+            break;
+          case 'right':
+            fRight = x.path;
+            break;
+          case 'left':
+            fLeft = x.path;
+            break;
+          case 'plate':
+            fPlate = x.path;
+            break;
+        }
+      });
+    } on PlatformException catch (err) {
+      // Platform-specific error (including already_active)
+      debugPrint('ImagePicker PlatformException: ${err.code} - ${err.message}');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: ${err.message ?? err.code}')),
+        );
       }
-    });
+    } catch (e) {
+      debugPrint('ImagePicker unknown error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to pick image')),
+        );
+      }
+    } finally {
+      _picking = false;
+    }
   }
 
   Future<void> _submit() async {
@@ -57,18 +101,26 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         vehicleModel: _model.text.trim(),
         registrationDate: DateFormat('yyyy-MM-dd').format(_regDate!),
         plateNo: _plate.text.trim(),
-        imageFront: fFront, imageBack: fBack, imageRight: fRight, imageLeft: fLeft, imagePlate: fPlate,
+        imageFront: fFront,
+        imageBack: fBack,
+        imageRight: fRight,
+        imageLeft: fLeft,
+        imagePlate: fPlate,
       );
       if (!mounted) return;
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create vehicle')));
+      debugPrint('Vehicle create failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to create vehicle')));
+      }
     } finally {
-      setState(() => _saving = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
   Widget _buildImageUpload(String label, String? path, VoidCallback onPick, {bool required = false}) {
+    final bool disabled = _picking;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -112,10 +164,13 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: path != null 
+            child: path != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(File(path), fit: BoxFit.cover),
+                    child: Image.file(File(path), fit: BoxFit.cover, errorBuilder: (c, e, s) {
+                      // show fallback if file can't be displayed
+                      return Center(child: Text('Cannot open image', style: TextStyle(color: Colors.grey[600])));
+                    }),
                   )
                 : Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -140,14 +195,14 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: onPick,
+              onPressed: disabled ? null : onPick,
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF2563EB),
                 side: const BorderSide(color: Color(0xFF2563EB)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-              child: Text(path == null ? 'Upload' : 'Change Photo'),
+              child: Text(path == null ? (disabled ? 'Picking...' : 'Upload') : (disabled ? 'Picking...' : 'Change Photo')),
             ),
           ),
         ],
@@ -499,6 +554,8 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // allow the scaffold to resize when keyboard shows (default true)
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text(
           'Add Vehicle',
@@ -532,15 +589,19 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             ),
           ),
 
-          // Content
+          // Content: replaced SingleChildScrollView with ListView for reliable scrolling
           Expanded(
-            child: SingleChildScrollView(
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
-              child: _currentStep == 0
-                  ? _buildDetailsStep()
-                  : _currentStep == 1
-                      ? _buildPhotosStep()
-                      : _buildConfirmStep(),
+              children: [
+                // show only the active step widget(s)
+                if (_currentStep == 0) _buildDetailsStep(),
+                if (_currentStep == 1) _buildPhotosStep(),
+                if (_currentStep == 2) _buildConfirmStep(),
+                // add some bottom spacing so last element isn't hidden under bottom bar
+                const SizedBox(height: 8),
+              ],
             ),
           ),
 
@@ -570,24 +631,24 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                 Expanded(
                   flex: _currentStep == 0 ? 2 : 1,
                   child: FilledButton(
-                    onPressed: _saving ? null : () {
-                      if (_currentStep < 2) {
-                        setState(() => _currentStep++);
-                      } else {
-                        _submit();
-                      }
-                    },
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            if (_currentStep < 2) {
+                              // ensure we scroll to top when moving steps (nice UX)
+                              // we can optionally use a ScrollController later — for now just setState
+                              setState(() => _currentStep++);
+                            } else {
+                              _submit();
+                            }
+                          },
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: Text(
-                      _saving 
-                          ? 'Submitting...' 
-                          : _currentStep == 2 
-                              ? 'Submit' 
-                              : 'Next',
+                      _saving ? 'Submitting...' : _currentStep == 2 ? 'Submit' : 'Next',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),

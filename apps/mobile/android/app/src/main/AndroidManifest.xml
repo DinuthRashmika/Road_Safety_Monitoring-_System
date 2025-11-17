@@ -17,6 +17,9 @@
     <!-- WAKE LOCK PERMISSION - Optional: for keeping screen on during monitoring -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+        <!-- For Android 13+ (SDK 33+) - read images from media store -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
     <application
         android:label="road_safety_app"
         android:name="${applicationName}"
