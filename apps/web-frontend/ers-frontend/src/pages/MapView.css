@@ -46,22 +46,23 @@
   bottom: 20px;
   right: 20px; /* Aligned to the bottom right */
   z-index: 10;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  /* Removed the white background box */
 }
 
+/* --- THIS IS THE UPDATED STYLE --- */
 .map-action-button {
-  padding: 12px 24px;
+  padding: 10px 18px; /* Made smaller */
   border: none;
   border-radius: 5px;
-  font-size: 1.1rem;
+  font-size: 0.9rem; /* Made smaller */
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.3s ease;
-  min-width: 200px;
+  min-width: 140px; /* Made smaller */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Added shadow */
 }
+/* --- END UPDATED STYLE --- */
+
 .map-action-button:disabled {
   background-color: #aaa;
   cursor: not-allowed;
@@ -83,8 +84,11 @@
 }
 
 .map-status-resolved {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #5cb85c;
   padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
