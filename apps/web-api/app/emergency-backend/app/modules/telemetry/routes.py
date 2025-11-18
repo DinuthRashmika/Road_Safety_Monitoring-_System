@@ -1,5 +1,6 @@
+# app/modules/telemetry/routes.py
 from fastapi import APIRouter
-from .repo import metrics_tiles
+from .metrics import metrics_tiles # <-- THIS IS THE FIX (was 'from .repo ...')
 
 router = APIRouter()
 

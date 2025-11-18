@@ -9,7 +9,7 @@ const ResponseHistory = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth(); // Get the current user
 
-  // Function to fetch real history data
+  // Function to fetch history
   const fetchHistory = async () => {
     try {
       setLoading(true);
@@ -17,7 +17,7 @@ const ResponseHistory = () => {
       const res = await api.get('/api/incidents/queue', { 
         params: { status: 'resolved' } 
       });
-      setHistory(res.data); // Set the real data from the API
+      setHistory(res.data);
     } catch (err) {
       console.error("Failed to fetch history", err);
     } finally {
@@ -28,7 +28,7 @@ const ResponseHistory = () => {
   // Load history on component mount
   useEffect(() => {
     fetchHistory();
-  }, []);
+  }, []); // This runs when the page loads
 
   // Handles the delete button click
   const handleDelete = async (incidentId) => {
@@ -53,7 +53,6 @@ const ResponseHistory = () => {
         <p>Loading history...</p>
       ) : (
         <div className="history-list">
-          {/* This will now be empty because your database is empty */}
           {history.length === 0 && <p>No resolved incidents found.</p>}
           
           {history.map(item => (

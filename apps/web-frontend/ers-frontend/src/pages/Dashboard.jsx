@@ -28,7 +28,10 @@ const Dashboard = () => {
   const fetchQueue = async () => {
     try {
       setLoadingQueue(true);
-      const res = await api.get('/api/incidents/queue');
+      // Get 'active' incidents
+      const res = await api.get('/api/incidents/queue', {
+        params: { status: 'active' }
+      });
       setQueue(res.data);
     } catch (err) {
       console.error('Failed to fetch queue', err);
@@ -38,19 +41,16 @@ const Dashboard = () => {
     }
   };
 
-  // Initial data load
-  useEffect(() => {
-    fetchTelemetry();
-    fetchQueue();
-    // TODO: Add SSE (Server-Sent Events) connection
-    // to /stream/incidents for real-time updates
-  }, []);
-
-  const handleRefresh = () => {
-    setError(null);
+  // This function will be called by the modal to refresh the dashboard
+  const handleIncidentUpdate = () => {
     fetchTelemetry();
     fetchQueue();
   };
+
+  // Initial data load
+  useEffect(() => {
+    handleIncidentUpdate(); // Load data on first render
+  }, []);
 
   return (
     <Layout>
@@ -63,15 +63,16 @@ const Dashboard = () => {
         {loadingTelemetry ? <p>Loading stats...</p> : telemetry && (
           <>
             <TelemetryTile title="Active Emergencies" value={telemetry.active} />
-            <TelemetryTile title="Response Time Avg" value={`${telemetry.avg_response_min}m`} />
             <TelemetryTile title="Resolved Today" value={telemetry.resolved_window} />
+            {console.log('Resolved Today value:', telemetry.resolved_window)}
+            
           </>
         )}
       </div>
 
       <div className="queue-header">
         <h3>Priority Emergency Queue</h3>
-        <button onClick={handleRefresh} disabled={loadingQueue || loadingTelemetry}>
+        <button onClick={handleIncidentUpdate} disabled={loadingQueue || loadingTelemetry}>
           {loadingQueue ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
@@ -83,7 +84,11 @@ const Dashboard = () => {
         {!loadingQueue && queue.length === 0 && <p>No active emergencies in your area.</p>}
         
         {queue.map(incident => (
-          <IncidentCard key={incident.id} incident={incident} />
+          <IncidentCard 
+            key={incident.id} 
+            incident={incident} 
+            onUpdate={handleIncidentUpdate}
+          />
         ))}
       </div>
     </Layout>
