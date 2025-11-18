@@ -25,6 +25,12 @@
   color: #777;
 }
 
+.history-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .status-resolved {
   color: #5cb85c;
   background-color: #eaf6ea;
@@ -32,4 +38,19 @@
   border-radius: 12px;
   font-weight: 600;
   font-size: 0.8rem;
+}
+
+.delete-button {
+  background-color: #f4f4f4;
+  color: #d9534f;
+  border: 1px solid #d9534f;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.delete-button:hover {
+  background-color: #d9534f;
+  color: #fff;
 }
