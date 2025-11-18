@@ -4,7 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from app.config import settings
-from app.db.mongo import ensure_indexes
+# --- UPDATED IMPORTS ---
+from app.db.mongo import get_db
+from app.db.indexes import ensure_all
+# --- END UPDATED IMPORTS ---
 from app.modules.auth.routes import router as auth_router
 from app.modules.responders.routes import router as responders_router
 from app.modules.incidents.routes import router as incidents_router
@@ -26,8 +29,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup():
-    await ensure_indexes()
-    await create_admin()   # creates admin@example.com / Admin@123 if missing
+    # --- THIS IS THE FIX ---
+    db = get_db()
+    await ensure_all(db)
+    # --- END FIX ---
+    await create_admin()  # creates admin@example.com / Admin@123 if missing
 
 @app.get("/health")
 async def health():
