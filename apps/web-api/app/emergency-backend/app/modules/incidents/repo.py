@@ -1,8 +1,9 @@
+# app/modules/incidents/repo.py
 from __future__ import annotations
-
 from typing import Optional, List, Dict
 from bson import ObjectId
 from app.db.mongo import get_db
+from app.modules.responders.repo import get_user_by_email, get_user
 
 
 def _norm(doc: dict) -> dict:
@@ -32,18 +33,31 @@ async def update_incident(incident_id: str, patch: dict) -> None:
     await db["incidents"].update_one({"_id": ObjectId(incident_id)}, {"$set": patch})
 
 
-async def list_queue(limit: int = 50, role: Optional[str] = None, user_location: Optional[dict] = None) -> List[Dict]:
-    """
-    Return 'new' incidents, sorted by score OR distance.
-    Role filtering:
-      - admin: see all 'new' incidents, sorted by score
-      - police/ambulance/fire: see 'new' incidents that are GEOGRAPHICALLY NEARBY
-        and require their role.
-    """
+async def delete_incident(incident_id: str) -> None:
+    """Deletes a single incident by its ID."""
+    db = get_db()
+    await db["incidents"].delete_one({"_id": ObjectId(incident_id)})
+
+
+async def list_queue(
+    limit: int = 50, 
+    role: Optional[str] = None, 
+    user_location: Optional[dict] = None,
+    status: str = "active",
+    user_id: Optional[str] = None
+) -> List[Dict]:
+    
     db = get_db()
     
+    active_statuses = ["new", "accepted", "enroute", "arrived"]
+    
+    # --- Admin View (Unchanged) ---
     if role == "admin":
-        query: dict = {"status": "new"}
+        if status == "active":
+            query: dict = {"status": {"$in": active_statuses}}
+        else:
+            query: dict = {"status": status} # e.g., "resolved"
+
         cursor = (
             db["incidents"]
             .find(query)
@@ -52,27 +66,53 @@ async def list_queue(limit: int = 50, role: Optional[str] = None, user_location:
         )
         return [_norm(x) async for x in cursor]
 
-    if not user_location:
-        return [] 
-
-    pipeline = [
-        {
-            "$geoNear": {
-                "near": {
-                    "type": "Point",
-                    "coordinates": [user_location["lng"], user_location["lat"]]
-                },
-                "distanceField": "distance_m", 
-                "query": {
-                    "status": "new",
-                    "required_roles": {"$in": [role]}
-                },
-                "spherical": True
-            }
-        },
-        { "$sort": {"distance_m": 1} }, 
-        { "$limit": limit }
-    ]
+    # --- Responder View (Logic is now changed) ---
     
-    cursor = db["incidents"].aggregate(pipeline)
+    # 1. For "resolved" incidents (History Page - Unchanged)
+    if status == "resolved":
+        query = {
+            "status": "resolved",
+            "assignee_responder_id": user_id 
+        }
+        cursor = (
+            db["incidents"]
+            .find(query)
+            .sort([("reported_at", -1)]) 
+            .limit(limit)
+        )
+        return [_norm(x) async for x in cursor]
+
+    # 2. For "active" incidents (Dashboard Queue - THIS IS THE FIX)
+    if status == "active":
+        
+        # We removed the $geoNear pipeline.
+        # This query is now simple and finds all relevant incidents.
+        query = {
+            "status": {"$in": active_statuses},
+            # Find incidents that are either NEW and need this role
+            # OR are already assigned to YOU.
+            "$or": [
+                {"status": "new", "required_roles": {"$in": [role]}},
+                {"assignee_responder_id": user_id}
+            ]
+        }
+        cursor = (
+            db["incidents"]
+            .find(query)
+            .sort([("score", -1)]) # Sort by score
+            .limit(limit)
+        )
+        return [_norm(x) async for x in cursor]
+    
+    # 3. Fallback for any other specific status
+    query = {
+        "status": status,
+        "assignee_responder_id": user_id 
+    }
+    cursor = (
+        db["incidents"]
+        .find(query)
+        .sort([("reported_at", -1)])
+        .limit(limit)
+    )
     return [_norm(x) async for x in cursor]

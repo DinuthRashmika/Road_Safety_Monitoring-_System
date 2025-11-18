@@ -1,14 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axiosConfig';
 import './IncidentModal.css';
 
-const IncidentModal = ({ incidentId, onClose }) => {
+// Accept 'onUpdate' prop
+const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const [incident, setIncident] = useState(null);
   const [route, setRoute] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAccepting, setIsAccepting] = useState(false);
+  
+  const navigate = useNavigate();
 
+  // Fetch incident details on load
   useEffect(() => {
     const fetchDetails = async () => {
       try {
@@ -16,9 +21,8 @@ const IncidentModal = ({ incidentId, onClose }) => {
         const incidentRes = await api.get(`/api/incidents/${incidentId}`);
         setIncident(incidentRes.data);
         
-        // If incident is already accepted, fetch its route
         if (incidentRes.data.status !== 'new') {
-          fetchRoute();
+          fetchRoute(incidentId);
         }
       } catch (err) {
         setError('Failed to load incident details.');
@@ -29,31 +33,54 @@ const IncidentModal = ({ incidentId, onClose }) => {
     fetchDetails();
   }, [incidentId]);
 
-  const fetchRoute = async () => {
+  // Function to fetch the route
+  const fetchRoute = async (id) => {
     try {
-      const routeRes = await api.get(`/api/incidents/${incidentId}/route`);
-      setRoute(routeRes.data);
+      const routeRes = await api.get(`/api/incidents/${id}/route`);
+      setRoute(routeRes.data); // Set the route data
     } catch (err) {
       console.error('Failed to fetch route', err);
     }
   };
 
+  // --- THIS IS THE FIX ---
+  // Handles the first "accept" action
   const handleAccept = async () => {
     setIsAccepting(true);
     try {
-      await api.post(`/api/incidents/${incidentId}/accept`);
+      // 1. Accept the incident AND get the updated doc back
+      const response = await api.post(`/api/incidents/${incidentId}/accept`);
       
-      // Refresh details and fetch route
-      const incidentRes = await api.get(`/api/incidents/${incidentId}`);
-      setIncident(incidentRes.data);
-      fetchRoute();
+      // 2. Set the incident data immediately from the response
+      setIncident(response.data); 
+      
+      // 3. NOW fetch the route
+      await fetchRoute(incidentId); 
+      
       alert('Incident accepted. You are now assigned.');
+      
+      // 4. Call the 'onUpdate' prop to refresh the dashboard
+      if (typeof onUpdate === 'function') {
+        onUpdate(); 
+      }
+      
     } catch (err) {
-      alert('Failed to accept incident.');
+      alert(`Failed to accept incident: ${err.response?.data?.detail || err.message}`);
     } finally {
       setIsAccepting(false);
     }
   };
+  
+  // Handles "Get Directions" button click
+  const handleGetDirections = () => {
+    if (!route) {
+      alert("Route data is not available yet. Please wait a moment and try again.");
+      return;
+    }
+    // Navigate to the map page and pass the incident & route data
+    navigate('/map-view', { state: { incident, route } });
+  };
+
 
   if (loading) return <div className="modal-backdrop"><div className="modal-content">Loading...</div></div>;
   if (error) return <div className="modal-backdrop"><div className="modal-content">{error} <button onClick={onClose}>Close</button></div></div>;
@@ -63,7 +90,7 @@ const IncidentModal = ({ incidentId, onClose }) => {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
-        <h3>Emergency Details - #{incident.id.split('-')[1]}</h3>
+        <h3>Emergency Details - #{incident.id}</h3>
         
         <div className="modal-body">
           <div className="modal-left">
@@ -72,14 +99,12 @@ const IncidentModal = ({ incidentId, onClose }) => {
             <p><strong>Score:</strong> {incident.score}</p>
             <p><strong>Reported:</strong> {new Date(incident.reported_at).toLocaleString()}</p>
             <p><strong>Location:</strong> {incident.location.address}</p>
-            
             <h4 className="mt-2">Analysis Results</h4>
             {incident.accident?.fire_present && <p className="analysis-fire">Fire Detected</p>}
             {incident.accident && <p>Vehicles: {incident.accident.vehicles_involved}</p>}
             {incident.violence && <p>Participants: {incident.violence.participants_count}</p>}
             {incident.violence?.weapon_conf > 0 && <p>Weapon Conf: {incident.violence.weapon_conf * 100}%</p>}
             <p>Severity: {incident.severity_grade}</p>
-
             <h4 className="mt-2">Required Responders</h4>
             <div className="role-tags-modal">
               {incident.required_roles.map(role => (
@@ -99,7 +124,6 @@ const IncidentModal = ({ incidentId, onClose }) => {
             ) : (
               <div className="map-placeholder">Accept incident to see route.</div>
             )}
-            
             <h4 className="mt-2">Scene Image</h4>
             <div className="scene-image-placeholder">
               {incident.media?.image_url ? 
@@ -111,13 +135,19 @@ const IncidentModal = ({ incidentId, onClose }) => {
         </div>
         
         <div className="modal-footer">
+          {/* Show "Accept" button ONLY if status is 'new' */}
           {incident.status === 'new' && (
             <button className="btn-accept" onClick={handleAccept} disabled={isAccepting}>
               {isAccepting ? 'Accepting...' : 'Accept Emergency & Dispatch'}
             </button>
           )}
-          {incident.status !== 'new' && (
-             <button className="btn-directions">Get Directions</button>
+          
+          {/* Show "Get Directions" button if status is NOT 'new' and NOT 'resolved' */}
+          {incident.status !== 'new' && incident.status !== 'resolved' && (
+             <button className="btn-directions" onClick={handleGetDirections} disabled={!route}>
+                {/* The button is disabled until the route is fetched */}
+                {route ? 'Get Directions' : 'Loading Route...'}
+             </button>
           )}
         </div>
       </div>
