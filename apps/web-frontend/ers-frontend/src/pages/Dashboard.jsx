@@ -28,7 +28,7 @@ const Dashboard = () => {
   const fetchQueue = async () => {
     try {
       setLoadingQueue(true);
-      // Get 'active' incidents
+
       const res = await api.get('/api/incidents/queue', {
         params: { status: 'active' }
       });
@@ -41,16 +41,26 @@ const Dashboard = () => {
     }
   };
 
-  // This function will be called by the modal to refresh the dashboard
   const handleIncidentUpdate = () => {
     fetchTelemetry();
     fetchQueue();
   };
 
-  // Initial data load
   useEffect(() => {
-    handleIncidentUpdate(); // Load data on first render
+    handleIncidentUpdate(); 
   }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    
+    const intervalId = setInterval(() => {
+      console.log('Auto-refreshing data...');
+      handleIncidentUpdate();
+    }, 10000); // Refresh every 10 seconds
+
+    
+    return () => clearInterval(intervalId);
+  }, []); 
 
   return (
     <Layout>
@@ -64,17 +74,12 @@ const Dashboard = () => {
           <>
             <TelemetryTile title="Active Emergencies" value={telemetry.active} />
             <TelemetryTile title="Resolved Today" value={telemetry.resolved_window} />
-            {console.log('Resolved Today value:', telemetry.resolved_window)}
-            
           </>
         )}
       </div>
 
       <div className="queue-header">
         <h3>Priority Emergency Queue</h3>
-        <button onClick={handleIncidentUpdate} disabled={loadingQueue || loadingTelemetry}>
-          {loadingQueue ? 'Refreshing...' : 'Refresh'}
-        </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
