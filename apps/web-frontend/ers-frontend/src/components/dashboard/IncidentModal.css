@@ -79,26 +79,54 @@
   padding-top: 16px;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 12px;
 }
 
-.btn-accept, .btn-directions {
+/* Base button style */
+.btn-accept, .btn-directions, .btn-action {
   padding: 12px 20px;
   border: none;
   border-radius: 5px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+/* --- NEW STYLES --- */
+.btn-action:disabled,
+.btn-accept:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
 }
 
 .btn-accept {
   background-color: #d9534f;
   color: white;
 }
-.btn-accept:disabled {
-  background-color: #aaa;
-}
 
 .btn-directions {
   background-color: #0275d8;
   color: white;
+}
+
+.btn-enroute {
+  background-color: #f0ad4e; /* Yellow */
+  color: white;
+}
+
+.btn-arrived {
+  background-color: #5bc0de; /* Blue */
+  color: white;
+}
+
+.btn-resolved {
+  background-color: #5cb85c; /* Green */
+  color: white;
+}
+
+.status-resolved-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #5cb85c;
 }

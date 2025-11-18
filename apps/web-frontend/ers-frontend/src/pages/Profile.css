@@ -1,22 +1,73 @@
 .profile-card {
   background: #fff;
-  padding: 24px;
+  padding: 0; /* Remove padding */
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  overflow: hidden; /* Important for rounded corners on header */
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  padding: 24px;
+  background-color: #f9f9f9;
+  border-bottom: 1px solid #eee;
+}
+
+.profile-image-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background-color: #d9534f;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+/* // Use this if you have a real image:
+.profile-image-placeholder img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+*/
+
+.profile-title h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.75rem;
+  color: #333;
+}
+
+.profile-title p {
+  margin: 0;
+  font-size: 1rem;
+  color: #777;
+  text-transform: capitalize;
+}
+
+.profile-body {
+  padding: 24px;
 }
 
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  gap: 24px; /* Increased gap */
 }
 
 .profile-field label {
   font-size: 0.9rem;
   color: #777;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 6px; /* Increased margin */
   display: block;
+  text-transform: uppercase;
 }
 
 .profile-field p {
@@ -28,4 +79,5 @@
 .status-active {
   color: #5cb85c;
   font-weight: 600;
+  font-size: 1.1rem;
 }
