@@ -21,7 +21,7 @@
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background-color: #d9534f;
+  background-color: #E4080A;
   color: #fff;
   font-size: 2rem;
   font-weight: bold;
@@ -66,7 +66,7 @@
   padding: 0.85rem;
   border: none;
   border-radius: 4px;
-  background-color: #d9534f;
+  background-color: #E4080A;
   color: white;
   font-size: 1rem;
   font-weight: 600;
@@ -75,7 +75,7 @@
 }
 
 .login-button:hover {
-  background-color: #c9302c;
+  background-color: #E4080A; 
 }
 .login-button:disabled {
   background-color: #aaa;
@@ -83,7 +83,7 @@
 }
 
 .login-error {
-  color: #d9534f;
+  color: #c9302c;
   margin-bottom: 1rem;
 }
 
@@ -91,4 +91,19 @@
   margin-top: 1.5rem;
   font-size: 0.8rem;
   color: #888;
+}
+
+.login-header .login-logo-image {
+  width: 60px; 
+  height: 60px;
+  border-radius: 12px; 
+  margin: 0 auto 1rem;
+}
+
+.login-header .login-logo-image {
+  /* Style for the new image logo */
+  width: 60px; /* Set the size */
+  height: 60px;
+  border-radius: 12px; /* Maintain the app icon shape */
+  margin: 0 auto 1rem;
 }

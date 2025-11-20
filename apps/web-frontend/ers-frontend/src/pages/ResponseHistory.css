@@ -42,8 +42,8 @@
 
 .delete-button {
   background-color: #f4f4f4;
-  color: #d9534f;
-  border: 1px solid #d9534f;
+  color: #E4080A;
+  border: 1px solid #E4080A;
   padding: 4px 10px;
   border-radius: 4px;
   font-weight: 600;
@@ -51,6 +51,6 @@
   font-size: 0.8rem;
 }
 .delete-button:hover {
-  background-color: #d9534f;
+  background-color: #E4080A;
   color: #fff;
 }

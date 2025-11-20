@@ -9,7 +9,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0 24px;
-  background-color: #d9534f;
+  background-color: #E4080A;
   color: white;
   height: 60px;
   flex-shrink: 0;
@@ -25,7 +25,7 @@
   height: 30px;
   border-radius: 50%;
   background-color: #fff;
-  color: #d9534f;
+  color: #E4080A;
   font-size: 1.25rem;
   font-weight: bold;
   display: flex;
@@ -58,7 +58,7 @@
   cursor: pointer;
 }
 .logout-button:hover {
-  background-color: #c9302c;
+  background-color: #E4080A;
 }
 
 .app-body {
@@ -95,9 +95,9 @@
 }
 
 .app-sidebar li a.active {
-  color: #d9534f;
+  color: #E4080A;
   font-weight: 700;
-  border-left: 3px solid #d9534f;
+  border-left: 3px solid #E4080A;
   background-color: #fdf5f5;
 }
 
@@ -106,4 +106,17 @@
   padding: 24px;
   overflow-y: auto;
   background-color: #f4f7f6;
+}
+
+/* New logo style */
+.logo-image {
+  width: 50px; /* Match old icon size */
+  height: 50px;
+  border-radius: 5px; /* Adjust if needed */
+  margin-right: 12px;
+}
+
+/* Remove old circle icon styles */
+.header-logo .logo-icon {
+  display: none; /* Hide the old '!' icon if you can't remove it */
 }

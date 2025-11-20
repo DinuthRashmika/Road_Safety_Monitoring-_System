@@ -46,7 +46,7 @@
 .mt-2 { margin-top: 16px; }
 
 .analysis-fire {
-  color: #d9534f;
+  color: #E4080A;
   font-weight: 700;
 }
 
@@ -91,7 +91,7 @@
 }
 
 .btn-accept {
-  background-color: #d9534f;
+  background-color: #E4080A;
   color: white;
 }
 .btn-accept:disabled {

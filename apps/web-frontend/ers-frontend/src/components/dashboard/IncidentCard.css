@@ -12,7 +12,7 @@
 }
 
 /* Severity Colors */
-.incident-card.critical { border-color: #d9534f; }
+.incident-card.critical { border-color: #E4080A; }
 .incident-card.high { border-color: #f0ad4e; }
 .incident-card.medium { border-color: #5bc0de; }
 .incident-card.low { border-color: #5cb85c; }
@@ -28,7 +28,7 @@
   font-weight: 700;
   font-size: 0.8rem;
 }
-.severity-tag.critical { color: #d9534f; }
+.severity-tag.critical { color: #E4080A; }
 .severity-tag.high { color: #f0ad4e; }
 .severity-tag.medium { color: #5bc0de; }
 .severity-tag.low { color: #5cb85c; }
@@ -68,7 +68,7 @@
 }
 .role-tag.police { background-color: #0275d8; }
 .role-tag.ambulance { background-color: #5cb85c; }
-.role-tag.fire { background-color: #d9534f; }
+.role-tag.fire { background-color: #E4080A; }
 
 .card-actions {
   display: flex;
@@ -89,9 +89,9 @@
   color: #fff;
   font-weight: 600;
   cursor: pointer;
-  background-color: #d9534f;
+  background-color: #E4080A;
   transition: background-color 0.3s ease;
 }
 .accept-button:hover {
-  background-color: #c9302c;
+  background-color: #E4080A;
 }

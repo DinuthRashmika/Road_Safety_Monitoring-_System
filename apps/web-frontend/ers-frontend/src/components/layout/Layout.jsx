@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import './Layout.css'; 
+import RoadGuruIcon from '../../assets/road-guru-icon.png';
 
 const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -13,14 +14,13 @@ const Layout = ({ children }) => {
     }
   };
 
-  // Capitalize role
   const role = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '';
 
   return (
     <div className="app-layout">
       <header className="app-header">
         <div className="header-logo">
-          <div className="logo-icon">!</div>
+          <img src={RoadGuruIcon} alt="Logo" className="logo-image" />
           <h1>Emergency Response System</h1>
         </div>
         <div className="header-user">
