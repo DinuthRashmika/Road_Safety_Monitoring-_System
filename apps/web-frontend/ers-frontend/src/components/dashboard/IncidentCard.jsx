@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import IncidentModal from './IncidentModal';
 import './IncidentCard.css';
+import { useAuth } from '../../hooks/useAuth'; 
 
-const IncidentCard = ({ incident }) => {
+const IncidentCard = ({ incident, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { user } = useAuth();
   
   const {
     id,
@@ -27,14 +29,18 @@ const IncidentCard = ({ incident }) => {
   
   const severity = getSeverityClass(score);
 
+  const isAdmin = user?.role === 'admin';
+  const buttonText = isAdmin ? 'View Details' : 'Accept & Respond';
+  const buttonClass = isAdmin ? 'view-details-button' : 'accept-button';
+
   return (
     <>
       <div className={`incident-card ${severity}`}>
         <div className="card-header">
           <span className={`severity-tag ${severity}`}>
-            {severity.toUpperCase()} {accident?.fire_present && '- FIRE DETECTED'}
+            {severity?.toUpperCase()} {accident?.fire_present && '- FIRE DETECTED'}
           </span>
-          <span className="incident-id">#{id.split('-')[0]}-{id.split('-')[1]}</span>
+          <span className="incident-id">#{id}</span>
         </div>
         
         <div className="card-body">
@@ -49,8 +55,9 @@ const IncidentCard = ({ incident }) => {
           </div>
           <div className="card-actions">
             <div className="score-badge">{Math.round(score)}</div>
-            <button className="accept-button" onClick={() => setIsModalOpen(true)}>
-              Accept & Respond
+            
+            <button className={buttonClass} onClick={() => setIsModalOpen(true)}>
+              {buttonText}
             </button>
           </div>
         </div>
@@ -60,6 +67,7 @@ const IncidentCard = ({ incident }) => {
         <IncidentModal 
           incidentId={incident.id} 
           onClose={() => setIsModalOpen(false)} 
+          onUpdate={onUpdate}
         />
       )}
     </>
