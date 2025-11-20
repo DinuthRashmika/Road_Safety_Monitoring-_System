@@ -1,30 +1,27 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
-import api from '../api/axiosConfig'; // Import api
-import './MapView.css'; // Import the CSS
+import api from '../api/axiosConfig'; 
+import './MapView.css'; 
 
 const MapView = () => {
-  const { state } = useLocation(); // Get data from modal
-  const navigate = useNavigate(); // To redirect after resolve
+  const { state } = useLocation(); 
+  const navigate = useNavigate(); 
   
-  // Store the incident in this page's state so we can update it
   const [incident, setIncident] = useState(state?.incident);
   const [route, setRoute] = useState(state?.route);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Handles all status updates
+
   const handleUpdateStatus = async (newStatus) => {
     setIsUpdating(true);
     try {
       await api.post(`/api/incidents/${incident.id}/status`, { status: newStatus });
 
-      // Update the incident in our local state
       setIncident(prev => ({ ...prev, status: newStatus }));
 
       if (newStatus === 'resolved') {
         alert('Incident resolved!');
-        // Redirect to history page
         navigate('/history');
       }
     } catch (err) {
@@ -34,7 +31,6 @@ const MapView = () => {
     }
   };
 
-  // Renders the correct button based on the current status
   const renderActionButtons = () => {
     if (!incident) return null;
 
@@ -60,12 +56,10 @@ const MapView = () => {
       case 'resolved':
         return <p className="map-status-resolved">Incident Resolved</p>;
       default:
-        // This includes 'new' status, which shouldn't happen here
         return null; 
     }
   };
   
-  // If user lands here with no data, show a generic message
   if (!incident || !route) {
     return (
       <Layout>
@@ -80,7 +74,6 @@ const MapView = () => {
     );
   }
 
-  // If we have data, show the full map page
   return (
     <Layout>
       <h2>Map View</h2>
@@ -92,7 +85,6 @@ const MapView = () => {
           <p><strong>Status:</strong> <span className="status-highlight">{incident.status}</span></p>
         </div>
         
-        {/* The new action buttons are placed at the bottom */}
         <div className="map-actions-bar">
           {renderActionButtons()}
         </div>

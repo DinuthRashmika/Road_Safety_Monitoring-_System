@@ -11,7 +11,6 @@
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-/* Severity Colors */
 .incident-card.critical { border-color: #E4080A; }
 .incident-card.high { border-color: #f0ad4e; }
 .incident-card.medium { border-color: #5bc0de; }

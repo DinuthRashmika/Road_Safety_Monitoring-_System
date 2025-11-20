@@ -1,4 +1,3 @@
-# app/modules/telemetry/metrics.py
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
@@ -14,17 +13,14 @@ def _now_utc() -> datetime:
 
 
 def _iso(dt: datetime) -> str:
-    # Store/compare ISO strings consistently
     return dt.astimezone(timezone.utc).isoformat()
 
 
 async def _count_active_incidents(role: str, user_id: str) -> int:
     db = get_db()
     
-    # Admin sees all active incidents
     if role == "admin":
         query = {"status": {"$in": list(ACTIVE_STATUSES)}}
-    # Responders see incidents relevant to them
     else:
         query = {
             "status": {"$in": list(ACTIVE_STATUSES)},
@@ -45,10 +41,8 @@ async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) 
     db = get_db()
     since = _iso(_now_utc() - timedelta(hours=window_hours))
     
-    # Base query
     match_query = {"status": "resolved", "at": {"$gte": since}}
     
-    # Admin sees all, responders are filtered by their ID
     if role != "admin":
         match_query["responder_id"] = user_id
         
@@ -71,13 +65,11 @@ async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> f
     since_dt = _now_utc() - timedelta(hours=window_hours)
     since_iso = _iso(since_dt)
 
-    # Base query
     query = {
         "status": {"$in": list(RESPONSE_PAIR)},
         "at": {"$gte": since_iso},
     }
     
-    # Admin sees all, responders are filtered by their ID
     if role != "admin":
         query["responder_id"] = user_id
 
@@ -109,7 +101,6 @@ async def metrics_tiles(role: str, user_id: str, window_hours: int = 24) -> dict
     """
     Returns role-aware telemetry tiles for the dashboard.
     """
-    # Pass role and user_id to the helper functions
     active = await _count_active_incidents(role, user_id)
     resolved = await _count_resolved_in_window(window_hours, role, user_id)
     avg_resp = await _avg_response_minutes(window_hours, role, user_id)

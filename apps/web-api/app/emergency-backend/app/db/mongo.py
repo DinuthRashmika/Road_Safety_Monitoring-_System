@@ -1,4 +1,3 @@
-# app/db/mongo.py
 from motor.motor_asyncio import AsyncIOMotorClient
 from motor.core import AgnosticDatabase
 from app.config import settings
@@ -13,5 +12,3 @@ def get_client() -> AsyncIOMotorClient:
 
 def get_db() -> AgnosticDatabase:
     return get_client()[settings.DB_NAME]
-
-# The old, broken 'ensure_indexes' function has been completely removed.

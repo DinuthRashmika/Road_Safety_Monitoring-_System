@@ -24,7 +24,7 @@ def hash_password(pw: str) -> str:
     """
     if _HAS_BCRYPT and _ctx is not None:
         try:
-            return _ctx.hash(pw[:72])  # bcrypt safe length
+            return _ctx.hash(pw[:72]) 
         except Exception:
             return _sha256_dev(pw)
     return _sha256_dev(pw)

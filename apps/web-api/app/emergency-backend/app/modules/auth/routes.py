@@ -3,7 +3,6 @@ from pydantic import BaseModel, EmailStr
 from app.db.mongo import get_db
 from app.security.password import verify_password
 from app.security.jwt import create_access_token
-# Import the new dependencies
 from app.deps import get_current_responder_doc
 from app.modules.responders.schemas import UserView
 
@@ -27,7 +26,6 @@ async def login(payload: LoginRequest):
     if not user or not verify_password(password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # Use user.get("role") directly
     token = create_access_token(str(user["_id"]), user.get("role"))
     return {"access_token": token, "token_type": "bearer"}
 

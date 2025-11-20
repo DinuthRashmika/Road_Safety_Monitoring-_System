@@ -7,7 +7,6 @@ from .schemas import Location
 
 async def admin_create_user(name: str, email: str, role: str, password: str, location: Location) -> str:
     ph = hash_password(password)
-    # Pass location as a dict
     return await create_user(name, email, role, ph, location.model_dump())
 
 async def admin_update_user(user_id: str, fields: Dict[str, Any]) -> None:

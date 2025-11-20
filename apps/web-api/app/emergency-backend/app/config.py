@@ -1,4 +1,3 @@
-# app/config.py
 import os
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -11,16 +10,12 @@ class Settings(BaseModel):
     MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
     DB_NAME: str = os.getenv("DB_NAME", "emergency_db")
 
-    # Auth
     JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me")
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
 
-    # Routing
     ROUTING_MODE: str = os.getenv("ROUTING_MODE", "dummy")
     GOOGLE_MAPS_API_KEY: str | None = os.getenv("GOOGLE_MAPS_API_KEY")
 
-    # CORS
-    # CORS
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173" 
     ]

@@ -1,13 +1,10 @@
-# app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
 from app.config import settings
-# --- UPDATED IMPORTS ---
 from app.db.mongo import get_db
 from app.db.indexes import ensure_all
-# --- END UPDATED IMPORTS ---
 from app.modules.auth.routes import router as auth_router
 from app.modules.responders.routes import router as responders_router
 from app.modules.incidents.routes import router as incidents_router
@@ -29,11 +26,9 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup():
-    # --- THIS IS THE FIX ---
     db = get_db()
     await ensure_all(db)
-    # --- END FIX ---
-    await create_admin()  # creates admin@example.com / Admin@123 if missing
+    await create_admin()  
 
 @app.get("/health")
 async def health():
@@ -43,7 +38,6 @@ async def health():
 async def version():
     return {"app": settings.APP_NAME, "env": settings.ENV}
 
-# API routers
 app.include_router(auth_router,        prefix="/api/auth", tags=["auth"])
 app.include_router(responders_router,  prefix="/api",      tags=["responders"])
 app.include_router(incidents_router,   prefix="/api",      tags=["incidents"])

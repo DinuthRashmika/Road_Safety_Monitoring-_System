@@ -56,7 +56,7 @@ const Dashboard = () => {
     const intervalId = setInterval(() => {
       console.log('Auto-refreshing data...');
       handleIncidentUpdate();
-    }, 10000); // Refresh every 10 seconds
+    }, 10000); 
 
     
     return () => clearInterval(intervalId);

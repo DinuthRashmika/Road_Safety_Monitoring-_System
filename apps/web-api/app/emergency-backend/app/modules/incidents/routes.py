@@ -1,17 +1,15 @@
-# app/modules/incidents/routes.py
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-# --- 1. ADD THESE IMPORTS ---
 from app.deps import get_current_responder_doc, require_roles
 from app.utils.sse import event_stream
 from .repo import list_queue, get_incident, update_incident, delete_incident
 from .service import accept_incident
 from .status import can_transition
 from .broadcast import get_queue
-from app.modules.assignments.service import record_status # <-- This import is essential
+from app.modules.assignments.service import record_status 
 
 router = APIRouter()
 
@@ -58,15 +56,13 @@ async def accept_route(incident_id: str, responder: dict = Depends(get_current_r
     return updated_doc
 
 
-# --- 2. THIS IS THE FIXED FUNCTION ---
 @router.post(
     "/incidents/{incident_id}/status"
-    # Dependencies are removed, get_current_responder_doc handles auth
 )
 async def status_route(
     incident_id: str, 
     body: dict, 
-    responder: dict = Depends(get_current_responder_doc) # Get the user who is clicking
+    responder: dict = Depends(get_current_responder_doc) 
 ):
     new_status = body.get("status")
     cur = await get_incident(incident_id)
@@ -75,23 +71,18 @@ async def status_route(
     if not can_transition(cur["status"], new_status):
         raise HTTPException(400, f"Invalid transition {cur['status']} -> {new_status}")
     
-    # 1. Update the incident status
     await update_incident(incident_id, {"status": new_status})
     
-    # 2. Get the ID of the user taking the action
     action_by_responder_id = responder.get("id")
     
-    # 3. Add to assignments timeline (THIS IS THE FIX)
-    # This will log "enroute", "arrived", and "resolved"
     await record_status(incident_id, action_by_responder_id, new_status)
     
     return {"ok": True}
-# --- END FIX ---
 
 
 @router.delete(
     "/incidents/{incident_id}",
-    dependencies=[Depends(require_roles("admin"))], # Only admin can delete
+    dependencies=[Depends(require_roles("admin"))], 
 )
 async def delete_incident_route(incident_id: str):
     """

@@ -4,7 +4,7 @@ async def append_timeline(incident_id: str, responder_id: str, status: str, at: 
     db = get_db()
     await db["assignments"].insert_one({
         "incident_id": incident_id, 
-        "responder_id": responder_id, # Changed from unit_id
+        "responder_id": responder_id, 
         "status": status, 
         "at": at
     })

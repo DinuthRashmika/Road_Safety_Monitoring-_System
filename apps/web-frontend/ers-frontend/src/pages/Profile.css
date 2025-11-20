@@ -1,9 +1,9 @@
 .profile-card {
   background: #fff;
-  padding: 0; /* Remove padding */
+  padding: 0; 
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  overflow: hidden; /* Important for rounded corners on header */
+  overflow: hidden; 
 }
 
 .profile-header {
@@ -29,15 +29,6 @@
   flex-shrink: 0;
 }
 
-/* // Use this if you have a real image:
-.profile-image-placeholder img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-*/
-
 .profile-title h3 {
   margin: 0 0 4px 0;
   font-size: 1.75rem;
@@ -58,14 +49,14 @@
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 24px; /* Increased gap */
+  gap: 24px; 
 }
 
 .profile-field label {
   font-size: 0.9rem;
   color: #777;
   font-weight: 600;
-  margin-bottom: 6px; /* Increased margin */
+  margin-bottom: 6px; 
   display: block;
   text-transform: uppercase;
 }

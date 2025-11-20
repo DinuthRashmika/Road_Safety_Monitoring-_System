@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api/axiosConfig';
 import './IncidentModal.css';
 
-// Accept 'onUpdate' prop
 const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const [incident, setIncident] = useState(null);
   const [route, setRoute] = useState(null);
@@ -13,7 +12,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   
   const navigate = useNavigate();
 
-  // Fetch incident details on load
   useEffect(() => {
     const fetchDetails = async () => {
       try {
@@ -33,7 +31,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     fetchDetails();
   }, [incidentId]);
 
-  // Function to fetch the route
+ 
   const fetchRoute = async (id) => {
     try {
       const routeRes = await api.get(`/api/incidents/${id}/route`);
@@ -43,23 +41,17 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     }
   };
 
-  // --- THIS IS THE FIX ---
-  // Handles the first "accept" action
   const handleAccept = async () => {
     setIsAccepting(true);
     try {
-      // 1. Accept the incident AND get the updated doc back
       const response = await api.post(`/api/incidents/${incidentId}/accept`);
       
-      // 2. Set the incident data immediately from the response
       setIncident(response.data); 
       
-      // 3. NOW fetch the route
       await fetchRoute(incidentId); 
       
       alert('Incident accepted. You are now assigned.');
       
-      // 4. Call the 'onUpdate' prop to refresh the dashboard
       if (typeof onUpdate === 'function') {
         onUpdate(); 
       }
@@ -71,13 +63,12 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     }
   };
   
-  // Handles "Get Directions" button click
   const handleGetDirections = () => {
     if (!route) {
       alert("Route data is not available yet. Please wait a moment and try again.");
       return;
     }
-    // Navigate to the map page and pass the incident & route data
+    
     navigate('/map-view', { state: { incident, route } });
   };
 
@@ -135,17 +126,14 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         </div>
         
         <div className="modal-footer">
-          {/* Show "Accept" button ONLY if status is 'new' */}
           {incident.status === 'new' && (
             <button className="btn-accept" onClick={handleAccept} disabled={isAccepting}>
               {isAccepting ? 'Accepting...' : 'Accept Emergency & Dispatch'}
             </button>
           )}
           
-          {/* Show "Get Directions" button if status is NOT 'new' and NOT 'resolved' */}
           {incident.status !== 'new' && incident.status !== 'resolved' && (
              <button className="btn-directions" onClick={handleGetDirections} disabled={!route}>
-                {/* The button is disabled until the route is fetched */}
                 {route ? 'Get Directions' : 'Loading Route...'}
              </button>
           )}

@@ -2,18 +2,16 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import api from '../api/axiosConfig';
 import './ResponseHistory.css'; 
-import { useAuth } from '../hooks/useAuth'; // Import useAuth
+import { useAuth } from '../hooks/useAuth'; 
 
 const ResponseHistory = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth(); // Get the current user
+  const { user } = useAuth(); 
 
-  // Function to fetch history
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      // Call the queue endpoint with status="resolved"
       const res = await api.get('/api/incidents/queue', { 
         params: { status: 'resolved' } 
       });
@@ -25,12 +23,10 @@ const ResponseHistory = () => {
     }
   };
 
-  // Load history on component mount
   useEffect(() => {
     fetchHistory();
-  }, []); // This runs when the page loads
+  }, []);
 
-  // Handles the delete button click
   const handleDelete = async (incidentId) => {
     if (!window.confirm("Are you sure you want to permanently delete this incident?")) {
       return;
@@ -38,7 +34,6 @@ const ResponseHistory = () => {
 
     try {
       await api.delete(`/api/incidents/${incidentId}`);
-      // Refresh the list after successful deletion
       fetchHistory();
     } catch (err) {
       alert("Failed to delete incident. You must be an Admin to do this.");
@@ -65,7 +60,6 @@ const ResponseHistory = () => {
               
               <div className="history-item-actions">
                 <span className="status-resolved">Resolved</span>
-                {/* Only show delete button if user is admin */}
                 {user && user.role === 'admin' && (
                   <button 
                     className="delete-button" 

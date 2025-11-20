@@ -1,20 +1,15 @@
 import React from 'react';
 import Layout from '../components/layout/Layout';
 import { useAuth } from '../hooks/useAuth';
-import './Profile.css'; // We will update this CSS file
-
-// Import a placeholder image
-// You can save an image in 'src/assets' and import it like this:
-// import profilePlaceholder from '../assets/profile-placeholder.png';
+import './Profile.css'; 
 
 const Profile = () => {
-  const { user } = useAuth(); // Gets the logged-in user's full object
+  const { user } = useAuth(); 
   
   if (!user) {
     return <Layout><p>Loading profile...</p></Layout>;
   }
 
-  // A simple placeholder if you don't have a real image URL
   const getInitials = (name) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
@@ -25,9 +20,6 @@ const Profile = () => {
       <div className="profile-card">
         <div className="profile-header">
           <div className="profile-image-placeholder">
-            {/* If user.imageUrl exists, use: <img src={user.imageUrl} alt="Profile" /> 
-              For now, we use initials as a placeholder.
-            */}
             <span>{getInitials(user.name)}</span>
           </div>
           <div className="profile-title">

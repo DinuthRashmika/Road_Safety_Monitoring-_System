@@ -5,15 +5,15 @@ import api from '../api/axiosConfig';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // Will store the full responder object
+  const [user, setUser] = useState(null); 
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // On app load, check for existing token and fetch user
+ 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
-      fetchProfile(); // No need to pass token
+      fetchProfile(); 
     } else {
       setLoading(false);
     }
@@ -21,13 +21,12 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async () => {
     try {
-      // ** THE FIX IS HERE **
-      // Call the new /me endpoint to get our own profile
+      
       const response = await api.get('/api/auth/me'); 
-      setUser(response.data); // Store the full user object
+      setUser(response.data); 
     } catch (e) {
       console.error('Failed to fetch profile, logging out.', e);
-      logout(); // Token is invalid or expired
+      logout();
     } finally {
       setLoading(false);
     }
@@ -40,7 +39,6 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('accessToken', access_token);
       
-      // After login, fetch the full user profile
       await fetchProfile();
 
       navigate('/dashboard');

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import '../assets/LoginPage.css'; 
-// 1. IMPORT THE NEW ICON
 import RoadGuruIcon from '../assets/road-guru-icon.png';
 
 const LoginPage = () => {
@@ -26,7 +25,6 @@ const LoginPage = () => {
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
         <div className="login-header">
-          {/* 2. REPLACE THE ICON WITH THE IMAGE */}
           <img src={RoadGuruIcon} alt="Logo" className="login-logo-image" />
           <h2>Emergency Response System</h2>
           <p>Secure access for authorized personnel</p>

@@ -39,29 +39,25 @@
   color: #0275d8;
 }
 
-/* --- STYLES FOR BUTTONS --- */
-
 .map-actions-bar {
   position: absolute;
   bottom: 20px;
-  right: 20px; /* Aligned to the bottom right */
+  right: 20px; 
   z-index: 10;
-  /* Removed the white background box */
 }
 
-/* --- THIS IS THE UPDATED STYLE --- */
+
 .map-action-button {
-  padding: 10px 18px; /* Made smaller */
+  padding: 10px 18px; 
   border: none;
   border-radius: 5px;
-  font-size: 0.9rem; /* Made smaller */
+  font-size: 0.9rem; 
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.3s ease;
-  min-width: 140px; /* Made smaller */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3); /* Added shadow */
+  min-width: 140px; 
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3); 
 }
-/* --- END UPDATED STYLE --- */
 
 .map-action-button:disabled {
   background-color: #aaa;
@@ -69,17 +65,17 @@
 }
 
 .btn-enroute {
-  background-color: #f0ad4e; /* Yellow */
+  background-color: #f0ad4e; 
   color: white;
 }
 
 .btn-arrived {
-  background-color: #5bc0de; /* Blue */
+  background-color: #5bc0de; 
   color: white;
 }
 
 .btn-resolved {
-  background-color: #5cb85c; /* Green */
+  background-color: #5cb85c; 
   color: white;
 }
 
