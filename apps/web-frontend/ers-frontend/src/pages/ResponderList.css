@@ -1,0 +1,64 @@
+.responder-list-container {
+    margin-top: 20px;
+}
+
+.responder-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 5px solid;
+}
+
+/* Color coding based on role */
+.responder-card:has(.responder-role:contains("police")) { border-left-color: #0275d8; }
+.responder-card:has(.responder-role:contains("ambulance")) { border-left-color: #5cb85c; }
+.responder-card:has(.responder-role:contains("fire")) { border-left-color: #d9534f; }
+.responder-card:has(.responder-role:contains("admin")) { border-left-color: #f0ad4e; }
+
+.responder-info h4 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.responder-role {
+    margin: 4px 0 0 0;
+    font-size: 0.85rem;
+    color: #777;
+    text-transform: capitalize;
+}
+
+.responder-details {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    font-size: 0.9rem;
+}
+
+.responder-details .location {
+    color: #555;
+    margin-top: 5px;
+}
+
+.refresh-button {
+    background-color: #0275d8;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.error-message {
+    color: #d9534f;
+    padding: 10px;
+    background-color: #fcebeb;
+    border: 1px solid #d9534f;
+    border-radius: 5px;
+}

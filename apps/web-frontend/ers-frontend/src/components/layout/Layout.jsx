@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import './Layout.css'; 
+
 import RoadGuruIcon from '../../assets/road-guru-icon.png';
 
 const Layout = ({ children }) => {
@@ -20,7 +21,7 @@ const Layout = ({ children }) => {
     <div className="app-layout">
       <header className="app-header">
         <div className="header-logo">
-          <img src={RoadGuruIcon} alt="Logo" className="logo-image" />
+          <img src={RoadGuruIcon} alt="Logo" className="logo-image" /> 
           <h1>Emergency Response System</h1>
         </div>
         <div className="header-user">
@@ -36,6 +37,11 @@ const Layout = ({ children }) => {
               <li><NavLink to="/dashboard">Dashboard</NavLink></li>
               <li><NavLink to="/map-view">Map View</NavLink></li>
               <li><NavLink to="/history">Response History</NavLink></li>
+        
+              {user?.role === 'admin' && (
+                <li><NavLink to="/responders">All Responders</NavLink></li>
+              )}
+              
               <li><NavLink to="/profile">Profile</NavLink></li>
             </ul>
           </div>

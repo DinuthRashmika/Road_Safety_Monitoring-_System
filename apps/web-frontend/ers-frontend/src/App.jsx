@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import MapView from './pages/MapView';
 import ResponseHistory from './pages/ResponseHistory';
 import Profile from './pages/Profile';
+import ResponderList from './pages/ResponderList';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/map-view" element={<MapView />} />
             <Route path="/history" element={<ResponseHistory />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/responders" element={<ResponderList /> } />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
