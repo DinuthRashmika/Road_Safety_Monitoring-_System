@@ -35,7 +35,6 @@ const Layout = ({ children }) => {
           <div className="sidebar-sticky">
             <ul>
               <li><NavLink to="/dashboard">Dashboard</NavLink></li>
-              <li><NavLink to="/map-view">Map View</NavLink></li>
               <li><NavLink to="/history">Response History</NavLink></li>
         
               {user?.role === 'admin' && (
