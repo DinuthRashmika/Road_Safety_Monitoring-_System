@@ -135,7 +135,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         <div className="modal-footer">
           {isAdmin && (
               <p className="admin-view-status">
-                  Status: {isResolved ? 'RESOLVED' : incident.status.toUpperCase()} (View Only)
               </p>
           )}
           {!isAdmin && isNew && (
