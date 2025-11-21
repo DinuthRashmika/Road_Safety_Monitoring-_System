@@ -3,12 +3,14 @@ import Layout from '../components/layout/Layout';
 import api from '../api/axiosConfig';
 import './ResponderList.css'; 
 import { useAuth } from '../hooks/useAuth'; 
+import { useNavigate } from 'react-router-dom'; 
 
 const ResponderList = () => {
     const [responders, setResponders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null); 
     const { user } = useAuth(); 
+    const navigate = useNavigate(); 
 
     const fetchResponders = async () => {
         setLoading(true);
@@ -42,6 +44,11 @@ const ResponderList = () => {
             console.error("Delete failed:", err);
         }
     };
+    
+    const handleCardClick = (responderId) => {
+        navigate(`/profile/${responderId}`);
+    };
+
     useEffect(() => {
         if (user?.role === 'admin') {
             fetchResponders(); 
@@ -65,8 +72,14 @@ const ResponderList = () => {
             <div className="responder-list-container">
                 {loading && responders.length === 0 && <p>Fetching responder data...</p>}
                 
-                {!loading && responders.length > 0 && responders.map(responder => (
-                    <div key={responder.id} className="responder-card">
+                {!loading && responders.length > 0 && responders
+                    .filter(responder => responder.id !== user?.id)
+                    .map(responder => (
+                    <div 
+                        key={responder.id} 
+                        className="responder-card clickable-card" 
+                        onClick={() => handleCardClick(responder.id)} 
+                    >
                         <div className="responder-left">
                             <h4>{responder.name}</h4>
                             <p className="responder-role">{responder.role}</p>
@@ -79,7 +92,10 @@ const ResponderList = () => {
                             {user?.role === 'admin' && (
                                 <button 
                                     className="delete-responder-button" 
-                                    onClick={() => handleDelete(responder.id, responder.name)}
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        handleDelete(responder.id, responder.name);
+                                    }}
                                     disabled={responder.id === user.id} 
                                 >
                                     Delete
