@@ -12,39 +12,45 @@ def clamp01(x: float) -> float:
 
 def score_incident(inc: Incident) -> Incident:
     """
-    Compute score and decide required_roles.
-    - traffic + accident.fire_present -> ['ambulance','police','fire']
-    - traffic + accident.fire_present == False -> ['ambulance','police']
-    - violence -> ['police']
+    Compute score and decide required_roles based on new triage logic.
     """
     G = map_grade(inc.severity_grade)
     R = map_risk(inc.camera_risk_class)
     explain: list[str] = []
 
+    fire_detected = (inc.accident and inc.accident.fire_present) or (inc.violence and hasattr(inc.violence, 'fire_present') and inc.violence.fire_present)
+    
     if inc.accident:
         if inc.accident.fire_present:
             inc.score = 100
             explain.append("Fire detected → hard override to 100")
-            inc.required_roles = ["ambulance", "police", "fire"] 
+            inc.required_roles = ["ambulance", "police", "fire"]
         else:
             V = clamp01((inc.accident.vehicles_involved - 1) / 3)
             inc.score = round(100 * (0.50 * G + 0.35 * V + 0.15 * R))
             explain.append(f"Accident: G={G:.2f}, V={V:.2f}, R={R:.2f}")
-            inc.required_roles = ["ambulance", "police"] 
+            inc.required_roles = ["ambulance", "police"]
 
     elif inc.violence:
         W = clamp01(inc.violence.weapon_conf)
         P = clamp01((inc.violence.participants_count - 1) / 4)
         inc.score = round(100 * (0.40 * G + 0.35 * W + 0.15 * P + 0.10 * R))
         explain.append(f"Violence: G={G:.2f}, W={W:.2f}, P={P:.2f}, R={R:.2f}")
-        inc.required_roles = ["police"] 
 
+        if fire_detected:
+            inc.required_roles = ["ambulance", "police", "fire"]
+            explain.append("Medical and Fire added due to high risk/fire.")
+        else:
+            inc.required_roles = ["ambulance", "police"]
+            explain.append("Medical added due to confirmed violence and injury risk.")
+            
     else:
         inc.score = round(100 * G)
-        inc.required_roles = [] 
+        inc.required_roles = []
 
     inc.explain = explain
     return inc
+
 
 def tie_breaker_key(doc: dict):
     sev = {"high": 3, "medium": 2, "low": 1}.get(doc.get("severity_grade"), 1)
