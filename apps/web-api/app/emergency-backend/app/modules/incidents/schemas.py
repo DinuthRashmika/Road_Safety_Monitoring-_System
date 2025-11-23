@@ -5,7 +5,7 @@ from app.modules.responders.schemas import Location
 
 Severity = Literal["low","medium","high"]
 Risk = Literal["low","medium","high"]
-Status = Literal["new","accepted","enroute","arrived","resolved"]
+Status = Literal["unverified", "new","accepted","enroute","arrived","resolved"]
 
 
 class Accident(BaseModel):
@@ -21,9 +21,14 @@ class Media(BaseModel):
     thumb_url: Optional[str] = None
 
 class Incident(BaseModel):
-    id: str
+    id: Optional[str] = None
+    
+    report_id: Optional[str] = None 
+    
     source: Literal["traffic","violence"]
-    reported_at: str
+    
+    reported_at: Optional[str] = Field(None, alias="timestamp_utc")
+    
     location: Location
     severity_grade: Severity
     camera_risk_class: Risk
@@ -32,6 +37,10 @@ class Incident(BaseModel):
     media: Optional[Media] = None
     score: int = 0
     required_roles: list[str] = Field(default_factory=list) 
-    status: Status = "new"
+    status: Status = "unverified"
     assignee_responder_id: Optional[str] = None 
     explain: list[str] = Field(default_factory=list)
+    
+    model_config = {
+        "populate_by_name": True
+    }
