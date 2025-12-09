@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Any 
+from typing import Optional, List, Dict, Any
 from bson import ObjectId
 from app.db.mongo import get_db
 from app.modules.responders.repo import get_user_by_email, get_user
@@ -39,8 +39,8 @@ async def delete_incident(incident_id: str) -> None:
 
 
 async def list_queue(
-    limit: int = 50, 
-    role: Optional[str] = None, 
+    limit: int = 50,
+    role: Optional[str] = None,
     user_location: Optional[dict] = None,
     status: str = "active",
     user_id: Optional[str] = None
@@ -72,27 +72,31 @@ async def list_queue(
         cursor = (
             db["incidents"]
             .find(query)
-            .sort([("reported_at", -1)]) 
+            .sort([("reported_at", -1)])
             .limit(limit)
         )
         return [_norm(x) async for x in cursor]
 
+    # This is the active queue for non-admin responders
     if status == "active":
         query = {
             "status": {"$in": active_statuses},
             "$or": [
+                # 1. New incidents that require the responder's role
                 {"status": "new", "required_roles": {"$in": [role]}},
+                # 2. Incidents the responder is currently assigned to (accepted, enroute, arrived)
                 {"assignee_responder_id": user_id}
             ]
         }
         cursor = (
             db["incidents"]
             .find(query)
-            .sort([("score", -1)]) 
+            .sort([("score", -1)])
             .limit(limit)
         )
         return [_norm(x) async for x in cursor]
     
+    # Other statuses for non-admin responder (e.g., unverified, although generally hidden)
     query = {
         "status": status,
         "assignee_responder_id": user_id 

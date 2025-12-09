@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import IncidentModal from './IncidentModal';
 import './IncidentCard.css';
-import { useAuth } from '../../hooks/useAuth'; 
+import { useAuth } from '../../hooks/useAuth';
 
 const IncidentCard = ({ incident, onUpdate }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user } = useAuth();
-  
+
   const {
     id,
     score,
@@ -18,7 +18,11 @@ const IncidentCard = ({ incident, onUpdate }) => {
   } = incident;
 
   let title = source === 'traffic' ? 'Traffic Accident' : 'Violence Incident';
-  if (accident?.fire_present) title = 'Multi-Vehicle Accident with Fire';
+  if (source === 'traffic' && accident?.fire_present) {
+    title = 'Multi-Vehicle Accident with Fire';
+  } else if (source !== 'traffic' && violence?.fire_present) {
+    title = 'Violence Incident with Fire';
+  }
 
   const getSeverityClass = (score) => {
     if (score > 90) return 'critical';
@@ -26,7 +30,7 @@ const IncidentCard = ({ incident, onUpdate }) => {
     if (score > 50) return 'medium';
     return 'low';
   };
-  
+
   const severity = getSeverityClass(score);
 
   const isAdmin = user?.role === 'admin';
@@ -42,7 +46,7 @@ const IncidentCard = ({ incident, onUpdate }) => {
           </span>
           <span className="incident-id">#{id}</span>
         </div>
-        
+
         <div className="card-body">
           <div className="card-content">
             <h3>{title}</h3>
@@ -55,7 +59,7 @@ const IncidentCard = ({ incident, onUpdate }) => {
           </div>
           <div className="card-actions">
             <div className="score-badge">{Math.round(score)}</div>
-            
+
             <button className={buttonClass} onClick={() => setIsModalOpen(true)}>
               {buttonText}
             </button>
@@ -64,9 +68,9 @@ const IncidentCard = ({ incident, onUpdate }) => {
       </div>
 
       {isModalOpen && (
-        <IncidentModal 
-          incidentId={incident.id} 
-          onClose={() => setIsModalOpen(false)} 
+        <IncidentModal
+          incidentId={incident.id}
+          onClose={() => setIsModalOpen(false)}
           onUpdate={onUpdate}
         />
       )}

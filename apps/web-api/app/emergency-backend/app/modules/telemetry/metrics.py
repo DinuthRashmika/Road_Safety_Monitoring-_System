@@ -18,15 +18,18 @@ def _iso(dt: datetime) -> str:
 
 async def _count_active_incidents(role: str, user_id: str) -> int:
     db = get_db()
-    
+
     if role == "admin":
         query = {"status": {"$in": list(ACTIVE_STATUSES)}}
     else:
+        # A responder sees:
+        # 1. Any incident they are assigned to (accepted, enroute, arrived).
+        # 2. Any new incident that requires their role.
         query = {
             "status": {"$in": list(ACTIVE_STATUSES)},
             "$or": [
                 {"status": "new", "required_roles": {"$in": [role]}},
-                {"assignee_responder_id": user_id}
+                {"assignee_responder_id": user_id, "status": {"$in": ["accepted", "enroute", "arrived"]}}
             ]
         }
     
@@ -35,22 +38,24 @@ async def _count_active_incidents(role: str, user_id: str) -> int:
 
 async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) -> int:
     """
-    Counts distinct incidents that reached 'resolved' within the time window,
-    filtered by the user who resolved them.
+    Counts distinct incidents that reached 'resolved' status within the time window,
+    filtered by the user who resolved them (via the assignments collection).
     """
     db = get_db()
     since = _iso(_now_utc() - timedelta(hours=window_hours))
-    
-    match_query = {"status": "resolved", "at": {"$gte": since}}
+
+    assignment_match_query = {"status": "resolved", "at": {"$gte": since}}
     
     if role != "admin":
-        match_query["responder_id"] = user_id
-        
+         assignment_match_query["responder_id"] = user_id
+         
+    # Aggregate on assignments collection to count distinct incidents resolved in the window
     pipeline = [
-        {"$match": match_query},
-        {"$group": {"_id": "$incident_id"}},
+        {"$match": assignment_match_query},
+        {"$group": {"_id": "$incident_id"}}, 
         {"$count": "count"},
     ]
+    
     agg = db["assignments"].aggregate(pipeline)
     doc = await agg.to_list(length=1)
     return int(doc[0]["count"]) if doc else 0
@@ -69,7 +74,7 @@ async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> f
         "status": {"$in": list(RESPONSE_PAIR)},
         "at": {"$gte": since_iso},
     }
-    
+
     if role != "admin":
         query["responder_id"] = user_id
 

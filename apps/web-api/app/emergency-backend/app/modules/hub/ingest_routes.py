@@ -3,17 +3,17 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import ValidationError
 from bson import ObjectId
-from app.db.mongo import get_db 
-from app.modules.incidents.schemas import Incident, Accident 
+from app.db.mongo import get_db
+from app.modules.incidents.schemas import Incident, Accident
 from app.modules.incidents.service import compute_scores
 from app.modules.incidents.repo import insert_incident, update_incident, get_incident
 from app.modules.incidents.broadcast import broadcast_incident_update
-from app.modules.hub.fire_detector import fire_present_from_image 
-from app.utils.time import utcnow_iso 
+from app.modules.hub.fire_detector import fire_present_from_image
+from app.utils.time import utcnow_iso
 
 router = APIRouter()
 
-MIN_SCORE_FOR_PROMOTION = 50 
+MIN_SCORE_FOR_PROMOTION = 50
 
 def _coerce_score(value) -> int:
     """Accept int/float/str; round to nearest int and clamp 0..100."""
@@ -38,10 +38,8 @@ def _sanitize(o):
 @router.post("/ingest")
 async def ingest(payload: dict = Body(...)):
     """
-    Accept Incident payload. 
-    MODIFIED LOGIC: Forces 'unverified' on initial ingest. Only allows promotion 
-    to 'new' upon update that explicitly sets the fire status (true/false) AND meets 
-    the priority score threshold (50) or is a fire incident.
+    Accept Incident payload.
+    MODIFIED LOGIC: Forces 'unverified' on initial ingest unless it meets priority criteria (score >= 50 or fire detected).
     """
     try:
         provided_score = payload.pop("score", None)
@@ -49,52 +47,59 @@ async def ingest(payload: dict = Body(...)):
 
         db = get_db()
         existing_doc = None
-        
+
         if report_id:
             existing_doc = await db["incidents"].find_one({"report_id": report_id})
-        
+
+        # Check if the ingest payload explicitly provides fire status, for update logic
         fire_status_provided = 'accident' in payload and 'fire_present' in payload['accident']
-        
+
         if existing_doc:
             was_unverified = existing_doc.get("status") == "unverified"
-            
+
             inc_data = {
-                **_sanitize(existing_doc), 
-                **payload, 
+                **_sanitize(existing_doc),
+                **payload,
                 "id": str(existing_doc["_id"])
             }
             inc = Incident(**inc_data)
-            
+
+            # Compute or re-compute scores
             inc = compute_scores(inc)
 
             if provided_score is not None:
                 inc.score = _coerce_score(provided_score)
 
             current_fire = (inc.accident and inc.accident.fire_present) or False
-            
-            if was_unverified and fire_status_provided:
+
+            # Promotion logic on update: if unverified AND (fire status provided OR score is high)
+            if was_unverified and (fire_status_provided or inc.score >= MIN_SCORE_FOR_PROMOTION):
                 if current_fire or inc.score >= MIN_SCORE_FOR_PROMOTION:
                     inc.status = "new"
-                    inc.reported_at = utcnow_iso()
-            
+                    inc.reported_at = utcnow_iso() # Set reported_at when promoted
+
             doc_to_update = inc.model_dump(exclude={"id"})
-            
-            if was_unverified and inc.status == "new" and hasattr(inc, 'reported_at'):
+
+            if was_unverified and inc.status == "new":
                  doc_to_update["reported_at"] = inc.reported_at
-                 
+
             await update_incident(inc.id, doc_to_update)
             updated_doc = await get_incident(inc.id)
-            
+
             if updated_doc and updated_doc["status"] != "unverified":
                 await broadcast_incident_update(updated_doc)
-            
+
             return {"id": inc.id}
 
+        # --- Initial Ingest Logic (New Incident) ---
+
+        # Use the provided timestamp, or set a new one if missing
         if not payload.get("timestamp_utc") and not payload.get("reported_at"):
              payload["timestamp_utc"] = utcnow_iso()
 
         inc = Incident(**payload)
-        
+
+        # Fire Detection based on Image URL (if provided)
         if inc.media and inc.media.image_url:
             if await fire_present_from_image(inc.media.image_url):
                 if inc.accident:
@@ -102,18 +107,31 @@ async def ingest(payload: dict = Body(...)):
                 else:
                     inc.accident = Accident(vehicles_involved=1, fire_present=True)
 
+        # Compute scores
         inc = compute_scores(inc)
 
         if provided_score is not None:
             inc.score = _coerce_score(provided_score)
+
+        # FIX: Check for score/fire status for immediate promotion to 'new'
+        current_fire = (inc.accident and inc.accident.fire_present) or False
         
-        inc.status = "unverified" 
-        
+        if current_fire or inc.score >= MIN_SCORE_FOR_PROMOTION:
+             inc.status = "new"
+             inc.reported_at = payload.get("timestamp_utc", utcnow_iso()) 
+        else:
+             # Retains "unverified" if priority is low
+             inc.status = "unverified"
+             inc.reported_at = payload.get("timestamp_utc", utcnow_iso())
+
         doc = inc.model_dump(exclude_none=True)
         inserted_id = await insert_incident(doc)
 
-        out = _sanitize({**doc, "id": str(inserted_id)}) 
-        
+        # Broadcast if it was promoted to 'new'
+        if inc.status == "new":
+            out = _sanitize({**doc, "id": str(inserted_id)})
+            await broadcast_incident_update(out)
+
         return {"id": str(inserted_id)}
 
     except ValidationError as ve:
