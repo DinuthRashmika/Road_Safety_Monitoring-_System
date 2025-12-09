@@ -81,7 +81,6 @@ const MapView = () => {
         <div className="map-info-box">
           <h4>Route: {incident.location.address}</h4>
           <p><strong>Distance:</strong> {route.distance_km} km</p>
-          <p><strong>Est. Time:</strong> {route.eta_min} min</p>
           <p><strong>Status:</strong> <span className="status-highlight">{incident.status}</span></p>
         </div>
         

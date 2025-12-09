@@ -115,7 +115,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             <h4>Location & Route</h4>
             {route ? (
               <div className="route-info">
-                <p><strong>Fastest Route: {route.eta_min} min</strong></p>
                 <p>Distance: {route.distance_km} km</p>
                 <div className="map-placeholder">MAP showing route</div>
               </div>
