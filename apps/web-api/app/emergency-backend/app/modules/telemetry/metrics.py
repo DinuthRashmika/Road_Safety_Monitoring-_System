@@ -38,7 +38,7 @@ async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) 
     db = get_db()
     since = _iso(_now_utc() - timedelta(hours=window_hours))
 
-    assignment_match_query = {"status": "resolved", "at": {"$gte": since}}
+    assignment_match_query = {"status": "resolved", "resolved_at": {"$gte": since}}
     
     if role != "admin":
          assignment_match_query["responder_id"] = user_id
