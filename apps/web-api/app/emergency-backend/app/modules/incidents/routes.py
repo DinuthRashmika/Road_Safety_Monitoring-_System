@@ -4,7 +4,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-# Removed 'get_current_user_token' which caused the error
 from app.deps import get_current_responder_doc, require_roles
 from app.utils.sse import event_stream
 from .repo import list_queue, get_incident, update_incident, delete_incident
@@ -37,23 +36,39 @@ async def get_queue_route(
 @router.get("/incidents/{incident_id}")
 async def get_incident_route(
     incident_id: str,
-    # This dependency will ensure the user is logged in
     responder: dict = Depends(get_current_responder_doc)
 ):
     inc = await get_incident(incident_id)
     if not inc:
         raise HTTPException(404, "Not found")
     
-    # If a responder is requesting this, show THEIR status
-    if responder:
-        user_id = responder.get("id")
+    user_id = responder.get("id")
+    role = responder.get("role")
+
+    # --- ADMIN LOGIC: Compute global status & pending roles on the fly ---
+    if role == "admin":
+        required = inc.get("required_roles", [])
+        role_stats = inc.get("role_statuses", {})
+        
+        # Determine who is still pending
+        pending = [r for r in required if role_stats.get(r) != "resolved"]
+        inc["pending_responder_roles"] = pending
+        
+        # If everyone is done, show 'resolved' to Admin
+        if len(pending) == 0 and len(required) > 0:
+            inc["status"] = "resolved"
+        # Otherwise, if unverified, keep unverified, else active
+        elif inc.get("status") != "unverified":
+            inc["status"] = "active"
+
+    # --- RESPONDER LOGIC: Show specific user status ---
+    else:
         user_status = inc.get("responder_statuses", {}).get(user_id)
         
-        # If they have a specific status, show it (e.g., 'accepted')
         if user_status:
             inc["status"] = user_status
-        # If they are required but haven't accepted, show 'new' instead of global status
-        elif responder.get("role") in inc.get("required_roles", []) and not user_status:
+        elif role in inc.get("required_roles", []) and not user_status:
+            # If they are required but haven't accepted, it looks 'new' to them
             inc["status"] = "new"
             
     return inc
@@ -63,16 +78,17 @@ async def get_incident_route(
 )
 async def accept_route(incident_id: str, responder: dict = Depends(get_current_responder_doc)):
     responder_id = responder.get("id")
+    responder_role = responder.get("role")
     
-    # This now updates the user-specific status map
+    # 1. Standard accept logic (Updates responder_statuses)
     await accept_incident(incident_id, responder_id)
+
+    # 2. Update ROLE status as well (e.g. {"fire": "accepted"})
+    await update_incident(incident_id, {
+        f"role_statuses.{responder_role}": "accepted"
+    })
     
-    # Fetch updated and project status
     updated_doc = await get_incident(incident_id)
-    if not updated_doc:
-        raise HTTPException(404, "Incident not found after accept")
-    
-    # Return the doc with the status explicitly set to accepted for the UI
     updated_doc["status"] = "accepted"
         
     return updated_doc
@@ -88,20 +104,24 @@ async def status_route(
 ):
     new_status = body.get("status")
     responder_id = responder.get("id")
+    responder_role = responder.get("role")
 
     cur = await get_incident(incident_id)
     if not cur:
         raise HTTPException(404, "Not found")
     
-    # Get current status specifically for this responder
     current_user_status = cur.get("responder_statuses", {}).get(responder_id, "new")
 
     if not can_transition(current_user_status, new_status):
         raise HTTPException(400, f"Invalid transition {current_user_status} -> {new_status}")
     
-    # Update ONLY this responder's status
-    await update_incident(incident_id, {f"responder_statuses.{responder_id}": new_status})
+    # Update BOTH specific User ID status AND Role status
+    updates = {
+        f"responder_statuses.{responder_id}": new_status,
+        f"role_statuses.{responder_role}": new_status
+    }
     
+    await update_incident(incident_id, updates)
     await record_status(incident_id, responder_id, new_status)
     
     return {"ok": True}

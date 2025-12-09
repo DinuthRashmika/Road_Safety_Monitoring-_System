@@ -32,7 +32,6 @@ async def update_incident(incident_id: str, patch: dict) -> None:
 
 
 async def delete_incident(incident_id: str) -> None:
-    """Deletes a single incident by its ID."""
     db = get_db()
     await db["incidents"].delete_one({"_id": ObjectId(incident_id)})
 
@@ -47,85 +46,81 @@ async def list_queue(
     
     db = get_db()
     
-    # "Active" means the responder is working on it, OR it's new and waiting for them.
-    
+    # --- ADMIN LOGIC ---
     if role == "admin":
-        # Admin sees the raw global view
-        if status == "active":
-             # Show anything not resolved globally (simplified for admin)
-            query: dict = {"status": {"$ne": "resolved"}}
-        else:
-            query: dict = {"status": status}
-
+        # Admin needs to see items based on Multi-Responder Resolution
+        
+        # 1. Fetch EVERYTHING (filtered by limit) to process in Python 
+        #    (Optimization: In production, use Aggregation Pipeline, but this is safer for logic)
         cursor = (
             db["incidents"]
-            .find(query)
+            .find({})
             .sort([("score", -1), ("reported_at", -1)])
-            .limit(limit)
-        )
-        return [_norm(x) async for x in cursor]
-    
-    # --- Responder Logic (Police, Fire, Ambulance) ---
-
-    if status == "resolved":
-        # Fetch incidents where THIS user specifically marked it as resolved
-        query = {
-            f"responder_statuses.{user_id}": "resolved"
-        }
-        cursor = (
-            db["incidents"]
-            .find(query)
-            .sort([("reported_at", -1)])
-            .limit(limit)
+            .limit(limit * 2) # Fetch extra to filter
         )
         
-        results = []
-        async for x in cursor:
-            d = _norm(x)
-            d["status"] = "resolved" # Force status for frontend view
-            results.append(d)
-        return results
-
-    if status == "active":
-        # It is active for a user if:
-        # 1. They have ALREADY accepted/enroute/arrived (it is in their status map)
-        # 2. OR It is "New" (User not in map) AND their role is required.
-        
-        query = {
-            "$or": [
-                # Case A: User has interacted and it is NOT resolved
-                {f"responder_statuses.{user_id}": {"$in": ["accepted", "enroute", "arrived"]}},
-                
-                # Case B: User has NOT interacted (field missing) AND role is required
-                {
-                    f"responder_statuses.{user_id}": {"$exists": False},
-                    "required_roles": role,
-                    "status": {"$ne": "resolved"} # Optional: Ensure global incident isn't dead
-                }
-            ]
-        }
-        
-        cursor = (
-            db["incidents"]
-            .find(query)
-            .sort([("score", -1)])
-            .limit(limit)
-        )
-        
-        # Post-process to inject the correct "status" for the frontend
         results = []
         async for doc in cursor:
             d = _norm(doc)
             
-            # Check this specific user's status
-            user_status = d.get("responder_statuses", {}).get(user_id)
+            # Calculate Pending Roles
+            required = d.get("required_roles", [])
+            role_stats = d.get("role_statuses", {})
             
-            if user_status:
-                d["status"] = user_status
+            # A role is pending if it is NOT "resolved" in the role_statuses map
+            pending = [r for r in required if role_stats.get(r) != "resolved"]
+            
+            d["pending_responder_roles"] = pending
+            
+            # Determine Global Admin Status
+            if len(pending) == 0 and len(required) > 0:
+                admin_view_status = "resolved"
             else:
-                # If they haven't touched it, it appears as "new" to them
-                d["status"] = "new"
-                
+                admin_view_status = "active"
+
+            # Filter based on requested status
+            if status == "resolved":
+                if admin_view_status == "resolved":
+                    d["status"] = "resolved"
+                    results.append(d)
+            else: 
+                # status == "active"
+                if admin_view_status != "resolved":
+                    # It's active if even one person is pending
+                    d["status"] = "active"
+                    results.append(d)
+
+        return results[:limit]
+    
+    # --- RESPONDER LOGIC (Unchanged) ---
+    if status == "resolved":
+        query = {f"responder_statuses.{user_id}": "resolved"}
+        cursor = db["incidents"].find(query).sort([("reported_at", -1)]).limit(limit)
+        results = []
+        async for x in cursor:
+            d = _norm(x)
+            d["status"] = "resolved"
+            results.append(d)
+        return results
+
+    if status == "active":
+        query = {
+            "$or": [
+                {f"responder_statuses.{user_id}": {"$in": ["accepted", "enroute", "arrived"]}},
+                {
+                    f"responder_statuses.{user_id}": {"$exists": False},
+                    "required_roles": role,
+                    "status": {"$ne": "resolved"}
+                }
+            ]
+        }
+        cursor = db["incidents"].find(query).sort([("score", -1)]).limit(limit)
+        
+        results = []
+        async for doc in cursor:
+            d = _norm(doc)
+            user_status = d.get("responder_statuses", {}).get(user_id)
+            d["status"] = user_status if user_status else "new"
             results.append(d)
             
         return results

@@ -5,6 +5,7 @@
   margin-bottom: 16px;
   border-left: 5px solid #ccc;
   transition: box-shadow 0.3s ease;
+  position: relative; /* For popup positioning */
 }
 
 .incident-card:hover {
@@ -37,6 +38,51 @@
   color: #777;
 }
 
+/* NEW STYLES FOR ADMIN ALERT */
+.pending-alert-icon {
+  background-color: #E4080A;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.pending-popup {
+  position: absolute;
+  top: 25px;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 100;
+  min-width: 150px;
+  color: #333;
+}
+
+.pending-popup ul {
+  list-style: none;
+  padding: 0;
+  margin: 5px 0 0 0;
+}
+.pending-popup li {
+  text-transform: capitalize;
+  font-weight: 600;
+  color: #E4080A;
+}
+
+/* Existing styles below... */
 .card-body {
   display: flex;
   justify-content: space-between;
@@ -98,8 +144,6 @@
 .view-details-button {
   background-color: #E4080A; 
   color: #fff;
-  
-  /* Match size and shape */
   padding: 10px 16px;
   border: none;
   border-radius: 5px;
