@@ -61,7 +61,6 @@ async def delete_user(user_id: str) -> None:
     db = get_db()
     await db["users"].delete_one({"_id": ObjectId(user_id)})
 
-# --- NEW FUNCTION FOR NEAREST UNIT LOGIC ---
 async def get_responders_by_role(role: str) -> List[Dict[str, Any]]:
     """Fetches all responders of a specific role (e.g., all police units)."""
     db = get_db()

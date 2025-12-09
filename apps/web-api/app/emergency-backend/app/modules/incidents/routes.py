@@ -45,30 +45,24 @@ async def get_incident_route(
     user_id = responder.get("id")
     role = responder.get("role")
 
-    # --- ADMIN LOGIC: Compute global status & pending roles on the fly ---
     if role == "admin":
         required = inc.get("required_roles", [])
         role_stats = inc.get("role_statuses", {})
         
-        # Determine who is still pending
         pending = [r for r in required if role_stats.get(r) != "resolved"]
         inc["pending_responder_roles"] = pending
         
-        # If everyone is done, show 'resolved' to Admin
         if len(pending) == 0 and len(required) > 0:
             inc["status"] = "resolved"
-        # Otherwise, if unverified, keep unverified, else active
         elif inc.get("status") != "unverified":
             inc["status"] = "active"
 
-    # --- RESPONDER LOGIC: Show specific user status ---
     else:
         user_status = inc.get("responder_statuses", {}).get(user_id)
         
         if user_status:
             inc["status"] = user_status
         elif role in inc.get("required_roles", []) and not user_status:
-            # If they are required but haven't accepted, it looks 'new' to them
             inc["status"] = "new"
             
     return inc
@@ -80,10 +74,8 @@ async def accept_route(incident_id: str, responder: dict = Depends(get_current_r
     responder_id = responder.get("id")
     responder_role = responder.get("role")
     
-    # 1. Standard accept logic (Updates responder_statuses)
     await accept_incident(incident_id, responder_id)
 
-    # 2. Update ROLE status as well (e.g. {"fire": "accepted"})
     await update_incident(incident_id, {
         f"role_statuses.{responder_role}": "accepted"
     })
@@ -115,7 +107,6 @@ async def status_route(
     if not can_transition(current_user_status, new_status):
         raise HTTPException(400, f"Invalid transition {current_user_status} -> {new_status}")
     
-    # Update BOTH specific User ID status AND Role status
     updates = {
         f"responder_statuses.{responder_id}": new_status,
         f"role_statuses.{responder_role}": new_status

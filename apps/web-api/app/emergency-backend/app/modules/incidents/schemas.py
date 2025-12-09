@@ -38,20 +38,15 @@ class Incident(BaseModel):
     score: int = 0
     required_roles: list[str] = Field(default_factory=list) 
     
-    # Global status (admin view uses this derived from role statuses)
     status: Status = "unverified"
     
-    # Tracks status per User ID: {"user_123": "accepted"}
     responder_statuses: Dict[str, str] = Field(default_factory=dict)
 
-    # Tracks status per ROLE: {"fire": "resolved", "police": "accepted"}
-    # This allows us to easily check if the "Fire" requirement is met.
     role_statuses: Dict[str, str] = Field(default_factory=dict)
     
     assignee_responder_id: Optional[str] = None 
     explain: list[str] = Field(default_factory=list)
     
-    # Fields for Admin UI convenience (not stored in DB usually, but added by Repo)
     pending_responder_roles: Optional[list[str]] = None
     
     model_config = {

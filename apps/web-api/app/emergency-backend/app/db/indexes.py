@@ -53,8 +53,6 @@ async def ensure_all(db: AgnosticDatabase) -> None:
         IndexModel([("at", DESCENDING)], name="ix_assignments_at"),
     ]
     await _create_indexes(db, "assignments", assignment_indexes)
-
-    # notifications (optional; safe if unused)
     
     await _ensure_collection(db, "notifications")
     notif_indexes = [

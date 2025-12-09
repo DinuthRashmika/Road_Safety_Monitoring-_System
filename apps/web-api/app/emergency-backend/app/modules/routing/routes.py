@@ -35,10 +35,8 @@ async def _get_locations(incident_id: str, current_responder: dict) -> tuple[dic
     if not inc:
         raise HTTPException(404, "Incident not found")
     
-    # Start: The Responder requesting the route (YOU)
     resp_loc = current_responder.get("location") or {}
     
-    # End: The Incident location
     inc_loc = inc.get("location") or {}
     
     if not all([inc_loc.get("lat"), inc_loc.get("lng"), resp_loc.get("lat"), resp_loc.get("lng")]):
@@ -52,7 +50,6 @@ async def incident_eta(
     incident_id: str, 
     responder: dict = Depends(get_current_responder_doc)
 ):
-    # Calculate ETA from YOU (the responder) to the incident
     resp_loc, inc_loc = await _get_locations(incident_id, responder)
     
     return await eta_adapter(
@@ -65,7 +62,6 @@ async def incident_route(
     incident_id: str,
     responder: dict = Depends(get_current_responder_doc)
 ):
-    # Calculate Route from YOU (the responder) to the incident
     resp_loc, inc_loc = await _get_locations(incident_id, responder)
     
     return await route_adapter(
