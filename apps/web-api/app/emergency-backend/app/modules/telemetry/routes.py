@@ -10,5 +10,6 @@ async def tiles(
 ):
     role = responder.get("role")
     user_id = responder.get("id")
+    location = responder.get("location") # Pass location for distance calculations
     
-    return await metrics_tiles(role=role, user_id=user_id)
+    return await metrics_tiles(role=role, user_id=user_id, location=location)

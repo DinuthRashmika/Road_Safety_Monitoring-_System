@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
 
 from app.db.mongo import get_db
+# Import list_queue to ensure active count matches dashboard logic
+from app.modules.incidents.repo import list_queue
 
 ACTIVE_STATUSES = {"new", "accepted", "enroute", "arrived"}
 RESPONSE_PAIR = ("accepted", "arrived")
@@ -16,45 +18,46 @@ def _iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).isoformat()
 
 
-async def _count_active_incidents(role: str, user_id: str) -> int:
-    db = get_db()
-
-    if role == "admin":
-        query = {"status": {"$in": list(ACTIVE_STATUSES)}}
-    else:
-        query = {
-            "status": {"$in": list(ACTIVE_STATUSES)},
-            "$or": [
-                {"status": "new", "required_roles": {"$in": [role]}},
-                {"assignee_responder_id": user_id, "status": {"$in": ["accepted", "enroute", "arrived"]}}
-            ]
-        }
-    
-    return await db["incidents"].count_documents(query)
+async def _count_active_incidents(role: str, user_id: str, location: dict = None) -> int:
+    """
+    Counts active incidents by using list_queue. 
+    This ensures the count matches the dashboard cards exactly (distance filters, etc).
+    """
+    active_items = await list_queue(
+        limit=1000,
+        role=role,
+        user_location=location,
+        status="active",
+        user_id=user_id
+    )
+    return len(active_items)
 
 
 async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) -> int:
-   
+    """
+    Counts incidents resolved in the last X hours using the responder_statuses map.
+    """
     db = get_db()
     since = _iso(_now_utc() - timedelta(hours=window_hours))
-
-    assignment_match_query = {"status": "resolved", "resolved_at": {"$gte": since}}
     
-    if role != "admin":
-         assignment_match_query["responder_id"] = user_id
-         
-    pipeline = [
-        {"$match": assignment_match_query},
-        {"$group": {"_id": "$incident_id"}}, 
-        {"$count": "count"},
-    ]
-    
-    agg = db["assignments"].aggregate(pipeline)
-    doc = await agg.to_list(length=1)
-    return int(doc[0]["count"]) if doc else 0
+    if role == "admin":
+        # Admin: Count globally resolved incidents reported recently
+        query = {
+            "status": "resolved",
+            "reported_at": {"$gte": since}
+        }
+    else:
+        # Responder: Count incidents resolved specifically by THIS user
+        query = {
+            f"responder_statuses.{user_id}": "resolved",
+            "reported_at": {"$gte": since}
+        }
+        
+    return await db["incidents"].count_documents(query)
 
 
 async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> float:
+    # --- EXISTING FUNCTIONALITY PRESERVED ---
     db = get_db()
     since_dt = _now_utc() - timedelta(hours=window_hours)
     since_iso = _iso(since_dt)
@@ -91,8 +94,8 @@ async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> f
     return round(total / n, 1) if n else 0.0
 
 
-async def metrics_tiles(role: str, user_id: str, window_hours: int = 24) -> dict:
-    active = await _count_active_incidents(role, user_id)
+async def metrics_tiles(role: str, user_id: str, location: dict = None, window_hours: int = 24) -> dict:
+    active = await _count_active_incidents(role, user_id, location)
     resolved = await _count_resolved_in_window(window_hours, role, user_id)
     avg_resp = await _avg_response_minutes(window_hours, role, user_id)
 

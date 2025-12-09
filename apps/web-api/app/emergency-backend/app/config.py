@@ -13,7 +13,6 @@ class Settings(BaseModel):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me")
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
 
-    ROUTING_MODE: str = os.getenv("ROUTING_MODE", "dummy")
     GOOGLE_MAPS_API_KEY: str | None = os.getenv("GOOGLE_MAPS_API_KEY")
 
     CORS_ORIGINS: list[str] = [
