@@ -1,4 +1,3 @@
-"""Security utilities: JWT + password hashing + roles."""
 from .jwt import create_access_token, decode_token
 from .password import hash_password, verify_password
 

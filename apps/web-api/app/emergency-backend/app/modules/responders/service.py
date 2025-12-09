@@ -10,10 +10,6 @@ async def admin_create_user(name: str, email: str, role: str, password: str, loc
     return await create_user(name, email, role, ph, location.model_dump())
 
 async def admin_update_user(user_id: str, fields: Dict[str, Any]) -> None:
-    """
-    fields may include: name, email, role, password, location
-    If password is present, convert to password_hash.
-    """
     patch: Dict[str, Any] = {}
     for k in ("name", "email", "role", "location"):
         if k in fields and fields[k] is not None:

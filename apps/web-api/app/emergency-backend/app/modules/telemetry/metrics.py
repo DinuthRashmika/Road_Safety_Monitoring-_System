@@ -22,9 +22,6 @@ async def _count_active_incidents(role: str, user_id: str) -> int:
     if role == "admin":
         query = {"status": {"$in": list(ACTIVE_STATUSES)}}
     else:
-        # A responder sees:
-        # 1. Any incident they are assigned to (accepted, enroute, arrived).
-        # 2. Any new incident that requires their role.
         query = {
             "status": {"$in": list(ACTIVE_STATUSES)},
             "$or": [
@@ -37,10 +34,7 @@ async def _count_active_incidents(role: str, user_id: str) -> int:
 
 
 async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) -> int:
-    """
-    Counts distinct incidents that reached 'resolved' status within the time window,
-    filtered by the user who resolved them (via the assignments collection).
-    """
+   
     db = get_db()
     since = _iso(_now_utc() - timedelta(hours=window_hours))
 
@@ -49,7 +43,6 @@ async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) 
     if role != "admin":
          assignment_match_query["responder_id"] = user_id
          
-    # Aggregate on assignments collection to count distinct incidents resolved in the window
     pipeline = [
         {"$match": assignment_match_query},
         {"$group": {"_id": "$incident_id"}}, 
@@ -62,10 +55,6 @@ async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) 
 
 
 async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> float:
-    """
-    Average time from first 'accepted' → first 'arrived' per incident,
-    filtered by the user.
-    """
     db = get_db()
     since_dt = _now_utc() - timedelta(hours=window_hours)
     since_iso = _iso(since_dt)
@@ -103,9 +92,6 @@ async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> f
 
 
 async def metrics_tiles(role: str, user_id: str, window_hours: int = 24) -> dict:
-    """
-    Returns role-aware telemetry tiles for the dashboard.
-    """
     active = await _count_active_incidents(role, user_id)
     resolved = await _count_resolved_in_window(window_hours, role, user_id)
     avg_resp = await _avg_response_minutes(window_hours, role, user_id)

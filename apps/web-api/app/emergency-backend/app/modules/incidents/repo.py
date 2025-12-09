@@ -6,7 +6,6 @@ from app.modules.responders.repo import get_user_by_email, get_user
 
 
 def _norm(doc: dict) -> dict:
-    """Convert Mongo _id to 'id' and drop raw ObjectId."""
     if not doc:
         return doc
     out = dict(doc)
@@ -77,14 +76,11 @@ async def list_queue(
         )
         return [_norm(x) async for x in cursor]
 
-    # This is the active queue for non-admin responders
     if status == "active":
         query = {
             "status": {"$in": active_statuses},
             "$or": [
-                # 1. New incidents that require the responder's role
                 {"status": "new", "required_roles": {"$in": [role]}},
-                # 2. Incidents the responder is currently assigned to (accepted, enroute, arrived)
                 {"assignee_responder_id": user_id}
             ]
         }
@@ -96,7 +92,6 @@ async def list_queue(
         )
         return [_norm(x) async for x in cursor]
     
-    # Other statuses for non-admin responder (e.g., unverified, although generally hidden)
     query = {
         "status": status,
         "assignee_responder_id": user_id 

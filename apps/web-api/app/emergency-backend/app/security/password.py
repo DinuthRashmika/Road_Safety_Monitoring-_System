@@ -18,10 +18,6 @@ def _sha256_dev(pw: str) -> str:
 
 
 def hash_password(pw: str) -> str:
-    """
-    Hash with bcrypt if healthy; otherwise fallback to deterministic dev sha256.
-    Also guards against bcrypt's 72-byte limit by truncating input.
-    """
     if _HAS_BCRYPT and _ctx is not None:
         try:
             return _ctx.hash(pw[:72]) 
@@ -31,9 +27,6 @@ def hash_password(pw: str) -> str:
 
 
 def verify_password(pw: str, stored: str) -> bool:
-    """
-    Verify bcrypt, dev sha256, or plaintext (for dev/seed).
-    """
     if not isinstance(stored, str) or not stored:
         return False
 

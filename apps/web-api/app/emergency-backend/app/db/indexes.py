@@ -6,7 +6,6 @@ from pymongo import ASCENDING, DESCENDING, GEOSPHERE, IndexModel
 
 
 async def _ensure_collection(db: AgnosticDatabase, name: str) -> None:
-    """Create the collection if it does not exist (idempotent)."""
     try:
         await db.create_collection(name)
     except Exception:
@@ -23,14 +22,9 @@ async def _create_indexes(db: AgnosticDatabase, coll_name: str, indexes: Iterabl
 
 
 async def ensure_all(db: AgnosticDatabase) -> None:
-    """
-    Create all collections and indexes used by the service.
-    Call this once at startup (e.g., in app startup event).
-    """
 
-    # -----------------
     # users (Responder Stations)
-    # -----------------
+
     await _ensure_collection(db, "users")
     user_indexes = [
         IndexModel([("email", ASCENDING)], unique=True, name="ux_users_email"),
@@ -39,13 +33,8 @@ async def ensure_all(db: AgnosticDatabase) -> None:
     ]
     await _create_indexes(db, "users", user_indexes)
 
-    # -----------------
-    # units (physical responder units/crews)  <-- REMOVED
-    # -----------------
-
-    # -----------------
     # incidents
-    # -----------------
+    
     await _ensure_collection(db, "incidents")
     incident_indexes = [
         IndexModel([("status", ASCENDING), ("score", DESCENDING)], name="ix_incidents_status_score"),
@@ -57,20 +46,16 @@ async def ensure_all(db: AgnosticDatabase) -> None:
     ]
     await _create_indexes(db, "incidents", incident_indexes)
 
-    # -----------------
-    # assignments (status timeline / responder progress)
-    # -----------------
     await _ensure_collection(db, "assignments")
     assignment_indexes = [
         IndexModel([("incident_id", ASCENDING)], name="ix_assignments_incident"),
-        IndexModel([("responder_id", ASCENDING)], name="ix_assignments_responder"), # <-- RENAMED
+        IndexModel([("responder_id", ASCENDING)], name="ix_assignments_responder"),
         IndexModel([("at", DESCENDING)], name="ix_assignments_at"),
     ]
     await _create_indexes(db, "assignments", assignment_indexes)
 
-    # -----------------
     # notifications (optional; safe if unused)
-    # -----------------
+    
     await _ensure_collection(db, "notifications")
     notif_indexes = [
         IndexModel([("to", ASCENDING), ("created_at", DESCENDING)], name="ix_notifications_to_created"),

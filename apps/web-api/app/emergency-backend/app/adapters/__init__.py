@@ -1,1 +1,1 @@
-"""External adapters (notifications, etc.)."""
+

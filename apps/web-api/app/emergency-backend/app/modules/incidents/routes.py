@@ -43,9 +43,6 @@ async def get_incident_route(incident_id: str):
     "/incidents/{incident_id}/accept"
 )
 async def accept_route(incident_id: str, responder: dict = Depends(get_current_responder_doc)):
-    """
-    Accepts an incident and returns the fully updated incident document.
-    """
     responder_id = responder.get("id")
     await accept_incident(incident_id, responder_id)
     
@@ -85,9 +82,6 @@ async def status_route(
     dependencies=[Depends(require_roles("admin"))], 
 )
 async def delete_incident_route(incident_id: str):
-    """
-    Deletes an incident from the database. (Admin only)
-    """
     await delete_incident(incident_id)
     return {"ok": True}
 

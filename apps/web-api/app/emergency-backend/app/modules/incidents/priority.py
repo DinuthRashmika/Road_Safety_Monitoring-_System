@@ -11,9 +11,6 @@ def clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
 def score_incident(inc: Incident) -> Incident:
-    """
-    Compute score and decide required_roles based on new triage logic.
-    """
     G = map_grade(inc.severity_grade)
     R = map_risk(inc.camera_risk_class)
     explain: list[str] = []

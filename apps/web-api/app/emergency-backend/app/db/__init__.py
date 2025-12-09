@@ -1,4 +1,3 @@
-"""Database bootstrap & index helpers (Motor)."""
 from .mongo import get_db, get_client
 from .indexes import ensure_all
 from .collections import USERS, INCIDENTS, ASSIGNMENTS

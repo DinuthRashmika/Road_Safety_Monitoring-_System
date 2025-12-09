@@ -45,9 +45,6 @@ async def get_user_by_email(email: str) -> Optional[dict]:
 
 
 async def update_user(user_id: str, patch: Dict[str, Any]) -> None:
-    """
-    patch may include: name, email (normalized), role, password_hash, location
-    """
     db = get_db()
     if "email" in patch and isinstance(patch["email"], str):
         patch["email"] = patch["email"].strip().lower()

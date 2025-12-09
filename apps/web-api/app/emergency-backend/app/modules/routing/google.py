@@ -45,10 +45,6 @@ async def eta(from_lat: float, from_lng: float, to_lat: float, to_lng: float) ->
     }
 
 async def route(from_lat: float, from_lng: float, to_lat: float, to_lng: float) -> dict:
-    """
-    Returns a route with encoded polyline (overview), bounds, distance, duration.
-    Falls back to straight-line path if Google is unavailable.
-    """
     client = _try_google_client()
     if client:
         try:

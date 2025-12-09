@@ -32,7 +32,4 @@ async def login(payload: LoginRequest):
 
 @router.get("/me", response_model=UserView)
 async def me(responder: dict = Depends(get_current_responder_doc)):
-    """
-    Get the full document for the currently authenticated responder.
-    """
     return responder

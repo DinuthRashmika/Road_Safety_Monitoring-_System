@@ -27,7 +27,6 @@ async def routing_route(
     return await route_adapter(from_lat, from_lng, to_lat, to_lng)
 
 async def _get_responder_and_incident_locations(incident_id: str) -> tuple[dict, dict]:
-    """Helper to get incident location and assigned responder's location."""
     db = get_db()
     inc = await db["incidents"].find_one({"_id": ObjectId(incident_id)})
     if not inc:
