@@ -10,6 +10,8 @@ def _id(doc: Dict[str, Any]) -> str:
     return str(doc["_id"])
 
 def _norm_user(doc: Dict[str, Any]) -> Dict[str, Any]:
+    if not doc:
+        return doc
     return {
         "id": _id(doc),
         "name": doc.get("name"),
@@ -35,6 +37,8 @@ async def list_users() -> List[Dict[str, Any]]:
     return [_norm_user(x) async for x in cur]
 
 async def get_user(user_id: str) -> Optional[Dict[str, Any]]:
+    if not ObjectId.is_valid(user_id):
+        return None
     db = get_db()
     doc = await db["users"].find_one({"_id": ObjectId(user_id)}, {"password_hash": 0})
     return _norm_user(doc) if doc else None
@@ -56,3 +60,10 @@ async def update_user(user_id: str, patch: Dict[str, Any]) -> None:
 async def delete_user(user_id: str) -> None:
     db = get_db()
     await db["users"].delete_one({"_id": ObjectId(user_id)})
+
+# --- NEW FUNCTION FOR NEAREST UNIT LOGIC ---
+async def get_responders_by_role(role: str) -> List[Dict[str, Any]]:
+    """Fetches all responders of a specific role (e.g., all police units)."""
+    db = get_db()
+    cursor = db["users"].find({"role": role})
+    return [_norm_user(doc) async for doc in cursor]
