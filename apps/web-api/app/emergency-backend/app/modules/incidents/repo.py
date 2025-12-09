@@ -47,11 +47,13 @@ async def list_queue(
     
     db = get_db()
     
-    active_statuses = ["new", "accepted", "enroute", "arrived"]
+    # "Active" means the responder is working on it, OR it's new and waiting for them.
     
     if role == "admin":
+        # Admin sees the raw global view
         if status == "active":
-            query: dict = {"status": {"$in": active_statuses}}
+             # Show anything not resolved globally (simplified for admin)
+            query: dict = {"status": {"$ne": "resolved"}}
         else:
             query: dict = {"status": status}
 
@@ -63,10 +65,12 @@ async def list_queue(
         )
         return [_norm(x) async for x in cursor]
     
+    # --- Responder Logic (Police, Fire, Ambulance) ---
+
     if status == "resolved":
+        # Fetch incidents where THIS user specifically marked it as resolved
         query = {
-            "status": "resolved",
-            "assignee_responder_id": user_id 
+            f"responder_statuses.{user_id}": "resolved"
         }
         cursor = (
             db["incidents"]
@@ -74,32 +78,56 @@ async def list_queue(
             .sort([("reported_at", -1)])
             .limit(limit)
         )
-        return [_norm(x) async for x in cursor]
+        
+        results = []
+        async for x in cursor:
+            d = _norm(x)
+            d["status"] = "resolved" # Force status for frontend view
+            results.append(d)
+        return results
 
     if status == "active":
+        # It is active for a user if:
+        # 1. They have ALREADY accepted/enroute/arrived (it is in their status map)
+        # 2. OR It is "New" (User not in map) AND their role is required.
+        
         query = {
-            "status": {"$in": active_statuses},
             "$or": [
-                {"status": "new", "required_roles": {"$in": [role]}},
-                {"assignee_responder_id": user_id}
+                # Case A: User has interacted and it is NOT resolved
+                {f"responder_statuses.{user_id}": {"$in": ["accepted", "enroute", "arrived"]}},
+                
+                # Case B: User has NOT interacted (field missing) AND role is required
+                {
+                    f"responder_statuses.{user_id}": {"$exists": False},
+                    "required_roles": role,
+                    "status": {"$ne": "resolved"} # Optional: Ensure global incident isn't dead
+                }
             ]
         }
+        
         cursor = (
             db["incidents"]
             .find(query)
             .sort([("score", -1)])
             .limit(limit)
         )
-        return [_norm(x) async for x in cursor]
+        
+        # Post-process to inject the correct "status" for the frontend
+        results = []
+        async for doc in cursor:
+            d = _norm(doc)
+            
+            # Check this specific user's status
+            user_status = d.get("responder_statuses", {}).get(user_id)
+            
+            if user_status:
+                d["status"] = user_status
+            else:
+                # If they haven't touched it, it appears as "new" to them
+                d["status"] = "new"
+                
+            results.append(d)
+            
+        return results
     
-    query = {
-        "status": status,
-        "assignee_responder_id": user_id 
-    }
-    cursor = (
-        db["incidents"]
-        .find(query)
-        .sort([("reported_at", -1)])
-        .limit(limit)
-    )
-    return [_norm(x) async for x in cursor]
+    return []

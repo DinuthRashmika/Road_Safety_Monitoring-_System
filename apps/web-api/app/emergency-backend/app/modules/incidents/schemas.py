@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Literal, Optional, Dict
 
 from app.modules.responders.schemas import Location
 
@@ -37,7 +37,13 @@ class Incident(BaseModel):
     media: Optional[Media] = None
     score: int = 0
     required_roles: list[str] = Field(default_factory=list) 
+    
+    # Global status (can be used for admin or summary)
     status: Status = "unverified"
+    
+    # Tracks status per responder ID: {"responder_id_123": "accepted"}
+    responder_statuses: Dict[str, str] = Field(default_factory=dict)
+    
     assignee_responder_id: Optional[str] = None 
     explain: list[str] = Field(default_factory=list)
     
