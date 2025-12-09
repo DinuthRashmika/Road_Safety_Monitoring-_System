@@ -3,8 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Depends
 from app.security.roles import require_roles
 from .schemas import (
-    UserCreate, UserUpdate, UserView,
- 
+    UserCreate, UserUpdate, UserView
 )
 from .service import admin_create_user, admin_update_user
 from .repo import (

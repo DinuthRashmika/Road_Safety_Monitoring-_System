@@ -27,4 +27,4 @@ class UserView(BaseModel):
     name: str
     email: EmailStr
     role: Role
-    location: Optional[Location] = None 
+    location: Optional[Location] = None
