@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Tuple
 
 from app.db.mongo import get_db
-# Import list_queue to ensure active count matches dashboard logic
 from app.modules.incidents.repo import list_queue
 
 ACTIVE_STATUSES = {"new", "accepted", "enroute", "arrived"}
@@ -19,10 +18,7 @@ def _iso(dt: datetime) -> str:
 
 
 async def _count_active_incidents(role: str, user_id: str, location: dict = None) -> int:
-    """
-    Counts active incidents by using list_queue. 
-    This ensures the count matches the dashboard cards exactly (distance filters, etc).
-    """
+
     active_items = await list_queue(
         limit=1000,
         role=role,
@@ -34,30 +30,38 @@ async def _count_active_incidents(role: str, user_id: str, location: dict = None
 
 
 async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) -> int:
-    """
-    Counts incidents resolved in the last X hours using the responder_statuses map.
-    """
+    
     db = get_db()
     since = _iso(_now_utc() - timedelta(hours=window_hours))
     
     if role == "admin":
-        # Admin: Count globally resolved incidents reported recently
-        query = {
-            "status": "resolved",
-            "reported_at": {"$gte": since}
-        }
+        cursor = db["incidents"].find({"reported_at": {"$gte": since}})
+        
+        count = 0
+        async for doc in cursor:
+            required = doc.get("required_roles", [])
+            role_stats = doc.get("role_statuses", {})
+            
+            if required and len(required) > 0:
+                all_resolved = True
+                for r in required:
+                    if role_stats.get(r) != "resolved":
+                        all_resolved = False
+                        break
+                
+                if all_resolved:
+                    count += 1
+        return count
+
     else:
-        # Responder: Count incidents resolved specifically by THIS user
         query = {
             f"responder_statuses.{user_id}": "resolved",
             "reported_at": {"$gte": since}
         }
-        
-    return await db["incidents"].count_documents(query)
+        return await db["incidents"].count_documents(query)
 
 
 async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> float:
-    # --- EXISTING FUNCTIONALITY PRESERVED ---
     db = get_db()
     since_dt = _now_utc() - timedelta(hours=window_hours)
     since_iso = _iso(since_dt)
