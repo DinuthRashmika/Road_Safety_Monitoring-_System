@@ -13,13 +13,7 @@ class Settings(BaseModel):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "change-me")
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
 
-    # Removed ROUTING_MODE as we default to Google + Fallback
     GOOGLE_MAPS_API_KEY: str | None = os.getenv("GOOGLE_MAPS_API_KEY")
-    
-    # --- NEW: Path to your YOLO model ---
-    # Put your 'best.pt' file in the 'app' folder or specify the full path here
-    FIRE_MODEL_PATH: str = os.getenv("FIRE_MODEL_PATH", "app/best.pt")
-    FIRE_CONF_THRESHOLD: float = 0.4  # Confidence required to say "Yes, this is fire"
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173" 
