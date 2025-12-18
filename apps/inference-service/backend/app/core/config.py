@@ -10,10 +10,10 @@ class Settings(BaseSettings):
     )
 
     # Env variables (must exist in .env or OS env)
-    MONGODB_URI: str
+    MONGODB_URI: str 
     MONGODB_DB: str = "road_safety"
 
-    JWT_SECRET: str
+    JWT_SECRET: str 
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 

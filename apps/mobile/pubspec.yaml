@@ -20,8 +20,14 @@ dependencies:
   dio: ^5.7.0
   font_awesome_flutter: ^10.7.0
 
+  # NEW (one time each)  
+  geolocator: ^12.0.0
+  web_socket_channel: ^3.0.3
+  image: ^4.2.0   # for WebP encoding
   dotted_border: ^2.1.0
   cached_network_image: ^3.3.0
+  camera: ^0.10.5+9         # Android/iOS (and web via camera_web)
+  camera_windows: ^0.2.1    # For Windows desktop camera
 
 dev_dependencies:
   flutter_test:

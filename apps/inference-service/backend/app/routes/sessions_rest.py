@@ -13,11 +13,12 @@ async def start_session(payload: SessionCreate, current=Depends(get_current_owne
     """
     Start a new DMS session. Returns the session id for WS.
     """
-    doc = session_doc(current["_id"], payload.name)
+    doc = session_doc(current["_id"], current["fullName"],payload)
     res = await mongodb.db.sessions.insert_one(doc)
     return {
         "id": str(res.inserted_id),
         "name": doc["name"],
+        "distanceKm": doc["distanceKm"],
         "startedAt": doc["startedAt"].isoformat(),
         "endedAt": None,
         "metrics": doc["metrics"],
