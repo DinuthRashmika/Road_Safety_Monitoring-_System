@@ -1,38 +1,38 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'live_monitoring_screen.dart';
+
 import '../core/api_client.dart';
 import '../core/token_storage.dart';
+import 'live_monitoring_screen.dart';
 
-// =================== CONFIG ===================
 const String kApiBase = 'http://127.0.0.1:8000';
 
 class StartTripScreen extends StatefulWidget {
   const StartTripScreen({super.key});
+
   @override
   State<StartTripScreen> createState() => _StartTripScreenState();
 }
 
 class _StartTripScreenState extends State<StartTripScreen> {
-  // Palette
-  static const primary = Color(0xFF2563EB);
-  static const primaryDeep = Color(0xFF1D4ED8);
-  static const primaryLight = Color(0xFFEFF6FF);
-  static const ink = Color(0xFF0E1113);
-  static const grayInactive = Color(0xFF8A8F98);
-  static const grayBorder = Color(0xFFDADDE1);
-  static const grayBg = Color(0xFFF1F2F4);
+  static const primaryBlue = Color(0xFF2563EB);
 
-  bool locationOn = false;
-  bool cameraOn = false;
+  bool locationEnabled = false;
+  bool cameraEnabled = false;
+  bool isLoading = false;
+
+  double distanceKm = 5;
 
   final _nameCtrl = TextEditingController(text: 'WS Smoke Test');
+
   Position? _pos;
   StreamSubscription<Position>? _posSub;
+
+  bool get canStart => locationEnabled && cameraEnabled && !isLoading;
 
   @override
   void dispose() {
@@ -41,22 +41,25 @@ class _StartTripScreenState extends State<StartTripScreen> {
     super.dispose();
   }
 
-  // ---- GPS ----
+  // ================= LOCATION =================
   Future<void> _startLocation() async {
-    final enabled = await Geolocator.isLocationServiceEnabled();
-    if (!enabled) {
-      _toast('Please enable device Location (GPS).');
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      _toast('Please enable GPS');
       await Geolocator.openLocationSettings();
       return;
     }
+
     var perm = await Geolocator.checkPermission();
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
     }
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      _toast('Location permission denied.');
+
+    if (perm == LocationPermission.denied ||
+        perm == LocationPermission.deniedForever) {
+      _toast('Location permission denied');
       return;
     }
+
     _posSub?.cancel();
     _posSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
@@ -64,10 +67,9 @@ class _StartTripScreenState extends State<StartTripScreen> {
         distanceFilter: 5,
       ),
     ).listen((p) => setState(() => _pos = p));
-    try {
-      final now = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      setState(() => _pos = now);
-    } catch (_) {}
+
+    final p = await Geolocator.getCurrentPosition();
+    setState(() => _pos = p);
   }
 
   Future<void> _stopLocation() async {
@@ -76,208 +78,267 @@ class _StartTripScreenState extends State<StartTripScreen> {
     setState(() => _pos = null);
   }
 
-Future<String?> _readAuthToken() async {
-  final sp = await TokenStorage.read(); // SharedPreferences?
-  return sp;        // <-- use ?.
-}
+  // ================= SESSION =================
+  Future<String?> _readAuthToken() async {
+    return await TokenStorage.read();
+  }
 
-  // ---- Create session & navigate ----
   Future<void> _createSessionAndGo() async {
-    final name = _nameCtrl.text.trim().isEmpty ? 'WS Smoke Test' : _nameCtrl.text.trim();
+    setState(() => isLoading = true);
 
-    double lat = 0, lng = 0;
-    if (_pos == null) {
-      try {
-        final p = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium);
-        lat = p.latitude;
-        lng = p.longitude;
-      } catch (_) {}
-    } else {
-      lat = _pos!.latitude;
-      lng = _pos!.longitude;
-    }
+    double lat = _pos?.latitude ?? 0;
+    double lng = _pos?.longitude ?? 0;
 
-    final dio = Dio(BaseOptions(baseUrl: kApiBase));
     try {
-      final res = await ApiClient.dio.post('/api/sessions', data: {
-        'name': name
-      });
+      final res = await ApiClient.dio.post(
+        '/api/sessions',
+        data: {
+          'name': _nameCtrl.text,
+          'distanceKm': distanceKm.toInt(),
+          'locationEnabled': locationEnabled,
+          'cameraEnabled': cameraEnabled,
+          'lat': lat,
+          'lng': lng,
+        },
+      );
 
-      final data = res.data is Map ? (res.data as Map) : jsonDecode(res.data as String);
-      final sessionId = (data['id'] ?? data['_id'] ?? data['sessionId'] ?? '').toString();
-      if (sessionId.isEmpty) throw Exception('Missing session id.');
+      final data = res.data is Map
+          ? res.data
+          : jsonDecode(res.data as String);
 
-      final token = (await _readAuthToken()) ?? ''; // pass empty if you don’t use auth
+      final sessionId =
+          (data['id'] ?? data['_id'] ?? data['sessionId']).toString();
+
+      final token = (await _readAuthToken()) ?? '';
+
       if (!mounted) return;
-      Navigator.of(context).push(
+      Navigator.push(
+        context,
         MaterialPageRoute(
           builder: (_) => LiveMonitoringScreen(
             sessionId: sessionId,
             token: token,
-            driverName: name,
+            driverName: _nameCtrl.text,
           ),
         ),
       );
     } catch (e) {
-      if (!mounted) return;
-      _toast('Create session failed: $e');
+      _toast('Create session failed');
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
-  // ---- UI ----
+  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF6F7F9),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: ink),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: const Text('Start Trip', style: TextStyle(color: ink, fontWeight: FontWeight.w700)),
-        centerTitle: true,
         backgroundColor: Colors.white,
-        elevation: 0.5,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text('Start Trip', style: TextStyle(color: Colors.black)),
+        leading: const BackButton(color: Colors.black),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Icon(Icons.help_outline, color: Colors.black),
+          )
+        ],
       ),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
+        child: Column(children: [
+
+          // ========= SAFETY CARD =========
           _card(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Driver Name',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: ink)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _nameCtrl,
-                  decoration: InputDecoration(
-                    hintText: 'Enter your name',
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: grayBorder),
+                Row(
+                  children: const [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Color(0xFFEFF6FF),
+                      child: Icon(Icons.shield, color: primaryBlue),
                     ),
-                  ),
+                    SizedBox(width: 12),
+                    Text('Enable Safety Features',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _card(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Enable Safety Features',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: ink)),
-                const SizedBox(height: 12),
-                _rowToggle(
+                const SizedBox(height: 16),
+
+                _switchTile(
                   title: 'Location',
                   subtitle: 'Track distance accurately',
-                  value: locationOn,
+                  value: locationEnabled,
                   onChanged: (v) async {
-                    setState(() => locationOn = v);
-                    if (v) {
-                      await _startLocation();
-                    } else {
-                      await _stopLocation();
-                      setState(() => cameraOn = false);
-                    }
+                    setState(() => locationEnabled = v);
+                    v ? await _startLocation() : await _stopLocation();
+                    if (!v) cameraEnabled = false;
                   },
                 ),
-                if (_pos != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4.0, top: 6),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.my_location, size: 16, color: primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Lat: ${_pos!.latitude.toStringAsFixed(6)}, '
-                          'Lng: ${_pos!.longitude.toStringAsFixed(6)}',
-                          style: const TextStyle(fontSize: 12, color: grayInactive),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                _rowToggle(
+
+                _switchTile(
                   title: 'Camera',
-                  subtitle: 'Monitor driver behavior - face/hands only',
-                  value: cameraOn,
-                  onChanged: locationOn ? (v) => setState(() => cameraOn = v) : null,
-                ),
-                const SizedBox(height: 8),
-                const Center(
-                  child: Text(
-                    'Only cropped driver view; no raw video stored.',
-                    style: TextStyle(fontSize: 12, color: grayInactive),
-                  ),
+                  subtitle:
+                      'Monitor driver behavior – face/hands only\nOnly cropped driver view; no raw video stored.',
+                  value: cameraEnabled,
+                  onChanged:
+                      locationEnabled ? (v) => setState(() => cameraEnabled = v) : null,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: (locationOn && cameraOn) ? _createSessionAndGo : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+
+          const SizedBox(height: 16),
+
+          // ========= DISTANCE =========
+          _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Set Distance Goal',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                const Text('Choose total trip distance.',
+                    style: TextStyle(color: Colors.grey)),
+
+                const SizedBox(height: 24),
+
+                Center(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: primaryBlue,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${distanceKm.toStringAsFixed(1)} km',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+
+                Slider(
+                  min: 1,
+                  max: 50,
+                  divisions: 49,
+                  value: distanceKm,
+                  activeColor: primaryBlue,
+                  onChanged: (v) => setState(() => distanceKm = v),
+                ),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text('1'), Text('5'), Text('10'),
+                    Text('20'), Text('30'), Text('40'), Text('50'),
+                  ],
+                )
+              ],
             ),
-            child: const Text('Start Monitoring'),
           ),
-        ],
+
+          const SizedBox(height: 16),
+
+          // ========= TIPS =========
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('Tips',
+                    style: TextStyle(
+                        color: primaryBlue,
+                        fontWeight: FontWeight.bold)),
+                SizedBox(height: 8),
+                Text('• Mount on dashboard'),
+                Text('• Face & shoulders visible'),
+                Text('• Volume on'),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ========= BUTTON =========
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: canStart ? _createSessionAndGo : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    canStart ? primaryBlue : Colors.grey.shade300,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Start Monitoring',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          TextButton(
+            onPressed: () {},
+            child: const Text('View Previous Trips',
+                style: TextStyle(color: primaryBlue)),
+          )
+        ]),
       ),
     );
   }
 
+  // ================= HELPERS =================
   static Widget _card({required Widget child}) {
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: grayBg),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2))],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          )
+        ],
       ),
-      padding: const EdgeInsets.all(16),
       child: child,
     );
   }
 
-  Widget _rowToggle({
+  static Widget _switchTile({
     required String title,
     required String subtitle,
     required bool value,
     ValueChanged<bool>? onChanged,
   }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600, color: ink)),
-              const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(fontSize: 13, color: grayInactive)),
-            ],
-          ),
-        ),
-        Switch.adaptive(
-          value: value,
-          onChanged: onChanged,
-          activeColor: Colors.white,
-          activeTrackColor: primary,
-          inactiveTrackColor: const Color(0xFFE5E7EB),
-        ),
-      ],
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle),
+      value: value,
+      activeColor: primaryBlue,
+      onChanged: onChanged,
     );
   }
 
   void _toast(String msg) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 }
