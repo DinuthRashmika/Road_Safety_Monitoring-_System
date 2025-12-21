@@ -1,4 +1,5 @@
-﻿fastapi==0.115.2
+﻿# FastAPI stack
+fastapi==0.115.2
 uvicorn[standard]==0.30.6
 python-multipart==0.0.12
 passlib[bcrypt]==1.7.4
@@ -9,9 +10,22 @@ pydantic-settings==2.5.2
 motor==3.6.0
 python-slugify==8.0.4
 
-# inference stack for seatbelt/phone
+# Basic ML
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
+requests==2.32.3
+pillow==10.4.0
+
+# Skip scikit-image to avoid compilation issues
+# scikit-image==0.22.0  # Comment out for now
+
+# OCR (works without scikit-image)
+easyocr==1.7.1
+pytesseract==0.3.10
+
+# Torch - let pip choose compatible version
+torch>=2.3.0
+torchvision>=0.18.0
+
+# Ultralytics
 ultralytics==8.3.23
-numpy==1.26.4
-opencv-python-headless==4.10.0.84

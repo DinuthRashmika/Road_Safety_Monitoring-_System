@@ -1,20 +1,24 @@
-# app/db/init_indexes.py
 import app.db.mongodb as mongodb
+from pymongo import ASCENDING, DESCENDING
 
 async def ensure_indexes():
-    db = mongodb.db
-    if db is None:
-        # extra safety guard so the error is clearer if connect_to_mongo wasn't awaited
-        raise RuntimeError("Mongo database is not initialized. Call connect_to_mongo() first.")
-
-    # Users
-    await db.users.create_index("email", unique=True)
-    await db.users.create_index("nic", unique=True)
-
-    # Vehicles
-    await db.vehicles.create_index("plateNo", unique=True)
-    await db.vehicles.create_index([("ownerId", 1)])
-
-        # ---- DMS collections ----
-    await db.sessions.create_index([("ownerId", 1), ("startedAt", -1)])
-    await db.events.create_index([("sessionId", 1), ("createdAt", -1)])
+    """Create necessary database indexes"""
+    if mongodb.db is None:
+        return
+    
+    # Users collection indexes
+    await mongodb.db.users.create_index("email", unique=True)
+    await mongodb.db.users.create_index("nic", unique=True)
+    await mongodb.db.users.create_index("phone")
+    
+    # Vehicles collection indexes
+    await mongodb.db.vehicles.create_index("plateNo", unique=True)
+    await mongodb.db.vehicles.create_index("ownerId")
+    await mongodb.db.vehicles.create_index([("plateNo", ASCENDING), ("status", ASCENDING)])
+    
+    # Violations collection indexes
+    await mongodb.db.violations.create_index("plateNumber")
+    await mongodb.db.violations.create_index("detectionTime", DESCENDING)
+    await mongodb.db.violations.create_index("vehicleId")
+    await mongodb.db.violations.create_index([("plateNumber", ASCENDING), ("notified", ASCENDING)])
+    await mongodb.db.violations.create_index([("detectionTime", DESCENDING), ("location", ASCENDING)])

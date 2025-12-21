@@ -14,4 +14,5 @@ class VehicleOut(BaseModel):
     vehicleModel: str
     registrationDate: str
     plateNo: str
+    status: str
     images: Dict[str, Optional[str]]

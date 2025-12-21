@@ -1,36 +1,45 @@
-# app/core/config.py
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Literal
+import os
 
 class Settings(BaseSettings):
-    # Tell pydantic-settings v2 where the .env is
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore",          # ignore unexpected env vars
+        extra="ignore",
     )
 
-    # Env variables (must exist in .env or OS env)
+    # MongoDB
     MONGODB_URI: str
     MONGODB_DB: str = "road_safety"
 
+    # JWT (for admin/owner portal only)
     JWT_SECRET: str
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    JWT_EXPIRE_MINUTES: int = 60 * 24 * 7
 
+    # File uploads
     UPLOAD_DIR: str = "uploads"
-    ENVIRONMENT: Literal["development", "production"] = "development"  # ← ADDED
+    ENVIRONMENT: Literal["development", "production"] = "development"
     
-    # ---- DMS (seatbelt/phone stage) ----
-    YOLO_MODEL: str = "weights/best.pt"  # path to your trained model
-    MAX_FPS: int = 2
-    LOG_LEVEL: str = "INFO"
+    # Plate Detection Model
+    YOLO_MODEL: str = "weights/licence.pt"
+    
+    # Notification settings
+    SEND_NOTIFICATIONS: bool = True
+    NOTIFICATION_MESSAGE: str = "Your vehicle has been detected by our road safety monitoring system."
+    
+    # CCTV/Webcam settings
+    WEBCAM_SOURCE: int = 0
+    DETECTION_CONFIDENCE: float = 0.5
+    FRAME_SKIP: int = 5
+    SAVE_DETECTED_IMAGES: bool = True
+    DETECTED_IMAGES_DIR: str = "detections"
+    
+    # API Server
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
 
-    @property
-    def BASE_URL(self) -> str:
-        if self.ENVIRONMENT == "production":
-            return "https://your-production-domain.com"  # Your production URL
-        else:
-            return "http://10.0.2.2:8000"  # Default for Android emulator
+    
 
 settings = Settings()
