@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal
+from typing import Literal, Dict
 import os
 
 class Settings(BaseSettings):
@@ -24,6 +24,20 @@ class Settings(BaseSettings):
     
     # Plate Detection Model
     YOLO_MODEL: str = "weights/licence.pt"
+    
+    # --- NEW: Violation Model & Fines ---
+    VIOLATION_MODEL: str = "weights/violation.pt"
+
+    # Violation Fines (Currency: LKR)
+    # Make sure these keys match the CLASS NAMES inside your violation.pt model
+    VIOLATION_FINES: Dict[str, float] = {
+        "single_line_cross": 2000.0,
+        "double_line_cross": 5000.0,
+        "no_helmet": 1000.0,
+        "triple_riding": 1500.0, # 2+ persons on bike
+        "default": 1000.0
+    }
+    # ------------------------------------
     
     # Notification settings
     SEND_NOTIFICATIONS: bool = True

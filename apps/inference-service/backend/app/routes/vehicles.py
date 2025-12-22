@@ -35,35 +35,47 @@ async def create_vehicle(
     image_left: UploadFile | None = File(None),
     image_plate: UploadFile | None = File(None),
 ):
-    # Check if database is connected
     if mongodb.db is None or mongodb.db.db is None:
         logger.error("Database not initialized in create_vehicle")
         raise HTTPException(500, "Database not initialized")
 
     database = mongodb.db.db
-    
-    # Check if vehicle with this plate already exists
+    logger.info(f"Attempting to create vehicle: {plateNo} for owner {current['_id']}")
+
     existing_vehicle = await database.vehicles.find_one({"plateNo": plateNo.upper()})
     if existing_vehicle:
-        raise HTTPException(400, "Vehicle with this plate already exists")
+        logger.warning(f"Duplicate vehicle creation attempt: {plateNo}")
+        raise HTTPException(400, f"Vehicle with plate '{plateNo}' already exists")
 
     v_id = ObjectId()
     images: dict[str, Optional[str]] = {}
     subdir = f"vehicles/{str(current['_id'])}/{str(v_id)}"
 
-    # Save images
-    if image_front:
-        images["front"] = await save_image(image_front, subdir=subdir)
-    if image_back:
-        images["back"] = await save_image(image_back, subdir=subdir)
-    if image_right:
-        images["right"] = await save_image(image_right, subdir=subdir)
-    if image_left:
-        images["left"] = await save_image(image_left, subdir=subdir)
-    if image_plate:
-        images["plate"] = await save_image(image_plate, subdir=subdir)
+    # --- FIX START: Check if filename exists before saving ---
+    # This prevents the "Invalid image type: None" error if the key exists but is empty
+    try:
+        if image_front and image_front.filename: 
+            images["front"] = await save_image(image_front, subdir=subdir)
+            
+        if image_back and image_back.filename: 
+            images["back"] = await save_image(image_back, subdir=subdir)
+            
+        if image_right and image_right.filename: 
+            images["right"] = await save_image(image_right, subdir=subdir)
+            
+        if image_left and image_left.filename: 
+            images["left"] = await save_image(image_left, subdir=subdir)
+            
+        if image_plate and image_plate.filename: 
+            images["plate"] = await save_image(image_plate, subdir=subdir)
+            
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Unexpected image save error: {e}")
+        raise HTTPException(500, "Image save failed")
+    # --- FIX END ---
 
-    # Create vehicle document
     doc = vehicle_doc(
         ownerId=current["_id"],
         vehicleType=vehicleType,
@@ -74,10 +86,9 @@ async def create_vehicle(
     )
     doc["_id"] = v_id
     
-    # Insert into database
     await database.vehicles.insert_one(doc)
+    logger.info(f"✅ Vehicle created successfully: {plateNo}")
 
-    # Prepare response
     images_out = _normalize_images_for_response(request, doc["images"])
 
     return {
@@ -91,15 +102,12 @@ async def create_vehicle(
         "images": images_out,
     }
 
+# ... (Keep existing GET endpoints: list_my_vehicles, get_vehicle) ...
 @router.get("/mine", response_model=list[VehicleOut])
 async def list_my_vehicles(request: Request, current=Depends(get_current_owner)):
-    # Check if database is connected
     if mongodb.db is None or mongodb.db.db is None:
-        logger.error("Database not initialized in list_my_vehicles")
         raise HTTPException(500, "Database not initialized")
-
     database = mongodb.db.db
-    
     cursor = database.vehicles.find({"ownerId": current["_id"]})
     out = []
     async for v in cursor:
@@ -117,17 +125,16 @@ async def list_my_vehicles(request: Request, current=Depends(get_current_owner))
 
 @router.get("/{vehicle_id}", response_model=VehicleOut)
 async def get_vehicle(vehicle_id: str, request: Request, current=Depends(get_current_owner)):
-    # Check if database is connected
     if mongodb.db is None or mongodb.db.db is None:
-        logger.error("Database not initialized in get_vehicle")
         raise HTTPException(500, "Database not initialized")
-
     database = mongodb.db.db
-    
-    v = await database.vehicles.find_one({"_id": ObjectId(vehicle_id), "ownerId": current["_id"]})
+    try:
+        obj_id = ObjectId(vehicle_id)
+    except:
+        raise HTTPException(400, "Invalid vehicle ID format")
+    v = await database.vehicles.find_one({"_id": obj_id, "ownerId": current["_id"]})
     if not v:
         raise HTTPException(404, "Vehicle not found")
-    
     return {
         "id": str(v["_id"]),
         "ownerId": str(v["ownerId"]),

@@ -14,14 +14,10 @@ router = APIRouter(prefix="/api/cctv", tags=["CCTV Integration"])
 async def upload_violation_from_camera(
     camera_id: str,
     image: UploadFile = File(...),
-    secret_key: Optional[str] = Form(None) # Optional security check
+    secret_key: Optional[str] = Form(None) 
 ):
     """
     Endpoint for Registered CCTV Cameras to upload violation images.
-    This automatically:
-    1. Validates the camera exists.
-    2. Gets the location from the camera registry.
-    3. Detects plate -> OCR -> Finds Owner -> Sends Notification.
     """
     if mongodb.db is None or mongodb.db.db is None:
         raise HTTPException(500, "Database not initialized")
@@ -37,7 +33,6 @@ async def upload_violation_from_camera(
     if not camera:
         raise HTTPException(404, "Camera not registered in system")
 
-    # Optional: Check secret key if you implemented it on the camera side
     if secret_key and camera.get("secret_key") != secret_key:
         raise HTTPException(401, "Invalid Camera Secret Key")
 
@@ -52,8 +47,7 @@ async def upload_violation_from_camera(
     except Exception as e:
         raise HTTPException(400, "Failed to read image file")
 
-    # 3. Process using your EXISTING service
-    # We pass the location retrieved from the DB, not from the request body
+    # 3. Process using service
     result = await plate_owner_service.process_complete_detection(
         image_bytes=image_bytes,
         location=camera_location,
@@ -90,6 +84,12 @@ async def upload_violation_from_camera(
         plate_number=result.get('plate_number'),
         confidence=result.get('confidence'),
         ocr_confidence=result.get('ocr_confidence'),
+        
+        # --- NEW MAPPING HERE ---
+        violation_type=result.get('violation_type', 'Unknown'), # Map from service result
+        fine_amount=result.get('fine_amount', 0.0),             # Map from service result
+        # ------------------------
+
         vehicle_info=vehicle_info,
         notification_sent=result.get('notification_sent', False),
         violation_id=result.get('violation_id'),

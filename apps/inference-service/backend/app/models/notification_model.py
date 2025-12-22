@@ -9,6 +9,8 @@ def notification_doc(
     violation_id: str,
     message: str,
     location: str,
+    violation_type: str,  # New field
+    fine_amount: float    # New field
 ):
     now = datetime.utcnow()
     return {
@@ -18,6 +20,11 @@ def notification_doc(
         "violationId": ObjectId(violation_id), # Link to the violation proof
         "message": message,
         "location": location,
+        
+        # Detailed Info for App
+        "violationType": violation_type,
+        "fineAmount": fine_amount,
+        
         "isRead": False,                    # To show "New" badge in app
         "type": "violation_alert",
         "createdAt": now,
