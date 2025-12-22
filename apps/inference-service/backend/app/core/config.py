@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     YOLO_MODEL: str = "weights/licence.pt"
     
     # --- NEW: Violation Model & Fines ---
-    VIOLATION_MODEL: str = "weights/violation.pt"
+    VIOLATION_MODEL: str = "weights/best.pt"
 
     # Violation Fines (Currency: LKR)
     # Make sure these keys match the CLASS NAMES inside your violation.pt model
