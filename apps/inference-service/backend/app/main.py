@@ -8,6 +8,7 @@ from app.core.security import hash_password
 from app.models.user_model import user_doc
 import logging
 import os
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -24,10 +25,17 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS configuration
+# --- CORS CONFIGURATION ---
+origins = [
+    "http://localhost:5173",    # Frontend
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",    # Backend self
+    "*"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,8 +43,6 @@ app.add_middleware(
 
 # Create uploads directory
 ensure_dir(settings.UPLOAD_DIR)
-
-# Mount static files
 app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
 
 @app.on_event("startup")
@@ -60,14 +66,18 @@ async def startup():
         if connected:
             logger.info("✓ Connected to MongoDB")
             
-            # --- SEED ADMIN USER ---
+            # --- SEED ADMIN USER & OWNER PROFILE ---
             database = get_database()
             if database is not None:
-                admin_email = "admin" # Admin Username
+                # Use a standard email format to pass validation
+                admin_email = "admin@example.com" 
+                
                 try:
-                    existing_admin = await database.users.find_one({"email": admin_email})
+                    # 1. Check/Create User Account (in 'users' collection)
+                    admin_user = await database.users.find_one({"email": admin_email})
                     
-                    if not existing_admin:
+                    admin_id = None
+                    if not admin_user:
                         logger.info("Creating System Admin user...")
                         admin_data = user_doc(
                             fullName="System Administrator",
@@ -75,15 +85,40 @@ async def startup():
                             phone="0000000000",
                             address="System HQ",
                             nic="ADMIN001",
-                            passwordHash=hash_password("admin@123") # Admin Password
+                            passwordHash=hash_password("admin@123")
                         )
-                        # Force role to admin (override default 'owner' role from user_doc)
                         admin_data["role"] = "admin"
-                        
-                        await database.users.insert_one(admin_data)
-                        logger.info("✅ Admin user created: username='admin', password='admin@123'")
+                        result = await database.users.insert_one(admin_data)
+                        admin_id = result.inserted_id
+                        logger.info(f"✅ Admin user created: {admin_email}")
                     else:
+                        admin_id = admin_user["_id"]
                         logger.info("✓ Admin user already exists")
+
+                    # 2. Check/Create Owner Profile (in 'owners' collection)
+                    # THIS IS THE FIX: Ensuring admin exists in 'owners' table too
+                    if admin_id:
+                        # Check by user_id link
+                        existing_owner_profile = await database.owners.find_one({"user_id": str(admin_id)})
+                        
+                        if not existing_owner_profile:
+                            logger.info("Creating Admin Owner Profile (Critical for API)...")
+                            owner_profile = {
+                                "user_id": str(admin_id),
+                                "name": "System Administrator",
+                                "email": admin_email,
+                                "phone": "0000000000",
+                                "address": "System HQ",
+                                "nic": "ADMIN001",
+                                "role": "admin",
+                                "is_active": True,
+                                "createdAt": datetime.utcnow()
+                            }
+                            await database.owners.insert_one(owner_profile)
+                            logger.info("✅ Admin owner profile created successfully")
+                        else:
+                            logger.info("✓ Admin owner profile already exists")
+                    
                 except Exception as e:
                     logger.error(f"Error seeding admin user: {e}")
             # -----------------------------
@@ -110,8 +145,8 @@ from app.routes.violations import router as violations_router
 from app.routes.detection import router as detection_router
 from app.routes.admin import router as admin_router
 from app.routes.camera_integration import router as camera_integration_router
-# Import NEW notification router
 from app.routes.mobile_notifications import router as notifications_router
+from app.routes.payments import router as payments_router
 
 # Include routers
 app.include_router(auth_router)
@@ -121,49 +156,19 @@ app.include_router(violations_router)
 app.include_router(detection_router)
 app.include_router(admin_router)
 app.include_router(camera_integration_router)
-# Register NEW notification router
 app.include_router(notifications_router)
+app.include_router(payments_router)
 
 logger.info("✓ All routers loaded successfully")
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
     return {
         "message": "Road Safety Monitoring System API",
         "version": "1.0.0",
-        "docs": "/docs",
-        "status": "running",
-        "endpoints": {
-            "auth": {
-                "register": "/api/auth/register-owner",
-                "login": "/api/auth/login"
-            },
-            "admin": {
-                "register_camera": "/api/admin/cameras",
-                "list_cameras": "/api/admin/cameras"
-            },
-            "cctv": {
-                "upload": "/api/cctv/{camera_id}/upload-violation"
-            },
-            "owners": "/api/owners/me",
-            "vehicles": {
-                "create": "/api/vehicles",
-                "list": "/api/vehicles/mine"
-            },
-            "notifications": {
-                "list": "/api/notifications/",
-                "read": "/api/notifications/{id}/read"
-            },
-            "detection": "/api/detection/detect-plate",
-            "violations": "/api/violations"
-        }
+        "status": "running"
     }
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "Road Safety Monitoring System API"
-    }
+    return {"status": "healthy"}
