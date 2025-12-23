@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Text(
                                       'Ready to hit the road?',
                                       style: TextStyle(
-                                        fontSize: 14,
+                                        fontSize: 10,
                                         fontWeight: FontWeight.w500,
                                         color: Colors.white.withOpacity(0.9),
                                       ),

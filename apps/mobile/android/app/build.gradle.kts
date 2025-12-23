@@ -24,7 +24,7 @@ android {
         // --- CHANGE THIS LINE ---
         // Old: minSdk = flutter.minSdkVersion
         // New: Set strictly to 21 for Stripe
-        minSdk = 21 
+        minSdk = flutter.minSdkVersion 
         // ------------------------
 
         targetSdk = flutter.targetSdkVersion

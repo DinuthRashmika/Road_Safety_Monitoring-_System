@@ -1,14 +1,23 @@
+// lib/services/auth_service.dart
+
 import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 import '../core/token_storage.dart';
 import '../models/token.dart';
 
 class AuthService {
-  // OAuth2PasswordRequestForm expects fields: username + password
+  
+  // 1. Define the URL here temporarily
+  static const String _baseUrl = 'http://192.168.8.196:8000';
+
   static Future<void> login({
-    required String username, // email or NIC
+    required String username, 
     required String password,
   }) async {
+    
+    // 2. Override the base URL for this request
+    ApiClient.dio.options.baseUrl = _baseUrl; 
+
     final res = await ApiClient.dio.post(
       '/api/auth/login',
       data: FormData.fromMap({
@@ -30,8 +39,12 @@ class AuthService {
     required String address,
     required String nic,
     required String password,
-    String? imagePath, // optional file path
+    String? imagePath, 
   }) async {
+    
+    // 3. Override the base URL here too
+    ApiClient.dio.options.baseUrl = _baseUrl;
+
     final form = FormData.fromMap({
       'fullName': fullName,
       'email': email,
