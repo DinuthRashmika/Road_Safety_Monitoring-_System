@@ -48,17 +48,12 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     setIsAccepting(true);
     try {
       const response = await api.post(`/api/incidents/${incidentId}/accept`);
-      
       setIncident(response.data); 
-      
       await fetchRoute(incidentId); 
-      
       alert('Incident accepted. You are now assigned.');
-      
       if (typeof onUpdate === 'function') {
         onUpdate(); 
       }
-      
     } catch (err) {
       alert(`Failed to accept incident: ${err.response?.data?.detail || err.message}`);
     } finally {
@@ -71,10 +66,34 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
       alert("Route data is not available yet. Please wait a moment and try again.");
       return;
     }
-    
     navigate('/map-view', { state: { incident, route } });
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString(undefined, { 
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
+    });
+  };
+
+  const formatTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleTimeString(undefined, { 
+      hour: '2-digit', minute: '2-digit' 
+    });
+  };
+
+  const getTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const diff = new Date() - new Date(dateString);
+    const mins = Math.floor(diff / 60000);
+    
+    if (mins < 1) return '(Just now)';
+    if (mins < 60) return `(${mins} mins ago)`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `(${hours} hours ago)`;
+    return '';
+  };
 
   if (loading) return <div className="modal-backdrop"><div className="modal-content">Loading...</div></div>;
   if (error) return <div className="modal-backdrop"><div className="modal-content">{error} <button onClick={onClose}>Close</button></div></div>;
@@ -88,21 +107,33 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>×</button>
-        <h3>Emergency Details - #{incident.id}</h3>
+        <h3>Emergency Details - #{incident.id ? incident.id.slice(-6) : '...'}</h3>
         
         <div className="modal-body">
           <div className="modal-left">
             <h4>Incident Information</h4>
             <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Traffic Accident' : 'Violence'}</p>
-            <p><strong>Score:</strong> {incident.score}</p>
-            <p><strong>Reported:</strong> {new Date(incident.reported_at).toLocaleString()}</p>
+            <p><strong>Score:</strong> <span className="score-badge">{incident.score}</span></p>
+            
+            <div className="time-display-group" style={{ marginBottom: '10px', padding: '5px', background: '#f8f9fa', borderRadius: '4px' }}>
+                <p style={{ margin: '2px 0' }}><strong>Date:</strong> {formatDate(incident.reported_at)}</p>
+                <p style={{ margin: '2px 0' }}>
+                    <strong>Time:</strong> {formatTime(incident.reported_at)} 
+                    <span style={{ color: '#d9534f', marginLeft: '8px', fontWeight: 'bold' }}>
+                        {getTimeAgo(incident.reported_at)}
+                    </span>
+                </p>
+            </div>
+
             <p><strong>Location:</strong> {incident.location.address}</p>
+            
             <h4 className="mt-2">Analysis Results</h4>
-            {incident.accident?.fire_present && <p className="analysis-fire">Fire Detected</p>}
-            {incident.accident && <p>Vehicles: {incident.accident.vehicles_involved}</p>}
+            {incident.accident?.fire_present && <p className="analysis-fire">🔥 Fire Detected</p>}
+            {incident.accident && <p>Vehicles Involved: {incident.accident.vehicles_involved}</p>}
             {incident.violence && <p>Participants: {incident.violence.participants_count}</p>}
-            {incident.violence?.weapon_conf > 0 && <p>Weapon Conf: {incident.violence.weapon_conf * 100}%</p>}
+            {incident.violence?.weapon_conf > 0 && <p>Weapon Conf: {(incident.violence.weapon_conf * 100).toFixed(1)}%</p>}
             <p>Severity: {incident.severity_grade}</p>
+            
             <h4 className="mt-2">Required Responders</h4>
             <div className="role-tags-modal">
               {incident.required_roles.map(role => (
@@ -115,17 +146,22 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             <h4>Location & Route</h4>
             {route ? (
               <div className="route-info">
-                <p>Distance: {route.distance_km} km</p>
-                <div className="map-placeholder">MAP showing route</div>
+                <p><strong>Distance:</strong> {route.distance_km} km</p>
+                <div className="map-placeholder">
+                   Route Loaded<br/>(Click 'Get Directions' to view)
+                </div>
               </div>
             ) : (
-              <div className="map-placeholder">incident route.</div>
+              <div className="map-placeholder">
+                  {isNew ? 'Accept to calculate route' : 'Calculating route...'}
+              </div>
             )}
+            
             <h4 className="mt-2">Scene Image</h4>
             <div className="scene-image-placeholder">
               {incident.media?.image_url ? 
                 <img src={incident.media.image_url} alt="Scene" /> :
-                'No image provided.'
+                <span style={{color: '#888'}}>No image provided</span>
               }
             </div>
           </div>
