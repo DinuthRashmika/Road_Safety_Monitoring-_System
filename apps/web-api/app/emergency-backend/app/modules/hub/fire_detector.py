@@ -1,9 +1,13 @@
+import logging
 import httpx
 import cv2
 import numpy as np
 from typing import Optional
 from ultralytics import YOLO
 from app.config import settings
+
+# Initialize logger for this module
+logger = logging.getLogger(__name__)
 
 # Global variable to hold the model so we don't reload it for every single request
 _model_instance = None
@@ -14,11 +18,11 @@ def get_model():
     """
     global _model_instance
     if _model_instance is None:
-        print(f"Loading Fire Detection Model from: {settings.FIRE_MODEL_PATH}")
+        logger.info(f"Loading Fire Detection Model from: {settings.FIRE_MODEL_PATH}")
         try:
             _model_instance = YOLO(settings.FIRE_MODEL_PATH)
         except Exception as e:
-            print(f"ERROR: Could not load YOLO model: {e}")
+            logger.error(f"Could not load YOLO model: {e}")
             return None
     return _model_instance
 
@@ -36,7 +40,7 @@ async def fire_present_from_image(image_url: Optional[str]) -> bool:
             resp.raise_for_status()
             image_bytes = resp.content
     except Exception as e:
-        print(f"FireDetector: Failed to download image from {image_url}. Error: {e}")
+        logger.error(f"Failed to download image from {image_url}. Error: {e}")
         return False
 
     # 2. Convert bytes to OpenCV Image
@@ -47,33 +51,28 @@ async def fire_present_from_image(image_url: Optional[str]) -> bool:
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
         if frame is None:
-            print("FireDetector: Could not decode image.")
+            logger.warning("Could not decode image bytes.")
             return False
             
     except Exception as e:
-        print(f"FireDetector: Image processing error: {e}")
+        logger.error(f"Image processing error: {e}")
         return False
 
     # 3. Load Model and Run Inference
     model = get_model()
     if not model:
-        print("FireDetector: Model not available. Skipping check.")
+        logger.warning("Model not available. Skipping check.")
         return False
 
-    # Run inference (verbose=False keeps logs clean)
+    # Run inference (verbose=False keeps standard output clean, lets us handle logging)
     results = model.predict(frame, conf=settings.FIRE_CONF_THRESHOLD, verbose=False)
 
     # 4. Check results
     # results[0].boxes contains the detections
     if len(results) > 0 and len(results[0].boxes) > 0:
         # If we have ANY boxes with confidence > threshold, we assume fire/accident is present.
-        # You can optionally check for specific class names like:
-        # for box in results[0].boxes:
-        #     cls_id = int(box.cls[0])
-        #     if model.names[cls_id] == 'fire': return True
-        
-        print(f"FireDetector: POSITIVE detection for {image_url}")
+        logger.info(f"POSITIVE detection for {image_url} - Hazard Detected")
         return True
 
-    print(f"FireDetector: Negative (Clear) for {image_url}")
+    logger.info(f"Negative (Clear) for {image_url}")
     return False

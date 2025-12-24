@@ -54,7 +54,6 @@ const Dashboard = () => {
     const token = localStorage.getItem('accessToken');
     
     const intervalId = setInterval(() => {
-      console.log('Auto-refreshing data...');
       handleIncidentUpdate();
     }, 10000); 
 
