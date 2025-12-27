@@ -184,3 +184,262 @@ class ObjectDetection:
         
         return display_frame
 
+
+    def process_video(self, video_path, output_path=None, display=True):
+
+        print("\n" + "="*70)
+        print(f"PROCESSING VIDEO: {video_path}")
+        print("="*70 + "\n")
+        
+        # Open video
+        cap = cv2.VideoCapture(video_path)
+        
+        if not cap.isOpened():
+            print(f"❌ Error: Cannot open video {video_path}")
+            return None
+        
+        # Get video properties
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        print(f"Video Information:")
+        print(f"  Resolution: {width}x{height}")
+        print(f"  FPS: {fps}")
+        print(f"  Total frames: {total_frames}")
+        print(f"  Duration: {total_frames/fps:.1f}s\n")
+        
+        # Setup video writer
+        video_writer = None
+        if output_path:
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            video_writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            print(f"Output will be saved to: {output_path}\n")
+        
+        # Statistics
+        stats = {
+            'frames_processed': 0,
+            'frames_with_detections': 0,
+            'total_detections': 0,
+            'detections_by_object': {}
+        }
+        
+        print("Processing frames...")
+        if display:
+            print("Press 'q' to quit early\n")
+        
+        frame_index = 0
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                
+                if not ret:
+                    break
+                
+                frame_index += 1
+                stats['frames_processed'] += 1
+                
+                # ==========================================
+                # DETECT OBJECTS IN THIS FRAME
+                # ==========================================
+                detections = self.detect_in_frame(frame)
+                
+                # Update statistics
+                if len(detections) > 0:
+                    stats['frames_with_detections'] += 1
+                    stats['total_detections'] += len(detections)
+                    
+                    for det in detections:
+                        obj_name = det['object']
+                        stats['detections_by_object'][obj_name] = \
+                            stats['detections_by_object'].get(obj_name, 0) + 1
+                
+                # ==========================================
+                # DRAW DETECTIONS ON FRAME
+                # ==========================================
+                display_frame = self.draw_detections_on_frame(
+                    frame, 
+                    detections, 
+                    frame_index
+                )
+                
+                # ==========================================
+                # SAVE FRAME (if output path provided)
+                # ==========================================
+                if video_writer:
+                    video_writer.write(display_frame)
+                
+                # ==========================================
+                # DISPLAY FRAME (if display enabled)
+                # ==========================================
+                if display:
+                    cv2.imshow('Violence Detection - Object Detection', display_frame)
+                    
+                    # Check for 'q' key to quit
+                    if cv2.waitKey(16) & 0xFF == ord('q'):
+                        print("\n\nStopped by user")
+                        break
+                
+                # Progress indicator
+                if frame_index % 30 == 0:
+                    progress = frame_index / total_frames * 100
+                    print(f"Progress: {progress:.1f}% | Detections: {stats['total_detections']}", 
+                          end='\r')
+        
+        finally:
+            # Cleanup
+            cap.release()
+            if video_writer:
+                video_writer.release()
+            cv2.destroyAllWindows()
+        
+        # Print final statistics
+        print("\n\n" + "="*70)
+        print("PROCESSING COMPLETE")
+        print("="*70)
+        print(f"\nStatistics:")
+        print(f"Total frames: {stats['frames_processed']}")
+        print(f"Frames with detections: {stats['frames_with_detections']}")
+        print(f"Total detections: {stats['total_detections']}")
+        
+        if stats['detections_by_object']:
+            print(f"\nDetections by object:")
+            for obj, count in sorted(stats['detections_by_object'].items()):
+                print(f"   {obj:10s}: {count:4d}")
+        
+        if output_path:
+            print(f"\nOutput saved to: {output_path}")
+        
+        print("\n" + "="*70 + "\n")
+        
+        return stats
+
+
+    def process_webcam(self, camera_index=0, output_path=None):
+
+        print("\n" + "="*70)
+        print(f"PROCESSING WEBCAM (Camera {camera_index})")
+        print("="*70)
+        print("\nPress 'q' to quit\n")
+        
+        # Open webcam
+        cap = cv2.VideoCapture(camera_index)
+        
+        if not cap.isOpened():
+            print(f"❌ Error: Cannot open camera {camera_index}")
+            return
+        
+        # Get properties
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = 30  # Default for webcam
+        
+        # Setup video writer
+        video_writer = None
+        if output_path:
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            video_writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        
+        frame_index = 0
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                
+                if not ret:
+                    print("❌ Failed to grab frame")
+                    break
+                
+                frame_index += 1
+                
+                # Detect objects
+                detections = self.detect_in_frame(frame)
+                
+                # Draw detections
+                display_frame = self.draw_detections_on_frame(
+                    frame, 
+                    detections, 
+                    frame_index
+                )
+                
+                # Save frame
+                if video_writer:
+                    video_writer.write(display_frame)
+                
+                # Display
+                cv2.imshow('Violence Detection - Live', display_frame)
+                
+                # Check for quit
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    print("\nStopped by user")
+                    break
+        
+        finally:
+            cap.release()
+            if video_writer:
+                video_writer.release()
+            cv2.destroyAllWindows()
+        
+        print(f"\nProcessed {frame_index} frames")
+        if output_path:
+            print(f"Output saved to: {output_path}")
+
+
+    def save_frame_with_detections(self, frame: np.ndarray, detections: List[Dict], output_path: str, frame_index: int = None):
+
+        # Draw detections on frame
+        display_frame = self.draw_detections_on_frame(frame, detections, frame_index)
+        
+        # Save
+        cv2.imwrite(output_path, display_frame)
+        
+        if self.verbose:
+            print(f"Saved frame to: {output_path}")
+
+
+if __name__ == "__main__":
+    """
+    Example usage of ObjectDetection class.
+    """
+    
+    print("\n" + "="*70)
+    print("OBJECT DETECTION - TEST")
+    print("="*70)
+    
+    # Initialize detector
+    detector = ObjectDetection(
+        model_path='models/yolo/best.pt',  # Your trained YOLO model
+        confidence_threshold=0.5,
+        verbose=True
+    )
+    
+    # Example 1: Process video file
+    stats = detector.process_video(
+        video_path=config.VIDEO_PATH,
+        output_path=config.OUTPUT_DIR + '/result2.mp4',
+        display=True  # Show video while processing
+    )
+    
+    # Example 2: Process webcam (uncomment to use)
+    # detector.process_webcam(
+    #     camera_index=0,
+    #     output_path='webcam_output.mp4'
+    # )
+    
+    # Example 3: Process single frame
+    # frame = cv2.imread('test_image.jpg')
+    # detections = detector.detect_in_frame(frame)
+    # detector.save_frame_with_detections(
+    #     frame, 
+    #     detections, 
+    #     'output_frame.jpg'
+    # )
+    
+    print("\n✓ Done!")
+
+
+
+
+
