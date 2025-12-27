@@ -61,7 +61,7 @@ class FrameExtractor:
             ret, frame = cap.read()
             
             if not ret:
-                print("End of video stream")
+                print("📹 End of video stream")
                 break
             
             yield frame_index, frame #tuple - (frame_index, frame)
@@ -101,3 +101,35 @@ class FrameExtractor:
 
         return normalized
     
+
+    # Preprocess extracted frames for LRCN
+    def preprocess_for_lrcn(self, frames):
+
+        num_frames = len(frames)
+        print(f"----Preparing LRCN sequence for LRCN----")
+
+        if num_frames >= self.sequence_length:
+            indices = np.linspace(0, num_frames - 1, self.sequence_length, dtype=int)
+            sampled_frames = [frames[i] for i in indices]
+            print(f"Sampled Indices: {indices.tolist()}")
+        else:
+            print(f"Warning! Video is too short. Padding {self.sequence_length - num_frames} frames")
+            sampled_frames = frames + [frames[-1]] * (self.sequence_length - num_frames)
+            if len(sampled_frames) == self.sequence_length:
+                print("Final length = SEQUENCE_LENGTH from padding also!")
+
+        normalized_frames = []
+        for frame in sampled_frames:
+            resized = cv2.resize(frame, (self.lrcn_width, self.lrcn_height))
+            rgb_frame = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+            normalized = rgb_frame.astype('float') / 255.0
+            normalized_frames.append(normalized)
+
+        array_sequence = np.array(normalized_frames)
+        print(f"LRCN array sequence shape: {array_sequence.shape}")
+
+        lrcn_sequence = np.expand_dims(array_sequence, axis=0)
+        print(f"LRCN sequence shape: {lrcn_sequence.shape}")
+        print(f"Ready for LRCN model input!\n")
+        
+        return lrcn_sequence
