@@ -107,6 +107,54 @@ class ObjectDetec2:
         return detections
     
 
+    # Analyse stats for Current Window now
+    def analyze_current_window(self, window_buffer):
+        """
+        Analyze CURRENT WINDOW (last N frames) for threats
+        
+        This is the KEY difference: analyze recent frames, not entire stream!
+        """
+        window_size = len(window_buffer)
+        
+        if window_size == 0:
+            return None
+        
+        # Count detections in current window
+        window_stats = self.initialize_current_window_stats()
+        
+        for frame_data in window_buffer:
+            detections = frame_data['detections']
+            
+            # Track which objects appear in this frame
+            frame_objects = set()
+            
+            for det in detections:
+                obj = det['object']
+                conf = det['confidence']
+                
+                if obj in window_stats:
+                    window_stats[obj]['confidences'].append(conf)
+                    frame_objects.add(obj)
+            
+            # Count frames where each object appears
+            for obj in frame_objects:
+                window_stats[obj]['frames_present'] += 1
+        
+        # Calculate statistics for window
+        for obj in self.violent_objects:
+            if window_stats[obj]['confidences']:
+                window_stats[obj]['avg_confidence'] = np.mean(
+                    window_stats[obj]['confidences']
+                )
+                window_stats[obj]['presence_rate'] = (
+                    window_stats[obj]['frames_present'] / window_size
+                )
+        
+        return {
+            'window_size': window_size,
+            'stats': window_stats
+        }
+    
 
     def draw_detections_on_frame(self, frame, detections, frame_index=None):
 
@@ -189,6 +237,47 @@ class ObjectDetec2:
             )
         
         return display_frame # Frame with drawings (numpy array). Input frame was also a numpy array right?
+    
+
+    def add_window_stats_to_frame(self, frame, threat_analysis, frame_index):
+        """Add current window statistics to frame"""
+        if not threat_analysis:
+            return frame
+        
+        window_stats = threat_analysis['stats']
+        y_offset = 110
+        
+        # Add "Current Window Analysis" header
+        cv2.putText(
+            frame,
+            "CURRENT WINDOW:",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 0),
+            2
+        )
+        
+        y_offset += 30
+        
+        # Show stats for each object
+        for obj, stats in window_stats.items():
+            if stats['presence_rate'] > 0:
+                text = f"{obj}: {stats['presence_rate']*100:.0f}% ({stats['avg_confidence']:.0%} conf)"
+                color = (0, 0, 255) if stats['presence_rate'] > 0.3 else (0, 255, 255)
+                
+                cv2.putText(
+                    frame,
+                    text,
+                    (10, y_offset),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color,
+                    2
+                )
+                y_offset += 25
+        
+        return frame
     
 
     def process_video_stream(self, video_source, display=True, save_output=None):
@@ -312,6 +401,22 @@ class ObjectDetec2:
             
             # Print summary
             self.print_session_summary(overall_stats)
+
+    
+    def print_session_summary(self, overall_stats):
+        """Print summary of monitoring session"""
+        print(f"\n{'='*70}")
+        print("MONITORING SESSION SUMMARY")
+        print(f"{'='*70}")
+        print(f"Total Frames Processed: {overall_stats['total_frames_processed']}")
+        print(f"Total Alerts Generated: {overall_stats['total_alerts']}")
+        
+        if overall_stats['objects_detected_ever']:
+            print(f"Objects Detected: {', '.join(overall_stats['objects_detected_ever'])}")
+        else:
+            print("Objects Detected: None")
+        
+        print(f"{'='*70}\n")
 
 
 def main():
