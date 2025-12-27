@@ -171,3 +171,127 @@ class ActionDetection:
         
         return results
     
+
+    def classify_batch(self, video_paths, frame_extractor, save_results=False, output_dir=None):
+        """
+        Process multiple videos in batch.
+        
+        Args:
+            video_paths (list): List of video file paths
+            frame_extractor (FrameExtractor): FrameExtractor instance
+            save_results (bool): Save results to JSON file
+            output_dir (str): Directory to save results
+            
+        Returns:
+            list: Results for all videos
+        """
+        if self.verbose:
+            print(f"\n{'='*70}")
+            print(f"BATCH PROCESSING: {len(video_paths)} videos")
+            print(f"{'='*70}\n")
+        
+        all_results = []
+
+        for i, video_path in enumerate(video_paths, 1):
+            if self.verbose:
+                print(f"\n>>> Processing video {i}/{len(video_paths)}: {video_path}")
+            
+            try:
+                result = self.classify_video(video_path, frame_extractor)
+                all_results.append({
+                    'video_path': video_path,
+                    'success': True,
+                    'result': result
+                })
+            except Exception as e:
+                if self.verbose:
+                    print(f"❌ Error processing {video_path}: {e}")
+                all_results.append({
+                    'video_path': video_path,
+                    'success': False,
+                    'error': str(e)
+                })
+
+    # Save results if requested
+        if save_results:
+            self._save_batch_results(all_results, output_dir)
+        
+        # Print summary
+        if self.verbose:
+            self._print_batch_summary(all_results)
+        
+        return all_results        
+
+
+    def _print_results(self, results, video_path):
+        """Print formatted results."""
+        print("\n" + "="*70)
+        print("CLASSIFICATION RESULTS")
+        print("="*70)
+        print(f"\nVideo: {os.path.basename(video_path)}")
+        
+        status = "🚨 VIOLENT" if results['is_violent'] else "✅ NON-VIOLENT"
+        print(f"\nClassification: {status}")
+        print(f"Violence Score: {results['violence_score']:.4f} ({results['violence_score']:.2%})")
+        print(f"Confidence: {results['confidence']:.2%}")
+        print(f"Threshold: {results['threshold']:.2%}")
+        
+        print(f"\nSequence Details:")
+        print(f"  Shape: {results['sequence_shape']}")
+        print(f"  Frames analyzed: {results['sequence_shape'][0]}")
+        
+        print("\n" + "="*70 + "\n") 
+
+
+    def _save_batch_results(self, results, output_dir):
+        """Save batch results to JSON file."""
+        import json
+        from datetime import datetime
+        
+        if output_dir is None:
+            output_dir = config.RESULTS_DIR
+        
+        os.makedirs(output_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = os.path.join(output_dir, f"lrcn_batch_results_{timestamp}.json")
+        
+        with open(output_file, 'w') as f:
+            json.dump(results, f, indent=2, default=str)
+        
+        if self.verbose:
+            print(f"\n💾 Results saved to: {output_file}")
+
+    
+    def _print_batch_summary(self, results):
+        """Print summary of batch processing."""
+        print("\n" + "="*70)
+        print("BATCH PROCESSING SUMMARY")
+        print("="*70)
+        
+        total = len(results)
+        successful = sum(1 for r in results if r['success'])
+        failed = total - successful
+        
+        violent_count = sum(
+            1 for r in results 
+            if r['success'] and r['result']['is_violent']
+        )
+
+        print(f"\n📊 Statistics:")
+        print(f"   • Total videos: {total}")
+        print(f"   • Successfully processed: {successful}")
+        print(f"   • Failed: {failed}")
+        print(f"   • Violent videos detected: {violent_count}")
+        print(f"   • Violence rate: {violent_count/successful*100:.1f}%" if successful > 0 else "   • Violence rate: N/A")
+        
+        print("\n📋 Individual Results:")
+        for r in results:
+            if r['success']:
+                status = "🚨 VIOLENT" if r['result']['is_violent'] else "✅ SAFE"
+                score = r['result']['violence_score']
+                print(f"   {status} - {os.path.basename(r['video_path'])} ({score:.2%})")
+            else:
+                print(f"   ❌ FAILED - {os.path.basename(r['video_path'])}")
+        
+        print("\n" + "="*70 + "\n")
