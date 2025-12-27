@@ -419,6 +419,43 @@ class ObjectDetec2:
         print(f"{'='*70}\n")
 
 
+    def display_single_frame(self, display_frame):
+        cv2.imshow('Violence Detection - Streaming', display_frame)
+        
+        # Check for 'q' key to quit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            print("\nStopped by user")
+
+
+    def save_annotated_video(self, display_frame, save_output, output_folder):
+
+        # Video writer for saving output
+        video_writer = None
+
+        if video_writer is None:
+            # Initialize video writer on first frame
+            height, width = display_frame.shape[:2]
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            video_writer = cv2.VideoWriter(
+                save_output, 
+                fourcc, 
+                30,  # FPS should match videos original FPS
+                (width, height)
+            )
+
+        video_writer.write(display_frame)
+
+    def release_saved_video(self, video_writer, save_output):
+        if video_writer is not None:
+            video_writer.release()
+            print(f"\nOutput video saved to:{save_output}")
+
+    def clean_memory(self):
+        # Finally cleanup memory 
+        cv2.destroyAllWindows()
+
+
+
 def main():
     # Configuration
     MODEL_PATH = config.YOLO_MODEL_PATH # Update this
