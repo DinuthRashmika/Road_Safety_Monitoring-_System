@@ -45,3 +45,26 @@ class FrameExtractor:
         print(f"Extracted {extracted_count} frames")
 
         return frames #50 
+
+
+    def extract_each_frame(self, video_source):
+
+        cap = cv2.VideoCapture(video_source)
+        
+        if not cap.isOpened():
+            print(f"Error: Cannot open video source: {video_source}")
+            return
+        
+        frame_index = 0
+        
+        while True:
+            ret, frame = cap.read()
+            
+            if not ret:
+                print("End of video stream")
+                break
+            
+            yield frame_index, frame #tuple - (frame_index, frame)
+            frame_index += 1
+        
+        cap.release()   
