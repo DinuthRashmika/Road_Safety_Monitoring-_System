@@ -68,3 +68,36 @@ class FrameExtractor:
             frame_index += 1
         
         cap.release()   
+
+    # Preprocess extracted frames for YOLO
+    def preprocess_for_yolo(self, frames):
+        
+        yolo_frames = []
+        print(f"----Preparing frames for YOLO----")
+        for frame in frames:
+
+            # 1. Resize to YOLO input size (640x640)
+            resized = cv2.resize(frame, (self.yolo_width, self.yolo_height))
+            # 2. Convert BGR to RGB
+            rgb_frame = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+            # 3. Normalize
+            normalized = rgb_frame.astype("float32") / 255.0
+            # 4. Transpose to (channels, height, width) if needed
+            # 5. Add batch dimension if needed
+
+            yolo_frames.append(normalized)
+
+        print(f"Ready for YOLO model input!\n") 
+        return yolo_frames
+    
+
+    def preprocess_frame_for_lrcn(self, frame):
+
+        resized = cv2.resize(frame, (self.lrcn_width, self.lrcn_height))
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        normalized = rgb.astype('float32') / 255.0
+
+        print(f"Output Shape: {normalized}")
+
+        return normalized
+    
