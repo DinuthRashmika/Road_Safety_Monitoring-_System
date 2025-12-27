@@ -1,0 +1,8 @@
+opencv-python
+tensorflow
+numpy
+scikit-learn
+matplotlib
+tqdm
+fastapi
+uvicorn
