@@ -133,3 +133,33 @@ class FrameExtractor:
         print(f"Ready for LRCN model input!\n")
         
         return lrcn_sequence
+
+    # def 
+
+    # Save Frames
+    def save_frames(self, frames, video_path, model_name, output_folder):
+
+        video = os.path.basename(video_path)
+        video_name = os.path.splitext(video)[0]
+        frame_folder = os.path.join(output_folder, video_name, model_name)
+        os.makedirs(frame_folder, exist_ok=True)
+
+        for i, frame in enumerate(frames):
+
+            # Convert back to 255 to view
+            new_frame = (frame * 255).astype(np.uint8)
+            # RGB -> BGR to view
+            new_frame = cv2.cvtColor(new_frame, cv2.COLOR_RGB2BGR)
+            filename = f"frame_{model_name}_{i:04d}.jpg"
+            filepath = os.path.join(frame_folder, filename)
+            cv2.imwrite(filepath, new_frame)
+
+        print(f"Saved {len(frames)} Frames to {frame_folder}")
+
+
+if __name__ == "__main__":
+    frame_extract = FrameExtractor()
+    
+    frames = frame_extract.extract_frames(config.VIDEO_PATH)
+    # lrcn_seq = frame_extract.preprocess_for_lrcn(frames)
+    # frame_extract.save_frames(lrcn_seq, config.VIDEO_PATH, 'lrcn', config.SAVED_FRAMES)
