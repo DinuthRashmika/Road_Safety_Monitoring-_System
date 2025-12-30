@@ -25,8 +25,8 @@ class SeatbeltPhoneDetector:
 
         # Fallback in case names are missing
         if not self.seatbelt_ids and not self.phone_ids:
-            self.seatbelt_ids = {6}
-            self.phone_ids = {5}
+            self.seatbelt_ids = {0}
+            self.phone_ids = {4}
 
     def run(self, bgr: np.ndarray) -> dict:
         """

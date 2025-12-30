@@ -9,7 +9,7 @@ import '../core/api_client.dart';
 import '../core/token_storage.dart';
 import 'live_monitoring_screen.dart';
 
-const String kApiBase = 'http://127.0.0.1:8000';
+const String kApiBase = 'http://192.168.8.174:8000';
 
 class StartTripScreen extends StatefulWidget {
   const StartTripScreen({super.key});

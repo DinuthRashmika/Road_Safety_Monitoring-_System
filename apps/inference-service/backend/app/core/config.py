@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
     UPLOAD_DIR: str = "uploads"
-    BASE_URL: str = "http://localhost:8000"
+    BASE_URL: str = "http://192.168.1.100:8000"
 
     # ---- DMS (seatbelt/phone stage) ----
     YOLO_MODEL: str = "weights/best.pt"  # path to your trained model

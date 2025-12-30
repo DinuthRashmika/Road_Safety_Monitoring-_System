@@ -12,6 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.2
+  flutter_image_compress: ^2.4.0
+  webp: ^1.0.0
   http: ^1.1.0
   shared_preferences: ^2.2.2
   image_picker: ^1.0.4
@@ -19,15 +21,14 @@ dependencies:
   intl: ^0.20.2
   dio: ^5.7.0
   font_awesome_flutter: ^10.7.0
-
-  # NEW (one time each)  
   geolocator: ^12.0.0
   web_socket_channel: ^3.0.3
-  image: ^4.2.0   # for WebP encoding
+  image: ^4.2.0
   dotted_border: ^2.1.0
   cached_network_image: ^3.3.0
-  camera: ^0.10.5+9         # Android/iOS (and web via camera_web)
-  camera_windows: ^0.2.1    # For Windows desktop camera
+  camera: ^0.11.0+3  # Updated to be compatible with yuv_to_png 1.0.0
+  yuv_to_png: ^1.0.0  # Updated to match the tutorial version
+  camera_windows: ^0.2.1
 
 dev_dependencies:
   flutter_test:
@@ -38,4 +39,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    
