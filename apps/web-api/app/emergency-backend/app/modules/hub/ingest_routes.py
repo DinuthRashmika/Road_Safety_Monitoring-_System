@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import re
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import ValidationError
 from bson import ObjectId
@@ -10,6 +12,8 @@ from app.modules.incidents.repo import insert_incident, update_incident, get_inc
 from app.modules.incidents.broadcast import broadcast_incident_update
 from app.modules.hub.fire_detector import fire_present_from_image
 from app.utils.time import utcnow_iso
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -32,10 +36,29 @@ def _sanitize(o):
         return [_sanitize(v) for v in o]
     return o
 
+def clean_image_url(url: str) -> str:
+    if not url:
+        return url
+    
+    drive_pattern = r"drive\.google\.com\/file\/d\/([^/]+)"
+    match = re.search(drive_pattern, url)
+    
+    if match:
+        file_id = match.group(1)
+        new_url = f"https://drive.google.com/uc?export=view&id={file_id}"
+        logger.info(f"Sanitized Google Drive URL: {new_url}")
+        return new_url
+        
+    return url
 
 @router.post("/ingest")
 async def ingest(payload: dict = Body(...)):
     try:
+        if "media" in payload and isinstance(payload["media"], dict):
+            raw_url = payload["media"].get("image_url")
+            if raw_url:
+                payload["media"]["image_url"] = clean_image_url(raw_url)
+
         provided_score = payload.pop("score", None)
         report_id = payload.get("report_id")
 
@@ -122,4 +145,5 @@ async def ingest(payload: dict = Body(...)):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Ingest failed: {e}")
         raise HTTPException(status_code=500, detail=f"Ingest failed: {e}")

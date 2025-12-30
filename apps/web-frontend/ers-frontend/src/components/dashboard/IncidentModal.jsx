@@ -4,6 +4,18 @@ import api from '../../api/axiosConfig';
 import './IncidentModal.css';
 import { useAuth } from '../../hooks/useAuth'; 
 
+const getDriveId = (url) => {
+  if (!url || !url.includes('drive.google.com')) return null;
+  
+  const pathMatch = url.match(/\/d\/([^/]+)/);
+  if (pathMatch) return pathMatch[1];
+
+  const queryMatch = url.match(/id=([^&]+)/);
+  if (queryMatch) return queryMatch[1];
+
+  return null;
+};
+
 const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const [incident, setIncident] = useState(null);
   const [route, setRoute] = useState(null);
@@ -103,6 +115,9 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const isNew = incident.status === 'new';
   const isResolved = incident.status === 'resolved';
 
+  const imageUrl = incident.media?.image_url;
+  const driveId = getDriveId(imageUrl);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -157,13 +172,48 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
               </div>
             )}
             
-            <h4 className="mt-2">Scene Image</h4>
-            <div className="scene-image-placeholder">
-              {incident.media?.image_url ? 
-                <img src={incident.media.image_url} alt="Scene" /> :
+            <h4 className="mt-2">Scene Evidence</h4>
+            <div className="scene-image-placeholder" style={{ 
+                minHeight: '200px', 
+                backgroundColor: '#f5f5f5', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                overflow: 'hidden',
+                borderRadius: '4px'
+            }}>
+              {imageUrl ? (
+                driveId ? (
+                   <iframe 
+                       src={`https://drive.google.com/file/d/${driveId}/preview`}
+                       width="100%" 
+                       height="250px" 
+                       style={{ border: 'none' }}
+                       title="Scene Evidence"
+                       allowFullScreen
+                   />
+                ) : (
+                   <img 
+                       src={imageUrl} 
+                       alt="Scene" 
+                       style={{ maxWidth: '100%', maxHeight: '250px', objectFit: 'contain' }}
+                       onError={(e) => {
+                           e.target.style.display='none';
+                           e.target.parentNode.innerHTML = `<span style="color:#666; font-size:0.8rem">Image failed to load.</span>`;
+                       }}
+                   />
+                )
+              ) : (
                 <span style={{color: '#888'}}>No image provided</span>
-              }
+              )}
             </div>
+            {imageUrl && (
+                <div style={{ textAlign: 'right', marginTop: '5px' }}>
+                    <a href={imageUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: '#007bff' }}>
+                        View Original ↗
+                    </a>
+                </div>
+            )}
           </div>
         </div>
         
