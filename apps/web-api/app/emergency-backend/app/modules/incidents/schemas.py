@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional, Dict
+from typing import Literal, Optional, Dict, List
 
 from app.modules.responders.schemas import Location
 
@@ -41,6 +41,8 @@ class Incident(BaseModel):
     status: Status = "unverified"
     
     responder_statuses: Dict[str, str] = Field(default_factory=dict)
+    
+    assigned_responders: List[Dict] = Field(default_factory=list)
 
     role_statuses: Dict[str, str] = Field(default_factory=dict)
     
