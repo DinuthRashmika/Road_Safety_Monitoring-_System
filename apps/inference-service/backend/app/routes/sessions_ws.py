@@ -53,16 +53,21 @@ async def ws_session(websocket: WebSocket, session_id: str, token: str):
 
     # ---- 3) Main loop: receive frames, run pipeline, send alerts ----
     try:
-        while True:
-            msg = await websocket.receive_json()
-            if "frame" not in msg:
+         while True:
+            # Receive raw bytes directly
+            msg_bytes = await websocket.receive_bytes()
+            
+            if not msg_bytes:
                 continue
 
-            # Decode ROI frame
-            bgr = b64webp_to_bgr(msg["frame"])
+            # Convert PNG bytes to BGR image using OpenCV
+            nparr = np.frombuffer(msg_bytes, np.uint8)
+            bgr = cv2.imdecode(nparr, cv2.IMREAD_COLOR)  # decode PNG to BGR
+
             if bgr is None:
                 continue
 
+            # Process the frame through your pipeline
             events = pipeline.process(bgr)
             now = time.time()
 
@@ -72,7 +77,7 @@ async def ws_session(websocket: WebSocket, session_id: str, token: str):
                     "sessionId": ObjectId(session_id),
                     "type": e["type"],
                     "confidence": float(e["confidence"]),
-                    "createdAt": None  # can set datetime.utcnow() in DB if preferred
+                    "createdAt": None  # optionally datetime.utcnow()
                 })
                 # Increment session counters
                 await mongodb.db.sessions.update_one(

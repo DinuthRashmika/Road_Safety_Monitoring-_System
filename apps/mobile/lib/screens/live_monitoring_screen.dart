@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:yuv_to_png/yuv_to_png.dart'; // Added import
+import 'package:yuv_to_png/yuv_to_png.dart';
 
-/// ⚠️ MUST match StartTripScreen IP
+/// ⚠️ MUST match backend IP
 String wsUrl(String sessionId, String token) =>
     'ws://192.168.8.174:8000/ws/sessions/$sessionId?token=$token';
 
@@ -32,14 +31,14 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   StreamSubscription? _wsSub;
 
   CameraController? _cam;
-  CameraImage? _latestImage;
   Timer? _sendTimer;
 
   bool _cameraReady = false;
-  bool _isSending = false;
+  bool _isConverting = false; // 🔐 lock for camera conversion
+  Uint8List? _latestPngBytes;
+
   String? _latestAlertText;
 
-  // ================= INIT =================
   @override
   void initState() {
     super.initState();
@@ -57,14 +56,12 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     _wsSub = _channel!.stream.listen(
       (msg) {
         try {
-          final data = jsonDecode(msg);
-          if (data['alert'] is Map) {
-            final alert = data['alert'];
+          // Expecting JSON alerts only
+          final data = msg is String ? msg : String.fromCharCodes(msg as Uint8List);
+          final alertData = data.contains('alert') ? data : null;
+          if (alertData != null) {
             setState(() {
-              _latestAlertText = _prettyAlert(
-                alert['type']?.toString() ?? '',
-                alert['confidence']?.toString() ?? '',
-              );
+              _latestAlertText = alertData;
             });
           }
         } catch (_) {}
@@ -84,111 +81,51 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
 
     _cam = CameraController(
       frontCam,
-      ResolutionPreset.low,
+      ResolutionPreset.low, // low res for performance
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.yuv420,
     );
 
     await _cam!.initialize();
 
-    await _cam!.startImageStream((image) {
-      _latestImage = image;
-    });
-
-    if (mounted) setState(() => _cameraReady = true);
-  }
-
-  // ================= YUV TO PNG CONVERSION (USING yuv_to_png) =================
-  Future<Uint8List?> _convertYuvToPng(CameraImage cameraImage) async {
-    try {
-      if (_cam == null || !_cam!.value.isInitialized) return null;
-      
-      // Convert YUV to PNG using the yuv_to_png package
-      Uint8List pngBytes = YuvToPng.yuvToPng(
-        cameraImage,
-        lensDirection: _cam!.description.lensDirection,
-      );
-      return pngBytes;
-    } catch (e) {
-      print("Error converting YUV to PNG: $e");
-      return null;
-    }
-  }
-
-  // ================= CONVERT BYTES TO BASE64 =================
-  String _convertBytesToBase64(Uint8List bytes) {
-    String base64Image = base64Encode(bytes);
-    // Optional: Add MIME type prefix for web/API compatibility
-    // String base64WithPrefix = "data:image/png;base64,$base64Image";
-    return base64Image;
-  }
-
-  // ================= PROCESS CAMERA IMAGE AND GET BASE64 =================
-  Future<String?> _processCameraImageAndGetBase64() async {
-    if (_latestImage == null || _cam == null) return null;
-
-    // 1. Convert YUV to PNG bytes
-    Uint8List? pngBytes = await _convertYuvToPng(_latestImage!);
-
-    if (pngBytes != null) {
-      // 2. Encode PNG bytes to Base64 string
-      String base64String = _convertBytesToBase64(pngBytes);
-      
-      // DEBUG: Print first few characters to verify
-      print("Base64 Image String length: ${base64String.length}");
-      print("First 50 chars: ${base64String.substring(0, min(50, base64String.length))}");
-      
-      return base64String;
-    } else {
-      return null;
-    }
-  }
-
-  // Helper function to get minimum of two numbers
-  int min(int a, int b) => a < b ? a : b;
-
-  // ================= FRAME SENDER (1 FPS SAFE) =================
-  void _startSenderTimer() {
-    _sendTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (_isSending || _latestImage == null || _cam == null) return;
-
-      _isSending = true;
-      final ts = DateTime.now().millisecondsSinceEpoch / 1000;
+    await _cam!.startImageStream((CameraImage image) {
+      if (_isConverting) return; // drop frame if busy
+      _isConverting = true;
 
       try {
-        // Get Base64 string directly using yuv_to_png
-        String? base64Image = await _processCameraImageAndGetBase64();
+        final Uint8List? pngBytes = YuvToPng.yuvToPng(
+          image,
+          lensDirection: _cam!.description.lensDirection,
+        );
 
-        if (base64Image != null) {
-          // Send to websocket
-          _channel?.sink.add(jsonEncode({
-            'frame': base64Image,
-            'format': 'png', // Changed from 'jpg' to 'png'
-            'ts': ts,
-          }));
-        } else {
-          print('Failed to convert image to base64');
+        if (pngBytes != null) {
+          _latestPngBytes = pngBytes; // store latest frame
         }
       } catch (e) {
-        print('Frame send error: $e');
+        print("YUV to PNG error: $e");
       } finally {
-        _isSending = false;
+        _isConverting = false;
       }
     });
+
+    if (mounted) {
+      setState(() => _cameraReady = true);
+    }
   }
 
-  // ================= ALERT TEXT =================
-  String _prettyAlert(String type, String conf) {
-    switch (type.toLowerCase()) {
-      case 'seatbelt':
-        return 'Seatbelt violation ($conf)';
-      case 'phone':
-        return 'Phone usage detected ($conf)';
-      case 'drowsiness':
-        return 'Drowsiness detected';
-      default:
-        return 'Alert: $type ($conf)';
-    }
+  // ================= FRAME SENDER =================
+  void _startSenderTimer() {
+    _sendTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_latestPngBytes == null) return;
+
+      try {
+        // Send raw PNG bytes directly
+        _channel?.sink.add(_latestPngBytes!);
+        print("Sent ${_latestPngBytes!.length} bytes");
+      } catch (e) {
+        print("Error sending frame: $e");
+      }
+    });
   }
 
   // ================= STOP =================

@@ -23,11 +23,11 @@ dependencies:
   font_awesome_flutter: ^10.7.0
   geolocator: ^12.0.0
   web_socket_channel: ^3.0.3
-  image: ^4.2.0
+  image: ^4.0.17
   dotted_border: ^2.1.0
   cached_network_image: ^3.3.0
   camera: ^0.11.0+3  # Updated to be compatible with yuv_to_png 1.0.0
-  yuv_to_png: ^1.0.0  # Updated to match the tutorial version
+  yuv_to_png: ^1.0.1  # Updated to match the tutorial version
   camera_windows: ^0.2.1
 
 dev_dependencies:
