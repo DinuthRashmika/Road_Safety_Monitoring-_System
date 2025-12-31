@@ -130,11 +130,11 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Traffic Accident' : 'Violence'}</p>
             <p><strong>Score:</strong> <span className="score-badge">{incident.score}</span></p>
             
-            <div className="time-display-group" style={{ marginBottom: '10px', padding: '5px', background: '#f8f9fa', borderRadius: '4px' }}>
-                <p style={{ margin: '2px 0' }}><strong>Date:</strong> {formatDate(incident.reported_at)}</p>
-                <p style={{ margin: '2px 0' }}>
+            <div className="time-display-group">
+                <p className="time-row"><strong>Date:</strong> {formatDate(incident.reported_at)}</p>
+                <p className="time-row">
                     <strong>Time:</strong> {formatTime(incident.reported_at)} 
-                    <span style={{ color: '#d9534f', marginLeft: '8px', fontWeight: 'bold' }}>
+                    <span className="time-ago-text">
                         {getTimeAgo(incident.reported_at)}
                     </span>
                 </p>
@@ -173,22 +173,14 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             )}
             
             <h4 className="mt-2">Scene Evidence</h4>
-            <div className="scene-image-placeholder" style={{ 
-                minHeight: '200px', 
-                backgroundColor: '#f5f5f5', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                overflow: 'hidden',
-                borderRadius: '4px'
-            }}>
+            <div className="scene-image-placeholder">
               {imageUrl ? (
                 driveId ? (
                    <iframe 
                        src={`https://drive.google.com/file/d/${driveId}/preview`}
                        width="100%" 
                        height="250px" 
-                       style={{ border: 'none' }}
+                       className="evidence-iframe"
                        title="Scene Evidence"
                        allowFullScreen
                    />
@@ -196,20 +188,20 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                    <img 
                        src={imageUrl} 
                        alt="Scene" 
-                       style={{ maxWidth: '100%', maxHeight: '250px', objectFit: 'contain' }}
+                       className="evidence-image"
                        onError={(e) => {
                            e.target.style.display='none';
-                           e.target.parentNode.innerHTML = `<span style="color:#666; font-size:0.8rem">Image failed to load.</span>`;
+                           e.target.parentNode.innerHTML = `<span class="image-load-error">Image failed to load.</span>`;
                        }}
                    />
                 )
               ) : (
-                <span style={{color: '#888'}}>No image provided</span>
+                <span className="no-image-text">No image provided</span>
               )}
             </div>
             {imageUrl && (
-                <div style={{ textAlign: 'right', marginTop: '5px' }}>
-                    <a href={imageUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.85rem', color: '#007bff' }}>
+                <div className="view-original-container">
+                    <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="view-original-link">
                         View Original ↗
                     </a>
                 </div>
