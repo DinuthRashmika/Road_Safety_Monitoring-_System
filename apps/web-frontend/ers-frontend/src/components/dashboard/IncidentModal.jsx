@@ -6,10 +6,13 @@ import { useAuth } from '../../hooks/useAuth';
 
 const getDriveId = (url) => {
   if (!url || !url.includes('drive.google.com')) return null;
+  
   const pathMatch = url.match(/\/d\/([^/]+)/);
   if (pathMatch) return pathMatch[1];
+
   const queryMatch = url.match(/id=([^&]+)/);
   if (queryMatch) return queryMatch[1];
+
   return null;
 };
 
@@ -18,30 +21,29 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const [route, setRoute] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
   
   const navigate = useNavigate();
   const { user } = useAuth(); 
 
   useEffect(() => {
+    const fetchDetails = async () => {
+      try {
+        setLoading(true);
+        const incidentRes = await api.get(`/api/incidents/${incidentId}`);
+        setIncident(incidentRes.data);
+        
+        if (incidentRes.data.status !== 'new') {
+          fetchRoute(incidentId);
+        }
+      } catch (err) {
+        setError('Failed to load incident details.');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchDetails();
   }, [incidentId]);
-
-  const fetchDetails = async () => {
-    try {
-      setLoading(true);
-      const incidentRes = await api.get(`/api/incidents/${incidentId}`);
-      setIncident(incidentRes.data);
-      
-      if (incidentRes.data.status !== 'new' && incidentRes.data.status !== 'unverified') {
-        fetchRoute(incidentId);
-      }
-    } catch (err) {
-      setError('Failed to load incident details.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchRoute = async (id) => {
     try {
@@ -55,10 +57,11 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const handleAccept = async () => {
     if (user?.role === 'admin') return; 
     
-    setIsUpdating(true);
+    setIsAccepting(true);
     try {
-      await api.post(`/api/incidents/${incidentId}/accept`);
-      await fetchDetails(); 
+      const response = await api.post(`/api/incidents/${incidentId}/accept`);
+      setIncident(response.data); 
+      await fetchRoute(incidentId); 
       alert('Incident accepted. You are now assigned.');
       if (typeof onUpdate === 'function') {
         onUpdate(); 
@@ -66,40 +69,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     } catch (err) {
       alert(`Failed to accept incident: ${err.response?.data?.detail || err.message}`);
     } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleStartRoute = async () => {
-    if (!route) {
-        alert("Route is still calculating. Please wait a moment.");
-        return;
-    }
-
-    setIsUpdating(true);
-    try {
-        await api.post(`/api/incidents/${incidentId}/status`, { status: 'enroute' });
-        if (typeof onUpdate === 'function') onUpdate();
-
-        const updatedIncident = { ...incident, status: 'enroute' };
-        navigate('/map-view', { state: { incident: updatedIncident, route } });
-
-    } catch (err) {
-        alert(`Failed to start route: ${err.response?.data?.detail || err.message}`);
-        setIsUpdating(false);
-    }
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    setIsUpdating(true);
-    try {
-        await api.post(`/api/incidents/${incidentId}/status`, { status: newStatus });
-        await fetchDetails(); 
-        if (typeof onUpdate === 'function') onUpdate();
-    } catch (err) {
-        alert(`Failed to update status: ${err.response?.data?.detail || err.message}`);
-    } finally {
-        setIsUpdating(false);
+      setIsAccepting(false);
     }
   };
   
@@ -111,38 +81,30 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     navigate('/map-view', { state: { incident, route } });
   };
 
-  const getRoleStatusList = () => {
-    if (!incident) return [];
-    
-    const roles = incident.required_roles || [];
-    
-    return roles.map(role => {
-        const assigned = incident.assigned_responders?.find(r => r.role === role);
-        if (assigned) {
-            return {
-                ...assigned,
-                isAssigned: true
-            };
-        } else {
-            return {
-                role: role,
-                name: 'Waiting for Responder...',
-                status: 'pending',
-                isAssigned: false
-            };
-        }
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString(undefined, { 
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
     });
   };
 
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { weekday:'short', year:'numeric', month:'short', day:'numeric' }) : 'N/A';
-  const formatTime = (d) => d ? new Date(d).toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }) : 'N/A';
-  const getTimeAgo = (d) => {
-      if(!d) return '';
-      const m = Math.floor((new Date() - new Date(d))/60000);
-      if(m<1) return '(Just now)';
-      if(m<60) return `(${m} mins ago)`;
-      const h = Math.floor(m/60);
-      return h<24 ? `(${h} hours ago)` : '';
+  const formatTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleTimeString(undefined, { 
+      hour: '2-digit', minute: '2-digit' 
+    });
+  };
+
+  const getTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const diff = new Date() - new Date(dateString);
+    const mins = Math.floor(diff / 60000);
+    
+    if (mins < 1) return '(Just now)';
+    if (mins < 60) return `(${mins} mins ago)`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `(${hours} hours ago)`;
+    return '';
   };
 
   if (loading) return <div className="modal-backdrop"><div className="modal-content">Loading...</div></div>;
@@ -152,11 +114,9 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const isAdmin = user?.role === 'admin';
   const isNew = incident.status === 'new';
   const isResolved = incident.status === 'resolved';
-  const myStatus = incident.status; 
 
   const imageUrl = incident.media?.image_url;
   const driveId = getDriveId(imageUrl);
-  const roleStatusList = getRoleStatusList();
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -189,29 +149,12 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             {incident.violence?.weapon_conf > 0 && <p>Weapon Conf: {(incident.violence.weapon_conf * 100).toFixed(1)}%</p>}
             <p>Severity: {incident.severity_grade}</p>
             
-            <div className="admin-responders-box">
-                <h4>Response Status</h4>
-                <div className="resp-list">
-                    {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
-                        <div key={idx} className={`resp-row ${item.status}`}>
-                            <div className="resp-info">
-                                <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
-                                    {item.role.toUpperCase()}
-                                </span>
-                                <span className={item.isAssigned ? "resp-name" : "resp-name-pending"}>
-                                    {item.name}
-                                </span>
-                            </div>
-                            <span className="resp-status">
-                                {item.status === 'pending' ? 'WAITING' : item.status.toUpperCase()}
-                            </span>
-                        </div>
-                    )) : (
-                        <p style={{color:'#999', fontSize:'0.9rem'}}>No specific roles required.</p>
-                    )}
-                </div>
+            <h4 className="mt-2">Required Responders</h4>
+            <div className="role-tags-modal">
+              {incident.required_roles.map(role => (
+                <span key={role} className={`role-tag ${role}`}>{role}</span>
+              ))}
             </div>
-
           </div>
 
           <div className="modal-right">
@@ -220,7 +163,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
               <div className="route-info">
                 <p><strong>Distance:</strong> {route.distance_km} km</p>
                 <div className="map-placeholder">
-                   Route Loaded<br/>(Click 'Start Route' to navigate)
+                   Route Loaded<br/>(Click 'Get Directions' to view)
                 </div>
               </div>
             ) : (
@@ -268,46 +211,19 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         
         <div className="modal-footer">
           {isAdmin && (
-              <p className="admin-view-status" style={{color:'#777', fontStyle:'italic'}}>
-                  Monitoring Incident Status
+              <p className="admin-view-status">
               </p>
           )}
-
-          {!isAdmin && (
-             <>
-                {myStatus === 'new' && (
-                    <button className="btn-accept" onClick={handleAccept} disabled={isUpdating}>
-                        {isUpdating ? 'Accepting...' : 'Accept Emergency & Dispatch'}
-                    </button>
-                )}
-
-                {myStatus === 'accepted' && (
-                    <button className="btn-action enroute" onClick={handleStartRoute} disabled={isUpdating}>
-                        {isUpdating ? 'Starting...' : 'Start Route ➜'}
-                    </button>
-                )}
-
-                {myStatus === 'enroute' && (
-                    <>
-                        <button className="btn-directions" onClick={handleGetDirections}>View Map</button>
-                        <button className="btn-action arrived" onClick={() => handleStatusChange('arrived')} disabled={isUpdating}>
-                            I Have Arrived 📍
-                        </button>
-                    </>
-                )}
-
-                {myStatus === 'arrived' && (
-                    <button className="btn-action resolve" onClick={() => handleStatusChange('resolved')} disabled={isUpdating}>
-                        ✅ Mark Resolved
-                    </button>
-                )}
-
-                {myStatus === 'resolved' && (
-                    <span style={{color: '#5cb85c', fontWeight: 'bold', fontSize: '1rem'}}>
-                        Incident Resolved
-                    </span>
-                )}
-             </>
+          {!isAdmin && isNew && (
+            <button className="btn-accept" onClick={handleAccept} disabled={isAccepting}>
+              {isAccepting ? 'Accepting...' : 'Accept Emergency & Dispatch'}
+            </button>
+          )}
+          
+          {!isAdmin && !isNew && !isResolved && (
+             <button className="btn-directions" onClick={handleGetDirections} disabled={!route}>
+                {route ? 'Get Directions' : 'Loading Route...'}
+             </button>
           )}
         </div>
       </div>

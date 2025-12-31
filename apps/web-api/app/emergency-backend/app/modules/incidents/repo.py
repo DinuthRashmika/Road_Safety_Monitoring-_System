@@ -55,33 +55,6 @@ async def delete_incident(incident_id: str) -> None:
     await db["incidents"].delete_one({"_id": ObjectId(incident_id)})
 
 
-async def enrich_incident_with_responders(doc: dict) -> dict:
-    """
-    Fetches full details (Name, Role, Location) for any responder 
-    assigned to this incident.
-    """
-    statuses = doc.get("responder_statuses", {})
-    if not statuses:
-        doc["assigned_responders"] = []
-        return doc
-    
-    enriched = []
-    for uid, status in statuses.items():
-        u = await get_user(uid)
-        if u:
-            enriched.append({
-                "id": u["id"],
-                "name": u.get("name", "Unknown"),
-                "email": u.get("email"),
-                "role": u.get("role"),
-                "status": status,
-                "location": u.get("location") 
-            })
-    
-    doc["assigned_responders"] = enriched
-    return doc
-
-
 async def list_queue(
     limit: int = 50,
     role: Optional[str] = None,
@@ -103,8 +76,6 @@ async def list_queue(
         results = []
         async for doc in cursor:
             d = _norm(doc)
-            
-            await enrich_incident_with_responders(d)
             
             required = d.get("required_roles", [])
             role_stats = d.get("role_statuses", {})

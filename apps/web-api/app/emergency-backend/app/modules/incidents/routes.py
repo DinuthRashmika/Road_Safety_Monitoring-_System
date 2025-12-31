@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 
 from app.deps import get_current_responder_doc, require_roles
 from app.utils.sse import event_stream
-from .repo import list_queue, get_incident, update_incident, delete_incident, enrich_incident_with_responders
+from .repo import list_queue, get_incident, update_incident, delete_incident
 from .service import accept_incident
 from .status import can_transition
 from .broadcast import get_queue
@@ -56,8 +56,6 @@ async def get_incident_route(
             inc["status"] = "resolved"
         elif inc.get("status") != "unverified":
             inc["status"] = "active"
-
-        await enrich_incident_with_responders(inc)
 
     else:
         user_status = inc.get("responder_statuses", {}).get(user_id)

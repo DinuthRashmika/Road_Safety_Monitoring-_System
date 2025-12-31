@@ -55,19 +55,6 @@
   gap: 8px;
 }
 
-.role-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #fff;
-  text-transform: capitalize;
-  display: inline-block;
-}
-.role-tag.police { background-color: #0275d8; }
-.role-tag.ambulance { background-color: #5cb85c; }
-.role-tag.fire { background-color: #E4080A; }
-
 .map-placeholder {
   width: 100%;
   height: 200px;
@@ -80,6 +67,7 @@
   border-radius: 4px;
 }
 
+/* Updated Scene Image Placeholder */
 .scene-image-placeholder {
   width: 100%;
   min-height: 200px;
@@ -100,21 +88,19 @@
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  align-items: center;
 }
 
-.btn-accept, .btn-directions, .btn-action {
+.btn-accept, .btn-directions {
   padding: 12px 20px;
   border: none;
   border-radius: 5px;
   font-weight: 600;
   cursor: pointer;
-  color: white;
-  transition: background 0.2s;
 }
 
 .btn-accept {
   background-color: #E4080A;
+  color: white;
 }
 .btn-accept:disabled {
   background-color: #aaa;
@@ -122,33 +108,10 @@
 
 .btn-directions {
   background-color: #0275d8;
+  color: white;
 }
 
-.btn-action.enroute {
-  background-color: #f0ad4e; 
-}
-.btn-action.enroute:hover {
-  background-color: #ec971f;
-}
-
-.btn-action.arrived {
-  background-color: #5bc0de; 
-}
-.btn-action.arrived:hover {
-  background-color: #31b0d5;
-}
-
-.btn-action.resolve {
-  background-color: #5cb85c; 
-}
-.btn-action.resolve:hover {
-  background-color: #449d44;
-}
-
-.btn-action:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
+/* --- NEW CLASSES EXTRACTED FROM INLINE STYLES --- */
 
 .time-display-group {
   margin-bottom: 10px;
@@ -157,58 +120,42 @@
   border-radius: 4px;
 }
 
-.time-row { margin: 2px 0; }
-.time-ago-text { color: #d9534f; margin-left: 8px; font-weight: bold; }
-.evidence-iframe { border: none; }
-.evidence-image { max-width: 100%; max-height: 250px; object-fit: contain; }
-.no-image-text { color: #888; }
-.view-original-container { text-align: right; margin-top: 5px; }
-.view-original-link { font-size: 0.85rem; color: #007bff; }
-.image-load-error { color: #666; font-size: 0.8rem; }
-
-.admin-responders-box {
-  margin-top: 20px;
-  background: #fafafa;
-  padding: 10px;
-  border: 1px solid #eee;
-  border-radius: 6px;
-}
-.resp-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-.resp-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.time-row {
+  margin: 2px 0;
 }
 
-.resp-row.accepted { border-left: 4px solid #0275d8; }
-.resp-row.enroute { border-left: 4px solid #f0ad4e; }
-.resp-row.arrived { border-left: 4px solid #5bc0de; }
-.resp-row.resolved { border-left: 4px solid #5cb85c; background-color: #f6ffed; opacity: 0.8; }
-
-.resp-row.pending {
-  border-left: 4px solid #E4080A;
-  background-color: #fff1f0;
-  border-style: dashed; 
-  border-width: 1px 1px 1px 4px;
+.time-ago-text {
+  color: #d9534f;
+  margin-left: 8px;
+  font-weight: bold;
 }
 
-.resp-info { display: flex; align-items: center; }
-
-.resp-name { font-weight: 600; font-size: 0.9rem; }
-
-.resp-name-pending { 
-  font-weight: 400; 
-  font-style: italic; 
-  color: #888; 
+.evidence-iframe {
+  border: none;
 }
 
-.resp-status { font-size: 0.8rem; font-weight: bold; color: #555; }
+.evidence-image {
+  max-width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+}
+
+.no-image-text {
+  color: #888;
+}
+
+.view-original-container {
+  text-align: right;
+  margin-top: 5px;
+}
+
+.view-original-link {
+  font-size: 0.85rem;
+  color: #007bff;
+}
+
+/* Used for the innerHTML error message */
+.image-load-error {
+  color: #666;
+  font-size: 0.8rem;
+}
