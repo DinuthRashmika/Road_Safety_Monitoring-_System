@@ -189,28 +189,39 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             {incident.violence?.weapon_conf > 0 && <p>Weapon Conf: {(incident.violence.weapon_conf * 100).toFixed(1)}%</p>}
             <p>Severity: {incident.severity_grade}</p>
             
-            <div className="admin-responders-box">
-                <h4>Response Status</h4>
-                <div className="resp-list">
-                    {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
-                        <div key={idx} className={`resp-row ${item.status}`}>
-                            <div className="resp-info">
-                                <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
-                                    {item.role.toUpperCase()}
-                                </span>
-                                <span className={item.isAssigned ? "resp-name" : "resp-name-pending"}>
-                                    {item.name}
+            <h4 className="mt-2">Required Responders</h4>
+            <div className="role-tags-modal">
+              {incident.required_roles.map(role => (
+                <span key={role} className={`role-tag ${role}`}>{role}</span>
+              ))}
+            </div>
+
+            {/* --- ADMIN ONLY: Response Status --- */}
+            {isAdmin && (
+                <div className="admin-responders-box">
+                    <h4>Response Status</h4>
+                    <div className="resp-list">
+                        {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
+                            <div key={idx} className={`resp-row ${item.status}`}>
+                                <div className="resp-info">
+                                    <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
+                                        {item.role.toUpperCase()}
+                                    </span>
+                                    <span className={item.isAssigned ? "resp-name" : "resp-name-pending"}>
+                                        {item.name}
+                                    </span>
+                                </div>
+                                <span className="resp-status">
+                                    {item.status === 'pending' ? 'WAITING' : item.status.toUpperCase()}
                                 </span>
                             </div>
-                            <span className="resp-status">
-                                {item.status === 'pending' ? 'WAITING' : item.status.toUpperCase()}
-                            </span>
-                        </div>
-                    )) : (
-                        <p style={{color:'#999', fontSize:'0.9rem'}}>No specific roles required.</p>
-                    )}
+                        )) : (
+                            <p style={{color:'#999', fontSize:'0.9rem'}}>No specific roles required.</p>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
+            {/* ----------------------------------- */}
 
           </div>
 
@@ -267,12 +278,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         </div>
         
         <div className="modal-footer">
-          {isAdmin && (
-              <p className="admin-view-status" style={{color:'#777', fontStyle:'italic'}}>
-                  Monitoring Incident Status
-              </p>
-          )}
-
           {!isAdmin && (
              <>
                 {myStatus === 'new' && (
