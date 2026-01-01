@@ -134,6 +134,12 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     });
   };
 
+  const handleResponderClick = (responder) => {
+      if (isAdmin && responder.id) {
+          navigate(`/profile/${responder.id}`);
+      }
+  };
+
   const formatDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { weekday:'short', year:'numeric', month:'short', day:'numeric' }) : 'N/A';
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }) : 'N/A';
   const getTimeAgo = (d) => {
@@ -237,7 +243,13 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                     <h4>Response Status</h4>
                     <div className="resp-list">
                         {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
-                            <div key={idx} className={`resp-row ${item.status}`}>
+                            <div 
+                                key={idx} 
+                                className={`resp-row ${item.status}`}
+                                onClick={() => item.isAssigned ? handleResponderClick(item) : null}
+                                style={item.isAssigned && isAdmin ? {cursor: 'pointer'} : {}}
+                                title={item.isAssigned && isAdmin ? "Click to view profile" : ""}
+                            >
                                 <div className="resp-info">
                                     <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
                                         {item.role.toUpperCase()}
