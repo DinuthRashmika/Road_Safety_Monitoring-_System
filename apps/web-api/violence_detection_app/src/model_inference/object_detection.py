@@ -18,6 +18,8 @@ class ObjectDetection:
 
         # Violent objects to detect
         self.violent_objects = config.VIOLENT_OBJECTS
+        self.handler = VideoHandler()
+        self.frame_extractor = FrameExtractor()
 
         # Colors for bounding boxes (BGR format for OpenCV)
         self.colors = {
@@ -30,10 +32,10 @@ class ObjectDetection:
         self.yolo_model = self.load_yolo_model(self.model_path)
 
         if self.verbose:
-            print(f"\n✓ ObjectDetection initialized")
-            print(f"  Model path: {self.model_path}")
-            print(f"  Confidence threshold: {self.confidence_threshold}")
-            print(f"  Detecting: {', '.join(self.violent_objects)}\n")
+            print(f"\nObjectDetection initialized")
+            print(f"Model path: {self.model_path}")
+            print(f"Confidence threshold: {self.confidence_threshold}")
+            print(f"Detecting: {', '.join(self.violent_objects)}\n")
 
 
     def load_yolo_model(self, model_path):
@@ -50,8 +52,8 @@ class ObjectDetection:
             model = YOLO(model_path)
             
             if self.verbose:
-                print(f"✓ YOLO Model loaded successfully!")
-                print(f"  Model: {model_path}\n")
+                print(f"YOLO Model loaded successfully!")
+                print(f"Model: {model_path}\n")
 
             return model
         
@@ -67,7 +69,7 @@ class ObjectDetection:
             return None       
         
 
-    def detect_in_frame(self, frame):
+    def detect_in_frame(self, frame, frame_index):
 
         detections = []
 
@@ -96,7 +98,8 @@ class ObjectDetection:
                         'object': class_name.lower(),
                         'confidence': confidence,
                         'bbox': bbox,
-                        'class_id': class_id
+                        'class_id': class_id,
+                        'frame_index': frame_index 
                     })
         
         return detections
@@ -142,7 +145,7 @@ class ObjectDetection:
                 -1  # Filled
             )
             
-            # Draw label text (white)
+            # Draw label text (white confidence)
             cv2.putText(
                 display_frame,
                 label,
@@ -192,7 +195,8 @@ class ObjectDetection:
         print("="*70 + "\n")
         
         # Open video
-        cap = cv2.VideoCapture(video_path)
+        # cap = cv2.VideoCapture(video_path)
+        cap = self.handler.read_video(video_path)
         
         if not cap.isOpened():
             print(f"❌ Error: Cannot open video {video_path}")
@@ -222,7 +226,10 @@ class ObjectDetection:
             'frames_processed': 0,
             'frames_with_detections': 0,
             'total_detections': 0,
-            'detections_by_object': {}
+            'detections_by_object': {},
+            'total_objects_detected': [],
+            'confidence_sums': {},
+            'avg_confidences': {}
         }
         
         print("Processing frames...")
@@ -253,8 +260,18 @@ class ObjectDetection:
                     
                     for det in detections:
                         obj_name = det['object']
+                        confidence = det['confidence']
+                        
                         stats['detections_by_object'][obj_name] = \
                             stats['detections_by_object'].get(obj_name, 0) + 1
+                        
+                        if obj_name not in stats['total_objects_detected']:
+                            stats['total_objects_detected'].append(obj_name)
+
+                        if obj_name in stats['confidence_sums']:
+                            stats['confidence_sums'][obj_name] += confidence
+                        else:
+                            stats['confidence_sums'][obj_name] = confidence
                 
                 # ==========================================
                 # DRAW DETECTIONS ON FRAME
@@ -287,7 +304,13 @@ class ObjectDetection:
                     progress = frame_index / total_frames * 100
                     print(f"Progress: {progress:.1f}% | Detections: {stats['total_detections']}", 
                           end='\r')
-        
+
+                # ==========================================
+                # CALCULATE REMAINING STATS
+                # ==========================================
+                for obj_name, total_conf in stats['confidence_sums'].items():
+                    count = stats['detections_by_object'].get(obj_name, 1)
+                    stats['avg_confidences'][obj_name] = total_conf / count
         finally:
             # Cleanup
             cap.release()
@@ -355,7 +378,7 @@ class ObjectDetection:
                 frame_index += 1
                 
                 # Detect objects
-                detections = self.detect_in_frame(frame)
+                detections = self.detect_in_frame(frame, frame_index)
                 
                 # Draw detections
                 display_frame = self.draw_detections_on_frame(
