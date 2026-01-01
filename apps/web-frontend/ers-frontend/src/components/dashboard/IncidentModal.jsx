@@ -151,7 +151,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
 
   const isAdmin = user?.role === 'admin';
   const isNew = incident.status === 'new';
-  const isResolved = incident.status === 'resolved';
   const myStatus = incident.status; 
 
   const imageUrl = incident.media?.image_url;
@@ -195,52 +194,10 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                 <span key={role} className={`role-tag ${role}`}>{role}</span>
               ))}
             </div>
-
-            {/* --- ADMIN ONLY: Response Status --- */}
-            {isAdmin && (
-                <div className="admin-responders-box">
-                    <h4>Response Status</h4>
-                    <div className="resp-list">
-                        {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
-                            <div key={idx} className={`resp-row ${item.status}`}>
-                                <div className="resp-info">
-                                    <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
-                                        {item.role.toUpperCase()}
-                                    </span>
-                                    <span className={item.isAssigned ? "resp-name" : "resp-name-pending"}>
-                                        {item.name}
-                                    </span>
-                                </div>
-                                <span className="resp-status">
-                                    {item.status === 'pending' ? 'WAITING' : item.status.toUpperCase()}
-                                </span>
-                            </div>
-                        )) : (
-                            <p style={{color:'#999', fontSize:'0.9rem'}}>No specific roles required.</p>
-                        )}
-                    </div>
-                </div>
-            )}
-            {/* ----------------------------------- */}
-
           </div>
 
           <div className="modal-right">
-            <h4>Location & Route</h4>
-            {route ? (
-              <div className="route-info">
-                <p><strong>Distance:</strong> {route.distance_km} km</p>
-                <div className="map-placeholder">
-                   Route Loaded<br/>(Click 'Start Route' to navigate)
-                </div>
-              </div>
-            ) : (
-              <div className="map-placeholder">
-                  {isNew ? 'Accept to calculate route' : 'Calculating route...'}
-              </div>
-            )}
-            
-            <h4 className="mt-2">Scene Evidence</h4>
+            <h4>Scene Evidence</h4>
             <div className="scene-image-placeholder">
               {imageUrl ? (
                 driveId ? (
@@ -274,10 +231,41 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                     </a>
                 </div>
             )}
+
+            {isAdmin && (
+                <div className="admin-responders-box" style={{ marginTop: '20px' }}>
+                    <h4>Response Status</h4>
+                    <div className="resp-list">
+                        {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
+                            <div key={idx} className={`resp-row ${item.status}`}>
+                                <div className="resp-info">
+                                    <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
+                                        {item.role.toUpperCase()}
+                                    </span>
+                                    <span className={item.isAssigned ? "resp-name" : "resp-name-pending"}>
+                                        {item.name}
+                                    </span>
+                                </div>
+                                <span className="resp-status">
+                                    {item.status === 'pending' ? 'WAITING' : item.status.toUpperCase()}
+                                </span>
+                            </div>
+                        )) : (
+                            <p style={{color:'#999', fontSize:'0.9rem'}}>No specific roles required.</p>
+                        )}
+                    </div>
+                </div>
+            )}
           </div>
         </div>
         
         <div className="modal-footer">
+          {isAdmin && (
+              <p className="admin-view-status" style={{color:'#777', fontStyle:'italic'}}>
+                  Monitoring Incident Status
+              </p>
+          )}
+
           {!isAdmin && (
              <>
                 {myStatus === 'new' && (
