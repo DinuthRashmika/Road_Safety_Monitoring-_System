@@ -18,7 +18,6 @@ def _iso(dt: datetime) -> str:
 
 
 async def _count_active_incidents(role: str, user_id: str, location: dict = None) -> int:
-
     active_items = await list_queue(
         limit=1000,
         role=role,
@@ -29,36 +28,19 @@ async def _count_active_incidents(role: str, user_id: str, location: dict = None
     return len(active_items)
 
 
-async def _count_resolved_in_window(window_hours: int, role: str, user_id: str) -> int:
-    
-    db = get_db()
-    since = _iso(_now_utc() - timedelta(hours=window_hours))
-    
-    if role == "admin":
-        cursor = db["incidents"].find({"reported_at": {"$gte": since}})
-        
-        count = 0
-        async for doc in cursor:
-            required = doc.get("required_roles", [])
-            role_stats = doc.get("role_statuses", {})
-            
-            if required and len(required) > 0:
-                all_resolved = True
-                for r in required:
-                    if role_stats.get(r) != "resolved":
-                        all_resolved = False
-                        break
-                
-                if all_resolved:
-                    count += 1
-        return count
-
-    else:
-        query = {
-            f"responder_statuses.{user_id}": "resolved",
-            "reported_at": {"$gte": since}
-        }
-        return await db["incidents"].count_documents(query)
+async def _count_resolved_matching_history(role: str, user_id: str, location: dict = None) -> int:
+    """
+    Counts resolved incidents using the EXACT same logic as the History tab.
+    This ensures the number on the dashboard matches the items in the list.
+    """
+    resolved_items = await list_queue(
+        limit=10000,  
+        role=role,
+        user_location=location,
+        status="resolved",
+        user_id=user_id
+    )
+    return len(resolved_items)
 
 
 async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> float:
@@ -100,7 +82,9 @@ async def _avg_response_minutes(window_hours: int, role: str, user_id: str) -> f
 
 async def metrics_tiles(role: str, user_id: str, location: dict = None, window_hours: int = 24) -> dict:
     active = await _count_active_incidents(role, user_id, location)
-    resolved = await _count_resolved_in_window(window_hours, role, user_id)
+    
+    resolved = await _count_resolved_matching_history(role, user_id, location)
+    
     avg_resp = await _avg_response_minutes(window_hours, role, user_id)
 
     return {
