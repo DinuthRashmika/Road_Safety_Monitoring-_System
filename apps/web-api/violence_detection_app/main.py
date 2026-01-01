@@ -1,3 +1,5 @@
+# This file is only a launcher
+# It does NOT expose app
 import uvicorn
 
 if __name__ == "__main__":

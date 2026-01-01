@@ -6,3 +6,5 @@ matplotlib
 tqdm
 fastapi
 uvicorn
+pydantic
+pydantic_settings
