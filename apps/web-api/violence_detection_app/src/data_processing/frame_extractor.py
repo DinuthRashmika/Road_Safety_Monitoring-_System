@@ -35,8 +35,12 @@ class FrameExtractor:
                 break
             
             if frames_count % frame_interval == 0:
-                timestamp = frames_count / video_fps
-                frames.append(frame)
+                timestamp_ms = cap.get(cv2.CAP_PROP_POS_MSEC)
+                timestamp_sec = round(timestamp_ms / 1000.0, 3)
+                frames.append({
+                    "timestamp": timestamp_ms,
+                    "frame": frame
+                    })
                 extracted_count += 1
             
             frames_count += 1
@@ -70,7 +74,7 @@ class FrameExtractor:
         cap.release()   
 
     # Preprocess extracted frames for YOLO
-    def preprocess_for_yolo(self, frames):
+    def preprocess_frame_for_yolo(self, frames):
         
         yolo_frames = []
         print(f"----Preparing frames for YOLO----")
@@ -144,14 +148,19 @@ class FrameExtractor:
         frame_folder = os.path.join(output_folder, video_name, model_name)
         os.makedirs(frame_folder, exist_ok=True)
 
-        for i, frame in enumerate(frames):
+        for i, item in enumerate(frames):
+
+            frame = item["frame"]
+            timestamp = item["timestamp"]
 
             # Convert back to 255 to view
             new_frame = (frame * 255).astype(np.uint8)
             # RGB -> BGR to view
             new_frame = cv2.cvtColor(new_frame, cv2.COLOR_RGB2BGR)
-            filename = f"frame_{model_name}_{i:04d}.jpg"
+
+            filename = f"frame_{model_name}_{i:04d}_ts_{timestamp:.3f}.jpg"
             filepath = os.path.join(frame_folder, filename)
+            
             cv2.imwrite(filepath, new_frame)
 
         print(f"Saved {len(frames)} Frames to {frame_folder}")
@@ -162,4 +171,4 @@ if __name__ == "__main__":
     
     frames = frame_extract.extract_frames(config.VIDEO_PATH)
     # lrcn_seq = frame_extract.preprocess_for_lrcn(frames)
-    # frame_extract.save_frames(lrcn_seq, config.VIDEO_PATH, 'lrcn', config.SAVED_FRAMES)
+    frame_extract.save_frames(frames, config.VIDEO_PATH, 'lrcn', config.SAVED_FRAMES)
