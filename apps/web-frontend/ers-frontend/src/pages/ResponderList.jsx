@@ -4,13 +4,13 @@ import api from '../api/axiosConfig';
 import './ResponderList.css';
 import { useAuth } from '../hooks/useAuth';
 
-// --- CREATE MODAL COMPONENT ---
 const ResponderCreateModal = ({ onClose, onCreate }) => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         role: 'police',
+        contact_number: '',
         address: '',
         lat: '',
         lng: '',
@@ -30,12 +30,12 @@ const ResponderCreateModal = ({ onClose, onCreate }) => {
         setLoading(true);
         setError(null);
 
-        // Construct payload matching backend schema
         const payload = {
             name: formData.name,
             email: formData.email,
             password: formData.password,
             role: formData.role,
+            contact_number: formData.contact_number, 
             location: {
                 address: formData.address,
                 lat: parseFloat(formData.lat) || 0,
@@ -46,7 +46,7 @@ const ResponderCreateModal = ({ onClose, onCreate }) => {
         try {
             await api.post('/api/responders/', payload);
             alert('Responder created successfully!');
-            onCreate(); // Trigger refresh in parent
+            onCreate(); 
         } catch (err) {
             console.error("Create failed:", err.response?.data);
             setError(err.response?.data?.detail || 'Failed to create responder.');
@@ -90,6 +90,10 @@ const ResponderCreateModal = ({ onClose, onCreate }) => {
                                 <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="******" required minLength="6" />
                             </div>
                         </div>
+                        <div className="form-group">
+                            <label>Contact Number</label>
+                            <input type="text" name="contact_number" value={formData.contact_number} onChange={handleChange} placeholder="e.g. +65 9123 4567" />
+                        </div>
                     </div>
 
                     <div className="form-section">
@@ -122,16 +126,16 @@ const ResponderCreateModal = ({ onClose, onCreate }) => {
     );
 };
 
-// --- EDIT MODAL COMPONENT (Existing) ---
 const ResponderEditModal = ({ responder, onClose, onUpdate }) => {
     const [formData, setFormData] = useState({
         name: responder.name,
         email: responder.email,
         role: responder.role,
+        contact_number: responder.contact_number || '', 
         address: responder.location?.address || '',
         lat: responder.location?.lat || 0.0,
         lng: responder.location?.lng || 0.0,
-        password: '' // Optional for edit
+        password: '' 
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -152,6 +156,7 @@ const ResponderEditModal = ({ responder, onClose, onUpdate }) => {
             name: formData.name,
             email: formData.email,
             role: formData.role,
+            contact_number: formData.contact_number, 
             location: {
                 lat: parseFloat(formData.lat),
                 lng: parseFloat(formData.lng),
@@ -205,6 +210,10 @@ const ResponderEditModal = ({ responder, onClose, onUpdate }) => {
                             <label>Email</label>
                             <input type="email" name="email" value={formData.email} onChange={handleChange} required />
                         </div>
+                        <div className="form-group">
+                            <label>Contact Number</label>
+                            <input type="text" name="contact_number" value={formData.contact_number} onChange={handleChange} placeholder="e.g. +65 9123 4567" />
+                        </div>
                     </div>
 
                     <div className="form-section">
@@ -244,14 +253,12 @@ const ResponderEditModal = ({ responder, onClose, onUpdate }) => {
     );
 };
 
-// --- MAIN PAGE COMPONENT ---
 const ResponderList = () => {
     const [responders, setResponders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { user } = useAuth();
 
-    // Modal States
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingResponder, setEditingResponder] = useState(null);
     
@@ -309,7 +316,7 @@ const ResponderList = () => {
         if (user?.role === 'admin') {
             fetchResponders();
         } else {
-            setLoading(false); // Not admin, stop loading
+            setLoading(false); 
         }
     }, [user]);
 
@@ -320,7 +327,6 @@ const ResponderList = () => {
                     <h2>All System Responders</h2>
                     <p>Manage police stations, hospitals, and fire departments.</p>
                 </div>
-                {/* CREATE BUTTON */}
                 <button className="create-responder-button" onClick={() => setIsCreateModalOpen(true)}>
                     + Add New Responder
                 </button>
@@ -342,6 +348,9 @@ const ResponderList = () => {
                             <div className="responder-right">
                                 <div className="responder-details">
                                     <span>{responder.email}</span>
+                                    {responder.contact_number && (
+                                        <span className="contact-number">{responder.contact_number}</span>
+                                    )}
                                     <span className="location">{responder.location?.address || 'N/A'}</span>
                                 </div>
                                 {user?.role === 'admin' && (
@@ -357,7 +366,6 @@ const ResponderList = () => {
                 {!loading && responders.length === 0 && <p>No other responders found.</p>}
             </div>
 
-            {/* MODALS */}
             {isCreateModalOpen && (
                 <ResponderCreateModal 
                     onClose={() => setIsCreateModalOpen(false)}

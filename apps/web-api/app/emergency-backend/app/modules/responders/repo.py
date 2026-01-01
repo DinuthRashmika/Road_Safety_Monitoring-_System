@@ -17,15 +17,23 @@ def _norm_user(doc: Dict[str, Any]) -> Dict[str, Any]:
         "name": doc.get("name"),
         "email": doc.get("email"),
         "role": doc.get("role"),
+        "contact_number": doc.get("contact_number"),
         "location": doc.get("location"), 
     }
 
-async def create_user(name: str, email: str, role: str, password_hash: str, location: dict) -> str:
+async def create_user(name: str, email: str, role: str, password_hash: str, location: dict, contact_number: str = None) -> str:
     db = get_db()
     email_norm = email.strip().lower()
     try:
         res = await db["users"].insert_one(
-            {"name": name, "email": email_norm, "role": role, "password_hash": password_hash, "location": location}
+            {
+                "name": name, 
+                "email": email_norm, 
+                "role": role, 
+                "password_hash": password_hash, 
+                "location": location,
+                "contact_number": contact_number
+            }
         )
         return str(res.inserted_id)
     except DuplicateKeyError:

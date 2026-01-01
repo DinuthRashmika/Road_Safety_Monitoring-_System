@@ -13,6 +13,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     role: Role
     password: str
+    contact_number: Optional[str] = None    
     location: Location 
 
 class UserUpdate(BaseModel):
@@ -20,6 +21,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     role: Optional[Role] = None
     password: Optional[str] = None  
+    contact_number: Optional[str] = None  
     location: Optional[Location] = None 
 
 class UserView(BaseModel):
@@ -27,4 +29,5 @@ class UserView(BaseModel):
     name: str
     email: EmailStr
     role: Role
+    contact_number: Optional[str] = None  
     location: Optional[Location] = None

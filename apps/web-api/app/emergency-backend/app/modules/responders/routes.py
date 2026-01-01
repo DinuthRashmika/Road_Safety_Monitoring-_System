@@ -16,7 +16,7 @@ router = APIRouter()
 async def create_responder(body: UserCreate):
     try:
         user_id = await admin_create_user(
-            body.name, body.email, body.role, body.password, body.location
+            body.name, body.email, body.role, body.password, body.location, body.contact_number
         )
         return {"id": user_id}
     except ValueError as e:
