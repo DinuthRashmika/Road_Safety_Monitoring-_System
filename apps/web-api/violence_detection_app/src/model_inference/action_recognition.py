@@ -1,15 +1,9 @@
-"""
-action_detector.py
-LRCN Action Recognition for real-time CCTV streams
-Designed to be combined with YOLO in a separate integration file
-"""
-
 from collections import deque
 import os
 import cv2
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
+# import tensorflow as tf
+# from tensorflow import keras
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
@@ -19,25 +13,12 @@ from violence_detection_app.src.data_processing.frame_extractor import FrameExtr
 
 
 class ActionRecognition:
-    """
-    LRCN-based action recognition for video streams
-    Detects violent actions: running, shooting, fighting, attacking
-    """
-    
     def __init__(self, 
                  model_path: str = None,
                  confidence_threshold: float = None,
                  sequence_length: int = None,
                  verbose: bool = True):
-        """
-        Initialize LRCN Action Detector
-        
-        Args:
-            model_path: Path to trained LRCN model (.h5)
-            confidence_threshold: Minimum confidence for predictions (0-1)
-            sequence_length: Number of frames per sequence (default: 16)
-            verbose: Print detailed logs
-        """
+
         self.verbose = verbose
         
         # Handlers (from your existing code)
@@ -97,22 +78,25 @@ class ActionRecognition:
             print("📦 Loading LRCN model...")
         
         try:
+            import tensorflow as tf
+            from tensorflow import keras
+
             if not os.path.exists(model_path):
-                print(f"⚠️  Model file not found: {model_path}")
+                print(f"Model file not found: {model_path}")
                 print("   Using mock model for testing\n")
                 return None
             
             model = keras.models.load_model(model_path)
             
             if self.verbose:
-                print(f"✅ LRCN model loaded successfully!")
-                print(f"   Input shape: {model.input_shape}")
-                print(f"   Output shape: {model.output_shape}\n")
+                print(f"LRCN model loaded successfully!")
+                print(f"Input shape: {model.input_shape}")
+                print(f"Output shape: {model.output_shape}\n")
             
             return model
         
         except Exception as e:
-            print(f"❌ Error loading LRCN model: {e}\n")
+            print(f"Error loading LRCN model: {e}\n")
             return None
     
     
@@ -272,7 +256,7 @@ class ActionRecognition:
         """Reset the frame buffer (useful when switching videos)"""
         self.frame_buffer.clear()
         if self.verbose:
-            print("🔄 Frame buffer reset")
+            print("Frame buffer reset")
     
     
     def get_statistics(self) -> Dict:
@@ -355,10 +339,10 @@ class ActionRecognition:
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
-        print(f"📹 Video Properties:")
-        print(f"   Resolution: {width}x{height}")
-        print(f"   FPS: {fps}")
-        print(f"   Total Frames: {total_frames}\n")
+        print(f"Video Properties:")
+        print(f"Resolution: {width}x{height}")
+        print(f"FPS: {fps}")
+        print(f"Total Frames: {total_frames}\n")
         
         # Video writer (optional)
         video_writer = None
@@ -409,7 +393,7 @@ class ActionRecognition:
                     cv2.imshow('LRCN Action Detection', annotated)
                     
                     if cv2.waitKey(1) & 0xFF == ord('q'):
-                        print("\n⏹️  Stopped by user")
+                        print("\nStopped by user")
                         break
                 
                 # Save
@@ -417,7 +401,7 @@ class ActionRecognition:
                     video_writer.write(annotated)
         
         except KeyboardInterrupt:
-            print("\n⏹️  Interrupted by user")
+            print("\n inerrupted by user")
         
         finally:
             cap.release()
@@ -432,10 +416,7 @@ class ActionRecognition:
         return self.get_statistics()
     
     
-    def _draw_lrcn_only_annotations_test(self, 
-                                    frame: np.ndarray,
-                                    result: Dict,
-                                    frame_count: int) -> np.ndarray:
+    def _draw_lrcn_only_annotations_test(self, frame: np.ndarray,result: Dict,frame_count: int) -> np.ndarray:
         """
         Draw LRCN-only annotations (for standalone testing)
         
@@ -505,7 +486,7 @@ class ActionRecognition:
             
             # Warning if violent
             if result['is_violent']:
-                cv2.putText(annotated, "⚠️ VIOLENT ACTION", (width - 350, 50),
+                cv2.putText(annotated, "VIOLENT ACTION", (width - 350, 50),
                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
         
         return annotated
@@ -513,17 +494,16 @@ class ActionRecognition:
 
 
 def main():
-    """Test LRCN detector standalone"""
     
     # Create detector
     detector = ActionRecognition(
-        model_path= config.LRCN_MODEL_PATH,  # Your model path
+        model_path= config.LRCN_MODEL_PATH, 
         confidence_threshold= config.LRCN_CONFIDENCE_THRESHOLD,
         sequence_length= config.SEQUENCE_LENGTH,
         verbose=True
     )
     
-    # Test on video file
+    # Test on file
     detector.process_video_file_test(
         video_path= config.VIDEO_PATH,  # Or 0 for webcam
         display=True,

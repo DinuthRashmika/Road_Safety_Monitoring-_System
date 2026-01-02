@@ -59,17 +59,17 @@ class ObjectDetection:
         
         except ImportError:
             if self.verbose:
-                print(f"⚠ Ultralytics not installed.")
+                print(f"Ultralytics not installed.")
                 print(f"  Install with: pip install ultralytics\n")
             return None
         
         except Exception as e:
             if self.verbose:
-                print(f"⚠ Error loading YOLO: {e}\n") 
+                print(f"Error loading YOLO: {e}\n") 
             return None       
         
 
-    def detect_in_frame(self, frame, frame_index):
+    def detect_in_frame(self, frame):
 
         detections = []
 
@@ -98,14 +98,13 @@ class ObjectDetection:
                         'object': class_name.lower(),
                         'confidence': confidence,
                         'bbox': bbox,
-                        'class_id': class_id,
-                        'frame_index': frame_index 
+                        'class_id': class_id
                     })
         
         return detections
 
 
-    def draw_detections_on_frame(self, frame, detections, frame_index=None):
+    def draw_detections_on_frame_test(self, frame, detections, frame_index=None):
 
         # Make a copy to draw on
         display_frame = frame.copy()
@@ -156,7 +155,7 @@ class ObjectDetection:
                 2
             )
         
-        # Add frame info at top
+        # Add frame info at top (frame_index and detections length on top left)
         if frame_index is not None:
             info_text = f"Frame: {frame_index} | Detections: {len(detections)}"
         else:
@@ -174,7 +173,7 @@ class ObjectDetection:
         
         # Add warning if violent objects detected
         if len(detections) > 0:
-            warning_text = "⚠ VIOLENCE DETECTED!"
+            warning_text = "VIOLENCE DETECTED!"
             cv2.putText(
                 display_frame,
                 warning_text,
@@ -186,9 +185,10 @@ class ObjectDetection:
             )
         
         return display_frame
+    
 
 
-    def process_video(self, video_path, output_path=None, display=True):
+    def process_video_test(self, video_path, output_path=None, display=True):
 
         print("\n" + "="*70)
         print(f"PROCESSING VIDEO: {video_path}")
@@ -199,7 +199,7 @@ class ObjectDetection:
         cap = self.handler.read_video(video_path)
         
         if not cap.isOpened():
-            print(f"❌ Error: Cannot open video {video_path}")
+            print(f"Error: Cannot open video {video_path}")
             return None
         
         # Get video properties
@@ -423,25 +423,22 @@ class ObjectDetection:
 
 
 if __name__ == "__main__":
-    """
-    Example usage of ObjectDetection class.
-    """
-    
+
     print("\n" + "="*70)
     print("OBJECT DETECTION - TEST")
     print("="*70)
     
     # Initialize detector
     detector = ObjectDetection(
-        model_path='models/yolo/best.pt',  # Your trained YOLO model
-        confidence_threshold=0.5,
+        model_path=config.YOLO_MODEL_PATH, 
+        confidence_threshold=0.25,
         verbose=True
     )
     
-    # Example 1: Process video file
-    stats = detector.process_video(
+    # Testttttt Process video file
+    stats = detector.process_video_test(
         video_path=config.VIDEO_PATH,
-        output_path=config.OUTPUT_DIR + '/result2.mp4',
+        output_path=config.OUTPUT_DIR + '/result3.mp4',
         display=True  # Show video while processing
     )
     
