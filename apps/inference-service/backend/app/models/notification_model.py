@@ -9,23 +9,25 @@ def notification_doc(
     violation_id: str,
     message: str,
     location: str,
-    violation_type: str,  # New field
-    fine_amount: float    # New field
+    violation_type: str,
+    fine_amount: float,
+    violation_image: Optional[str] = None # <--- NEW FIELD
 ):
     now = datetime.utcnow()
     return {
         "_id": ObjectId(),
-        "ownerId": ObjectId(owner_id),      # Link to the user who gets the alert
+        "ownerId": ObjectId(owner_id),
         "vehiclePlate": vehicle_plate,
-        "violationId": ObjectId(violation_id), # Link to the violation proof
+        "violationId": ObjectId(violation_id),
         "message": message,
         "location": location,
         
         # Detailed Info for App
         "violationType": violation_type,
         "fineAmount": fine_amount,
+        "violationImage": violation_image, # <--- Store the image path
         
-        "isRead": False,                    # To show "New" badge in app
+        "isRead": False,
         "type": "violation_alert",
         "createdAt": now,
         "updatedAt": now

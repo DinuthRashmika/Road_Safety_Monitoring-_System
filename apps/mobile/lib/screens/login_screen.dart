@@ -243,7 +243,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       _obscure
                                           ? Icons.visibility_off_outlined
                                           : Icons.visibility_outlined,
-                                      color: Colors.grey.shade500,
+                                      color: Colors.grey.shade500, 
                                       size: 20,
                                     ),
                                   ),

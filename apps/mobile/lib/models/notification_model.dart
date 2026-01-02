@@ -1,39 +1,62 @@
 class NotificationModel {
   final String id;
+  final String ownerId;
   final String vehiclePlate;
+  final String violationId;
   final String message;
   final String location;
+  
+  // Detailed Info
+  final String violationType;
+  final double fineAmount;
+  final String? violationImage; // Nullable to handle cases with no image
+  
   final bool isRead;
   final DateTime createdAt;
-  final String violationId;
-  
-  // These fields come from the "detailed info" in your backend notification_doc
-  // Note: Your GET /api/notifications endpoint needs to ensure these are passed 
-  // or parsed from the message if not explicitly in the top-level JSON.
-  // Based on your backend code, the GET endpoint returns specific fields. 
-  // We might need to parse the message or rely on violationId to fetch details.
-  
-  // For this implementation, we will assume standard fields.
 
   NotificationModel({
     required this.id,
+    required this.ownerId,
     required this.vehiclePlate,
+    required this.violationId,
     required this.message,
     required this.location,
+    required this.violationType,
+    required this.fineAmount,
+    this.violationImage,
     required this.isRead,
     required this.createdAt,
-    required this.violationId,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
-      id: json['id'] ?? '',
+      // MongoDB usually returns '_id', but we map it to 'id' for the app
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      
+      ownerId: json['ownerId']?.toString() ?? '',
       vehiclePlate: json['vehiclePlate'] ?? '',
+      violationId: json['violationId']?.toString() ?? '',
+      
       message: json['message'] ?? '',
-      location: json['location'] ?? 'Unknown',
+      location: json['location'] ?? 'Unknown Location',
+      
+      // Default to "Violation" if the type is missing
+      violationType: json['violationType'] ?? 'Violation',
+      
+      // Safe double parsing
+      fineAmount: (json['fineAmount'] is int) 
+          ? (json['fineAmount'] as int).toDouble() 
+          : (json['fineAmount'] ?? 0.0),
+          
+      // This will be the relative path (e.g., "static/violations/img_123.jpg")
+      violationImage: json['violationImage'], 
+      
       isRead: json['isRead'] ?? false,
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      violationId: json['violationId'] ?? '',
+      
+      // specific date parsing to handle potentially different formats or nulls
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt']) 
+          : DateTime.now(),
     );
   }
 }

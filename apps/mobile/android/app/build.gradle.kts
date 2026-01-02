@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mobile"
+    namespace = "com.example.mobile" // Ensure this matches your package name
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,30 +15,30 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = "11"
     }
 
     defaultConfig {
         applicationId = "com.example.mobile"
-        
-        // --- CHANGE THIS LINE ---
-        // Old: minSdk = flutter.minSdkVersion
-        // New: Set strictly to 21 for Stripe
+        // Stripe requires minSdk 21
         minSdk = flutter.minSdkVersion 
-        // ------------------------
-
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // This is required for Stripe
+        multiDexEnabled = true
     }
 
     buildTypes {
         release {
+            // In Kotlin DSL, use getByName("debug")
             signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
 
-flutter {
-    source = "../.."
+dependencies {
+    // Note the parentheses for Kotlin DSL
+    implementation("androidx.multidex:multidex:2.0.1")
 }

@@ -1,6 +1,7 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; // <--- IMPORT THIS
+import 'package:flutter_stripe/flutter_stripe.dart'; 
+import 'services/payment_service.dart'; 
+// ... keep your other screen imports ...
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_owner_screen.dart';
@@ -10,14 +11,12 @@ import 'screens/vehicle_add_screen.dart';
 import 'screens/vehicle_detail_screen.dart';
 import 'screens/vehicles_screen.dart';
 import 'screens/violations_screen.dart';
-import 'services/payment_service.dart'; // Import the PaymentService class
 
-// lib/main.dart
+
 void main() async {
-  // 1. THIS IS REQUIRED before calling any native code (like Stripe)
   WidgetsFlutterBinding.ensureInitialized(); 
 
-  // 2. Initialize Stripe
+  // Initialize Stripe with your PUBLISHABLE Key
   await PaymentService.initializeStripe('pk_test_51ShA9KBSOx34RK9GubYkjaMDWdHtXrCzKOqkm0kJyDEw2x4P9toIzs2QwI0h9P3Cwau6uYbzY7uHQV5Dd4NEGhjD00XZwLgzVp');
   
   runApp(const RoadGuruApp());
@@ -28,6 +27,7 @@ class RoadGuruApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ... your existing theme code ...
     final theme = ThemeData(
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF2563EB),
@@ -63,6 +63,10 @@ class RoadGuruApp extends StatelessWidget {
         '/vehicle-detail': (_) => const VehicleDetailScreen(),
         '/vehicles': (context) => const VehiclesScreen(),
         '/violations': (context) => const ViolationsScreen(),
+        '/forgot': (context) => Scaffold(
+          appBar: AppBar(title: const Text('Reset Password')),
+          body: const Center(child: Text('Password Reset Feature Coming Soon')),
+        ),
       },
     );
   }
