@@ -30,12 +30,12 @@ class DmsPipeline:
         out: list[dict] = []
 
         y = self.det.run(bgr)
-        phone_active = (y.get("phone_conf", 0.0) > 0.6)
+        phone_active = (y.get("phone_conf", 0.0) > 0.1)
         seatbelt_off = (y.get("seatbelt_present", False) is False)
-        drowsiness = (y.get("drowsiness", False) is True)
-        yawning = (y.get("yawning", False) is True)
-        headpose = (y.get("headpose", False) is True)
-
+        drowsiness = (y.get("drowsiness_present", False) is True)
+        yawning = (y.get("yawning_present", False) is True)
+        headpose = (y.get("headpose_present", False) is True)
+        
         if self.debouncers["phone"].update(phone_active, now):
             out.append({"type": "phone", "confidence": float(y.get("phone_conf", 0.0))})
 

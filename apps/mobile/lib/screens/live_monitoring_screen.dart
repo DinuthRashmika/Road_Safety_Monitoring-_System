@@ -74,6 +74,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   // ================= CAMERA =================
   Future<void> _initCamera() async {
     final cams = await availableCameras();
+   
     final frontCam = cams.firstWhere(
       (c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => cams.first,
@@ -91,6 +92,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     await _cam!.startImageStream((CameraImage image) {
       if (_isConverting) return; // drop frame if busy
       _isConverting = true;
+       final png = _convertYuv420ToPng(image);
 
       try {
         final Uint8List? pngBytes = YuvToPng.yuvToPng(
@@ -102,7 +104,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
           _latestPngBytes = pngBytes; // store latest frame
         }
       } catch (e) {
-        print("YUV to PNG error: $e");
+        print("YUV to PNG error: $png");
       } finally {
         _isConverting = false;
       }
@@ -112,6 +114,40 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
       setState(() => _cameraReady = true);
     }
   }
+
+  Uint8List _convertYuv420ToPng(CameraImage image) {
+  final width = image.width;
+  final height = image.height;
+
+  final yPlane = image.planes[0];
+  final uPlane = image.planes[1];
+  final vPlane = image.planes[2];
+
+
+
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      final yp = y * yPlane.bytesPerRow + x;
+      final uvIndex = (y ~/ 2) * uPlane.bytesPerRow + (x ~/ 2);
+
+      final Y = yPlane.bytes[yp];
+      final U = uPlane.bytes[uvIndex];
+      final V = vPlane.bytes[uvIndex];
+
+      int r = (Y + 1.402 * (V - 128)).round();
+      int g = (Y - 0.344136 * (U - 128) - 0.714136 * (V - 128)).round();
+      int b = (Y + 1.772 * (U - 128)).round();
+
+      r = r.clamp(0, 255);
+      g = g.clamp(0, 255);
+      b = b.clamp(0, 255);
+
+    }
+  }
+
+  return Uint8List.fromList([]);
+}
+
 
   // ================= FRAME SENDER =================
   void _startSenderTimer() {
