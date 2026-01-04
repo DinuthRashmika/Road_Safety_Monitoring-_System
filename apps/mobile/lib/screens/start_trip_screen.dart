@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../core/api_client.dart';
 import '../core/token_storage.dart';
 import 'live_monitoring_screen.dart';
+import 'previous_trips_screen.dart'; // Add this import
 
 class StartTripScreen extends StatefulWidget {
   const StartTripScreen({super.key});
@@ -17,6 +19,13 @@ class StartTripScreen extends StatefulWidget {
 
 class _StartTripScreenState extends State<StartTripScreen> {
   static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color primaryDeep = Color(0xFF1D4ED8);
+  static const Color primaryLight = Color(0xFFEFF6FF);
+  static const Color inkColor = Color(0xFF0E1113);
+  static const Color grayInactive = Color(0xFF8A8F98);
+  static const Color grayBorder = Color(0xFFDADDE1);
+  static const Color grayBg = Color(0xFFF1F2F4);
+  static const Color whiteColor = Color(0xFFFFFFFF);
 
   bool locationEnabled = false;
   bool cameraEnabled = false;
@@ -62,8 +71,8 @@ class _StartTripScreenState extends State<StartTripScreen> {
       ),
     ).listen((p) => setState(() => _pos = p));
 
-    _pos = await Geolocator.getCurrentPosition();
-    setState(() {});
+    final p = await Geolocator.getCurrentPosition();
+    setState(() => _pos = p);
   }
 
   Future<void> _stopLocation() async {
@@ -77,6 +86,18 @@ class _StartTripScreenState extends State<StartTripScreen> {
     setState(() => isLoading = true);
 
     try {
+      // Get auth token
+      final token = await TokenStorage.read();
+
+      // Prepare headers
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+      };
+
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
       final res = await ApiClient.dio.post(
         '/api/sessions',
         data: {
@@ -87,15 +108,13 @@ class _StartTripScreenState extends State<StartTripScreen> {
           'lat': _pos?.latitude ?? 0,
           'lng': _pos?.longitude ?? 0,
         },
+        options: Options(headers: headers),
       );
 
-      final data =
-          res.data is Map ? res.data : jsonDecode(res.data as String);
+      final data = res.data is Map ? res.data : jsonDecode(res.data as String);
 
       final sessionId =
           (data['id'] ?? data['_id'] ?? data['sessionId']).toString();
-
-      final token = (await TokenStorage.read()) ?? '';
 
       if (!mounted) return;
 
@@ -104,12 +123,13 @@ class _StartTripScreenState extends State<StartTripScreen> {
         MaterialPageRoute(
           builder: (_) => LiveMonitoringScreen(
             sessionId: sessionId,
-            token: token,
+            token: token ?? '',
             driverName: 'Driver',
           ),
         ),
       );
-    } catch (_) {
+    } catch (e) {
+      print('Error creating session: $e');
       _toast('Create session failed');
     } finally {
       setState(() => isLoading = false);
@@ -125,8 +145,7 @@ class _StartTripScreenState extends State<StartTripScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text('Start Trip',
-            style: TextStyle(color: Colors.black)),
+        title: const Text('Start Trip', style: TextStyle(color: Colors.black)),
         leading: const BackButton(color: Colors.black),
         actions: const [
           Padding(
@@ -154,12 +173,10 @@ class _StartTripScreenState extends State<StartTripScreen> {
                       SizedBox(width: 12),
                       Text('Enable Safety Features',
                           style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold)),
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 16),
-
                   _switchRow(
                     title: 'Location',
                     subtitle: 'Track distance accurately',
@@ -170,9 +187,7 @@ class _StartTripScreenState extends State<StartTripScreen> {
                       if (!v) setState(() => cameraEnabled = false);
                     },
                   ),
-
                   const SizedBox(height: 12),
-
                   _switchRow(
                     title: 'Camera',
                     subtitle:
@@ -199,9 +214,7 @@ class _StartTripScreenState extends State<StartTripScreen> {
                   const SizedBox(height: 6),
                   const Text('Choose total trip distance.',
                       style: TextStyle(color: Colors.grey)),
-
                   const SizedBox(height: 28),
-
                   Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -211,8 +224,7 @@ class _StartTripScreenState extends State<StartTripScreen> {
                         divisions: 49,
                         value: distanceKm,
                         activeColor: primaryBlue,
-                        onChanged: (v) =>
-                            setState(() => distanceKm = v),
+                        onChanged: (v) => setState(() => distanceKm = v),
                       ),
                       Positioned(
                         left: ((distanceKm - 1) / 49) *
@@ -236,7 +248,6 @@ class _StartTripScreenState extends State<StartTripScreen> {
                       ),
                     ],
                   ),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: const [
@@ -257,6 +268,7 @@ class _StartTripScreenState extends State<StartTripScreen> {
 
             // ========= TIPS =========
             Container(
+              width: double.infinity, // 👈 makes it full width
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFFEFF6FF),
@@ -265,17 +277,19 @@ class _StartTripScreenState extends State<StartTripScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text('Tips',
-                      style: TextStyle(
-                          color: primaryBlue,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    'Tips',
+                    style: TextStyle(
+                      color: primaryBlue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   SizedBox(height: 8),
                   Text('• Mount on dashboard',
                       style: TextStyle(color: primaryBlue)),
                   Text('• Face & shoulders visible',
                       style: TextStyle(color: primaryBlue)),
-                  Text('• Volume on',
-                      style: TextStyle(color: primaryBlue)),
+                  Text('• Volume on', style: TextStyle(color: primaryBlue)),
                 ],
               ),
             ),
@@ -291,19 +305,40 @@ class _StartTripScreenState extends State<StartTripScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor:
                       canStart ? primaryBlue : const Color(0xFFD1D5DB),
+                  foregroundColor: Colors.white, // 👈 TEXT COLOR
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('Start Monitoring',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                child: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Start Monitoring',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
 
             const SizedBox(height: 12),
 
+            // ========= VIEW PREVIOUS TRIPS BUTTON =========
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                // Navigate to PreviousTripsScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PreviousTripsScreen(),
+                  ),
+                );
+              },
               child: const Text('View Previous Trips',
                   style: TextStyle(color: primaryBlue)),
             ),
@@ -347,12 +382,10 @@ class _StartTripScreenState extends State<StartTripScreen> {
             children: [
               Text(title,
                   style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600)),
+                      fontSize: 15, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(subtitle,
-                  style: const TextStyle(
-                      fontSize: 13, color: Colors.grey)),
+                  style: const TextStyle(fontSize: 13, color: Colors.grey)),
             ],
           ),
         ),
@@ -366,7 +399,6 @@ class _StartTripScreenState extends State<StartTripScreen> {
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 }

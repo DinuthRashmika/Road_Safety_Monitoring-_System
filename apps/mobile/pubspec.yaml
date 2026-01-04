@@ -29,7 +29,10 @@ dependencies:
   camera: ^0.11.0+3  # Updated to be compatible with yuv_to_png 1.0.0
   yuv_to_png: ^1.0.1  # Updated to match the tutorial version
   camera_windows: ^0.2.1
+  audioplayers: ^6.5.1   # <-- Add this line
+  syncfusion_flutter_charts: ^32.1.21
 
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -39,3 +42,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/sounds/alarm.mp3
