@@ -121,23 +121,15 @@ async def ingest(payload: dict = Body(...)):
                 if nearby_parent:
                     logger.info(f"CLUSTERING: Merging report {report_id} into parent {nearby_parent['id']}")
                     
-                    current_score = nearby_parent.get("score", 0)
-                    new_score = min(100, current_score + 3) # +3 Bonus
                     
                     old_explain = nearby_parent.get("explain", [])
-                    new_note = f"CONFIRMED: +3 score boost from secondary camera ({report_id})"
+                    new_note = f"Duplicate confirmed by secondary source ({report_id})"
                     if new_note not in old_explain:
                         old_explain.append(new_note)
                         
                     patch = {
-                        "score": new_score,
                         "explain": old_explain
                     }
-
-                    if nearby_parent["status"] == "unverified" and new_score >= MIN_SCORE_FOR_PROMOTION:
-                        patch["status"] = "new"
-                        patch["reported_at"] = utcnow_iso() 
-                        logger.info(f"CLUSTERING: Incident {nearby_parent['id']} promoted to NEW due to multi-source verification.")
 
                     await update_incident(nearby_parent["id"], patch)
                     
