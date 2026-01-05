@@ -80,10 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final name = _owner?.fullName.split(' ').first ?? 'Driver';
+    final name = _owner?.fullName.split(' ').first ?? 'Ethan';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: Colors.black, // Changed to black background
       bottomNavigationBar: _EnhancedBottomBar(
         currentIndex: 0,
         onTap: (i) {
@@ -94,7 +94,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator.adaptive(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation(Color(0xFF2563EB)),
               ),
             )
@@ -104,86 +105,91 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CustomScrollView(
                 primary: true,
                 slivers: [
-                  // Enhanced Header - FIXED: Increased height and better padding
+                  // 1. Updated Header to match the "Welcome, Ethan" image style
                   SliverAppBar(
-                    expandedHeight: 160, // Increased from 140 to 160
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFF2563EB),
-                              Color(0xFF1D4ED8),
-                            ],
+                    backgroundColor: Colors.black, // Black app bar
+                    floating: true,
+                    pinned: false,
+                    elevation: 0,
+                    toolbarHeight: 80,
+                    title: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Row(
+                        children: [
+                          // Avatar
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              image: _owner?.imageUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(_owner!.imageUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                              color: Colors.orange.shade100,
+                            ),
+                            child: _owner?.imageUrl == null
+                                ? Image.network(
+                                    'https://i.pravatar.cc/150?img=11',
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                           ),
-                        ),
-                        child: SafeArea(
-                          bottom: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24), // Increased bottom padding
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(width: 12),
+                          // Welcome Text
+                          Text(
+                            'Welcome, $name',
+                            style: const TextStyle(
+                              color: Colors.white, // White text
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const Spacer(),
+                          // Icons
+                          IconButton(
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/alerts'),
+                            icon: Stack(
                               children: [
-                                _EnhancedHeaderBar(
-                                  profileImage: _owner?.imageUrl,
-                                  onProfile: () =>
-                                      Navigator.pushNamed(context, '/profile')
-                                          .then((_) => _load()),
-                                  onBell: () =>
-                                      Navigator.pushNamed(context, '/alerts'),
-                                  onLogout: _logout,
-                                ),
-                                const SizedBox(height: 20), // Increased spacing
-                                // FIXED: Better text layout with proper constraints
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Welcome back, $name! 👋',
-                                      style: const TextStyle(
-                                        fontSize: 22, // Slightly smaller font
-                                        fontWeight: FontWeight.w800,
-                                        color: Colors.white,
-                                        height: 1.2,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                const Icon(Icons.notifications_outlined,
+                                    color: Colors.white, size: 28), // White icon
+                                Positioned(
+                                  right: 2,
+                                  top: 2,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF2563EB),
+                                      shape: BoxShape.circle,
                                     ),
-                                    const SizedBox(height: 6), // Added spacing
-                                    Text(
-                                      'Ready to hit the road?',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.white.withOpacity(0.9),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
+                          IconButton(
+                            onPressed: () {},
+                            icon: const Icon(Icons.search,
+                                color: Colors.white, size: 28), // White icon
+                          ),
+                        ],
                       ),
                     ),
-                    backgroundColor: const Color(0xFF2563EB),
-                    elevation: 0,
-                    forceElevated: false,
                   ),
 
                   // Main Content
                   SliverList(
                     delegate: SliverChildListDelegate([
-                      const SizedBox(height: 24),
-
-                      // Promo card when no vehicles
+                      // 2. "Add your first vehicle" Card (Updated for dark theme)
                       if (_vehicles.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 8),
-                          child: _BeautifulPromoCard(
+                              horizontal: 20, vertical: 10),
+                          child: _AddVehicleBanner(
                             onAdd: () =>
                                 Navigator.pushNamed(context, '/vehicle-add')
                                     .then((_) => _load()),
@@ -191,7 +197,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
-                      // Quick actions with enhanced design
+                      const SizedBox(height: 24),
+
+                      // 3. Quick actions (Updated for dark theme)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: _EnhancedQuickActions(
@@ -201,8 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onMyVehicles: () =>
                               Navigator.pushNamed(context, '/vehicles')
                                   .then((_) => _load()),
-                          onTrips: () =>
-                              Navigator.pushNamed(context, '/trips'),
+                          onTrips: () => Navigator.pushNamed(context, '/trips'),
                           onViolations: () =>
                               Navigator.pushNamed(context, '/violations'),
                         ),
@@ -210,63 +217,66 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 24),
 
-                     // My Vehicles Section - FIXED: Better spacing and layout
-if (_vehicles.isNotEmpty) ...[
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: _EnhancedSectionHeader(
-      title: 'My Vehicles',
-      subtitle: '${_vehicles.length} vehicle${_vehicles.length > 1 ? 's' : ''} registered',
-      actionText: 'View all',
-      onAction: () =>
-          Navigator.pushNamed(context, '/vehicles')
-              .then((_) => _load()),
-    ),
-  ),
-  const SizedBox(height: 20), // Increased from 16 to 20
-  SizedBox(
-    height: 250, // Increased from 220 to 240
-    child: ListView.separated(
-      primary: false,
-      shrinkWrap: true,
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: _vehicles.length,
-      separatorBuilder: (_, __) =>
-          const SizedBox(width: 16),
-      itemBuilder: (_, i) {
-        final v = _vehicles[i];
-        
-        // FIXED: Better image URL handling to prevent yellow/black issues
-        String? cover;
-        if (v.images is Map) {
-          final map = v.images as Map<dynamic, dynamic>;
-          // Try multiple possible image keys
-          final any = map['front'] ?? map['plate'] ?? map['back'] ?? map['side'];
-          if (any is String && any.isNotEmpty && any.startsWith('http')) {
-            cover = any;
-          }
-        }
+                      // Existing Sections (My Vehicles, Alerts, Trips) - Updated for dark theme
+                      if (_vehicles.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _EnhancedSectionHeader(
+                            title: 'My Vehicles',
+                            subtitle:
+                                '${_vehicles.length} vehicle${_vehicles.length > 1 ? 's' : ''} registered',
+                            actionText: 'View all',
+                            onAction: () =>
+                                Navigator.pushNamed(context, '/vehicles')
+                                    .then((_) => _load()),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          height: 250,
+                          child: ListView.separated(
+                            primary: false,
+                            shrinkWrap: true,
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            itemCount: _vehicles.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 16),
+                            itemBuilder: (_, i) {
+                              final v = _vehicles[i];
+                              String? cover;
+                              if (v.images is Map) {
+                                final map = v.images as Map<dynamic, dynamic>;
+                                final any = map['front'] ??
+                                    map['plate'] ??
+                                    map['back'] ??
+                                    map['side'];
+                                if (any is String &&
+                                    any.isNotEmpty &&
+                                    any.startsWith('http')) {
+                                  cover = any;
+                                }
+                              }
+                              final subtitle =
+                                  ((v.vehicleModel ?? v.vehicleType) ?? '')
+                                      .toString()
+                                      .trim();
+                              return _EnhancedVehicleCard(
+                                plate: v.plateNo,
+                                subtitle: subtitle,
+                                imageUrl: cover,
+                                active: true,
+                                onTap: () => Navigator.pushNamed(
+                                    context, '/vehicle-detail',
+                                    arguments: v.id),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
-        final subtitle = ((v.vehicleModel ?? v.vehicleType) ?? '')
-            .toString()
-            .trim();
-
-        return _EnhancedVehicleCard(
-          plate: v.plateNo,
-          subtitle: subtitle,
-          imageUrl: cover,
-          active: true,
-          onTap: () => Navigator.pushNamed(
-              context, '/vehicle-detail',
-              arguments: v.id),
-        );
-      },
-    ),
-  ),
-  const SizedBox(height: 12), // Increased from 8 to 12
-],
                       // Protective Alerts Section
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
@@ -303,17 +313,17 @@ if (_vehicles.isNotEmpty) ...[
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.grey.shade900, // Dark card
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF1D4ED8).withOpacity(0.08),
+                              color: Colors.black.withOpacity(0.3), // Darker shadow
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
                           ],
                           border: Border.all(
-                            color: const Color(0xFFF1F5F9),
+                            color: Colors.grey.shade800,
                             width: 1,
                           ),
                         ),
@@ -345,7 +355,7 @@ if (_vehicles.isNotEmpty) ...[
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2563EB).withOpacity(0.3),
+                                color: const Color(0xFF2563EB).withOpacity(0.5), // Brighter shadow
                                 blurRadius: 15,
                                 offset: const Offset(0, 6),
                               ),
@@ -399,220 +409,85 @@ if (_vehicles.isNotEmpty) ...[
   }
 }
 
-/* ====================== ENHANCED UI COMPONENTS ====================== */
+/* ====================== UI COMPONENTS ====================== */
 
-class _EnhancedHeaderBar extends StatelessWidget {
-  const _EnhancedHeaderBar({
-    this.profileImage,
-    this.onProfile,
-    this.onBell,
-    this.onLogout,
-  });
-
-  final String? profileImage;
-  final VoidCallback? onProfile;
-  final VoidCallback? onBell;
-  final VoidCallback? onLogout;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // Profile Avatar
-        GestureDetector(
-          onTap: onProfile,
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withOpacity(0.3)),
-              image: profileImage != null && profileImage!.isNotEmpty
-                  ? DecorationImage(
-                      image: NetworkImage(profileImage!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: profileImage == null || profileImage!.isEmpty
-                ? const Icon(Icons.person, color: Colors.white, size: 20)
-                : null,
-          ),
-        ),
-        const Spacer(),
-        
-        // Notification Bell
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            onPressed: onBell,
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: Colors.white, size: 22),
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          ),
-        ),
-        const SizedBox(width: 8),
-        
-        // Logout Button
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            onPressed: onLogout,
-            icon: const Icon(Icons.logout, color: Colors.white, size: 20),
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BeautifulPromoCard extends StatelessWidget {
-  const _BeautifulPromoCard({required this.onAdd, required this.onSkip});
+// Updated for dark theme
+class _AddVehicleBanner extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onSkip;
+
+  const _AddVehicleBanner({required this.onAdd, required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFE0F2FE),
-            Color(0xFFF0F9FF),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0EA5E9).withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFBAE6FD), width: 1),
+        color: Colors.grey.shade900, // Dark background
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.shade800),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0EA5E9).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'GET STARTED',
-                    style: TextStyle(
-                      color: Color(0xFF0369A1),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Add Your First Vehicle',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                    color: Color(0xFF0F172A),
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Start your journey by adding a vehicle to access all features and track your trips.',
-                  style: TextStyle(
-                    color: const Color(0xFF475569).withOpacity(0.8),
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: onAdd,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0EA5E9),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 14),
-                      ),
-                      child: const Text(
-                        'Add Vehicle',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    TextButton(
-                      onPressed: onSkip,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 14),
-                      ),
-                      child: Text(
-                        'Skip',
-                        style: TextStyle(
-                          color: const Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          const Text(
+            'Add your first vehicle',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white, // White text
             ),
           ),
-          const SizedBox(width: 20),
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF0EA5E9),
-                  Color(0xFF0284C7),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0EA5E9).withOpacity(0.4),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
+          const SizedBox(height: 8),
+          Text(
+            'Get started by adding a vehicle to your\naccount.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade400, // Lighter grey
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: onAdd,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
-              ],
-            ),
-            child: const Icon(
-              Icons.directions_car_filled_rounded,
-              color: Colors.white,
-              size: 32,
-            ),
+                child: const Text(
+                  'Add Vehicle',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              TextButton(
+                onPressed: onSkip,
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                child: const Text(
+                  'Skip for now',
+                  style: TextStyle(
+                    color: Color(0xFF2563EB),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -620,6 +495,7 @@ class _BeautifulPromoCard extends StatelessWidget {
   }
 }
 
+// Updated for dark theme
 class _EnhancedQuickActions extends StatelessWidget {
   const _EnhancedQuickActions({
     required this.onAdd,
@@ -635,77 +511,76 @@ class _EnhancedQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget actionTile(IconData icon, String label, VoidCallback onTap, Color color) => 
-        Column(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    color.withOpacity(0.1),
-                    color.withOpacity(0.05),
-                ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: color.withOpacity(0.2)),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, color: color, size: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF475569),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        );
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1D4ED8).withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          actionTile(Icons.add_rounded, 'Add\nVehicle', onAdd, const Color(0xFF0EA5E9)),
-          actionTile(Icons.directions_car_rounded, 'My\nVehicles', onMyVehicles, const Color(0xFF10B981)),
-          actionTile(Icons.route_rounded, 'Trip\nHistory', onTrips, const Color(0xFFF59E0B)),
-          actionTile(Icons.warning_amber_rounded, 'Violations\n', onViolations, const Color(0xFFEF4444)),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _QuickActionSquare(
+            icon: Icons.add, label: 'Add Vehicle', onTap: onAdd),
+        _QuickActionSquare(
+            icon: Icons.directions_car_outlined,
+            label: 'My Vehicles',
+            onTap: onMyVehicles),
+        _QuickActionSquare(
+            icon: Icons.assignment_outlined,
+            label: 'Trip History',
+            onTap: onTrips),
+        _QuickActionSquare(
+            icon: Icons.warning_amber_rounded,
+            label: 'Violations',
+            onTap: onViolations),
+      ],
     );
   }
 }
 
+// Updated for dark theme
+class _QuickActionSquare extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickActionSquare(
+      {required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade900, // Dark background
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey.shade800),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2), // Darker shadow
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.grey.shade300, size: 28), // Lighter icon
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade300, // Lighter text
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Updated for dark theme
 class _EnhancedSectionHeader extends StatelessWidget {
   const _EnhancedSectionHeader({
     required this.title,
@@ -734,7 +609,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: Colors.white, // White title
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -742,7 +617,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: const Color(0xFF475569).withOpacity(0.8),
+                    color: Colors.grey.shade400, // Lighter grey
                   ),
                 ),
               ],
@@ -751,20 +626,21 @@ class _EnhancedSectionHeader extends StatelessWidget {
             if (actionText != null)
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: Colors.grey.shade800, // Darker background
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextButton(
                   onPressed: onAction,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
                     actionText!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF475569),
+                      color: Colors.grey.shade300, // Lighter text
                       fontSize: 13,
                     ),
                   ),
@@ -777,6 +653,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
   }
 }
 
+// Updated for dark theme
 class _EnhancedVehicleCard extends StatelessWidget {
   const _EnhancedVehicleCard({
     required this.plate,
@@ -803,21 +680,20 @@ class _EnhancedVehicleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.grey.shade900, // Dark card
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1D4ED8).withOpacity(0.08),
+                  color: Colors.black.withOpacity(0.3), // Darker shadow
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
               ],
-              border: Border.all(color: const Color(0xFFF1F5F9)),
+              border: Border.all(color: Colors.grey.shade800),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // FIXED: Better image handling to prevent yellow/black issues
                 Container(
                   height: 120,
                   width: double.infinity,
@@ -826,12 +702,12 @@ class _EnhancedVehicleCard extends StatelessWidget {
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20),
                     ),
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Color(0xFFF8FAFD),
-                        Color(0xFFF1F5F9),
+                        Colors.grey.shade900,
+                        Colors.grey.shade800,
                       ],
                     ),
                   ),
@@ -843,8 +719,6 @@ class _EnhancedVehicleCard extends StatelessWidget {
                     child: _VehicleImageHandler(imageUrl: imageUrl),
                   ),
                 ),
-                
-                // Content Section - FIXED: Better text constraints to prevent overflow
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -855,19 +729,18 @@ class _EnhancedVehicleCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
-                          color: Color(0xFF0F172A),
+                          color: Colors.white, // White text
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      // FIXED: Added proper text constraints to prevent overflow
                       SizedBox(
-                        height: 20, // Fixed height to prevent layout shifts
+                        height: 20,
                         child: Text(
                           subtitle,
                           style: TextStyle(
-                            color: const Color(0xFF64748B),
+                            color: Colors.grey.shade400, // Lighter grey
                             fontSize: 13,
                           ),
                           maxLines: 1,
@@ -880,7 +753,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
+                            color: const Color(0xFF064E3B).withOpacity(0.3), // Dark green
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -890,7 +763,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                                 width: 6,
                                 height: 6,
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFF16A34A),
+                                  color: Color(0xFF10B981), // Brighter green
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -898,7 +771,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                               const Text(
                                 'Active',
                                 style: TextStyle(
-                                  color: Color(0xFF166534),
+                                  color: Color(0xFF10B981), // Brighter green
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -918,16 +791,16 @@ class _EnhancedVehicleCard extends StatelessWidget {
   }
 }
 
-// NEW: Separate widget to handle vehicle images properly
+// Updated for dark theme
 class _VehicleImageHandler extends StatelessWidget {
   final String? imageUrl;
-
   const _VehicleImageHandler({this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
-    // If no image URL or invalid URL, show placeholder
-    if (imageUrl == null || imageUrl!.isEmpty || !imageUrl!.startsWith('http')) {
+    if (imageUrl == null ||
+        imageUrl!.isEmpty ||
+        !imageUrl!.startsWith('http')) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -935,12 +808,12 @@ class _VehicleImageHandler extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: Colors.grey.shade800, // Darker background
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.directions_car_filled_rounded,
-                color: Color(0xFF475569),
+                color: Colors.grey.shade400, // Lighter icon
                 size: 32,
               ),
             ),
@@ -948,15 +821,12 @@ class _VehicleImageHandler extends StatelessWidget {
         ),
       );
     }
-
-    // If we have a valid image URL, try to load it with error handling
     return Image.network(
       imageUrl!,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
       errorBuilder: (context, error, stackTrace) {
-        // If image fails to load, show placeholder
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -964,12 +834,12 @@ class _VehicleImageHandler extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: Colors.grey.shade800,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.directions_car_filled_rounded,
-                  color: Color(0xFF475569),
+                  color: Colors.grey.shade400,
                   size: 32,
                 ),
               ),
@@ -979,12 +849,9 @@ class _VehicleImageHandler extends StatelessWidget {
       },
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
-        return Center(
+        return const Center(
           child: CircularProgressIndicator(
-            value: loadingProgress.expectedTotalBytes != null
-                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                : null,
-            color: const Color(0xFF2563EB),
+            color: Color(0xFF2563EB),
           ),
         );
       },
@@ -992,6 +859,7 @@ class _VehicleImageHandler extends StatelessWidget {
   }
 }
 
+// Updated for dark theme
 class _EnhancedAlertCard extends StatelessWidget {
   const _EnhancedAlertCard({
     required this.title,
@@ -1010,16 +878,16 @@ class _EnhancedAlertCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade900, // Dark card
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1D4ED8).withOpacity(0.05),
+            color: Colors.black.withOpacity(0.3), // Darker shadow
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: Colors.grey.shade800),
       ),
       child: Row(
         children: [
@@ -1027,12 +895,12 @@ class _EnhancedAlertCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF3F2),
+              color: const Color(0xFF431C1C), // Dark red background
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.warning_amber_rounded,
-              color: Color(0xFFDC2626),
+              color: Color(0xFFF87171), // Lighter red icon
               size: 20,
             ),
           ),
@@ -1046,14 +914,14 @@ class _EnhancedAlertCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: Color(0xFF0F172A),
+                    color: Colors.white, // White text
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: const Color(0xFF64748B),
+                    color: Colors.grey.shade400, // Lighter grey
                     fontSize: 13,
                     height: 1.3,
                   ),
@@ -1066,8 +934,8 @@ class _EnhancedAlertCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [
+                  Color(0xFF7F1D1D),
                   Color(0xFFDC2626),
-                  Color(0xFFEF4444),
                 ],
               ),
               borderRadius: BorderRadius.circular(10),
@@ -1078,7 +946,8 @@ class _EnhancedAlertCard extends StatelessWidget {
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -1098,6 +967,7 @@ class _EnhancedAlertCard extends StatelessWidget {
   }
 }
 
+// Updated for dark theme
 class _EnhancedTripRow extends StatelessWidget {
   const _EnhancedTripRow({required this.item, required this.isLast});
   final _TripItem item;
@@ -1111,7 +981,7 @@ class _EnhancedTripRow extends StatelessWidget {
             ? null
             : Border(
                 bottom: BorderSide(
-                  color: const Color(0xFFF1F5F9),
+                  color: Colors.grey.shade800,
                   width: 1,
                 ),
               ),
@@ -1124,12 +994,12 @@ class _EnhancedTripRow extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F9FF),
+                color: const Color(0xFF0C4A6E), // Dark blue background
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.route_rounded,
-                color: Color(0xFF0EA5E9),
+                color: Color(0xFF38BDF8), // Lighter blue icon
                 size: 20,
               ),
             ),
@@ -1143,14 +1013,14 @@ class _EnhancedTripRow extends StatelessWidget {
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: Color(0xFF0F172A),
+                      color: Colors.white, // White text
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.date,
                     style: TextStyle(
-                      color: const Color(0xFF64748B),
+                      color: Colors.grey.shade400, // Lighter grey
                       fontSize: 13,
                     ),
                   ),
@@ -1165,14 +1035,14 @@ class _EnhancedTripRow extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: Color(0xFF0F172A),
+                    color: Colors.white, // White text
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   item.duration,
                   style: TextStyle(
-                    color: const Color(0xFF64748B),
+                    color: Colors.grey.shade400, // Lighter grey
                     fontSize: 13,
                   ),
                 ),
@@ -1185,6 +1055,7 @@ class _EnhancedTripRow extends StatelessWidget {
   }
 }
 
+// Updated for dark theme
 class _EnhancedBottomBar extends StatelessWidget {
   const _EnhancedBottomBar({required this.currentIndex, required this.onTap});
   final int currentIndex;
@@ -1194,17 +1065,17 @@ class _EnhancedBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.black, // Black background
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3), // Darker shadow
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
         ],
-        border: const Border(
+        border: Border(
           top: BorderSide(
-            color: Color(0xFFF1F5F9),
+            color: Colors.grey.shade800,
             width: 1,
           ),
         ),
@@ -1252,6 +1123,7 @@ class _EnhancedBottomBar extends StatelessWidget {
   }
 }
 
+// Updated for dark theme
 class _EnhancedBottomBarItem extends StatelessWidget {
   const _EnhancedBottomBarItem({
     required this.icon,
@@ -1275,7 +1147,7 @@ class _EnhancedBottomBarItem extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFFF0F9FF) : Colors.transparent,
+          color: isActive ? const Color(0xFF1E3A8A) : Colors.transparent, // Darker blue
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -1284,14 +1156,14 @@ class _EnhancedBottomBarItem extends StatelessWidget {
           children: [
             Icon(
               isActive ? activeIcon : icon,
-              color: isActive ? const Color(0xFF0EA5E9) : const Color(0xFF94A3B8),
+              color: isActive ? const Color(0xFF60A5FA) : Colors.grey.shade500, // Lighter icons
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isActive ? const Color(0xFF0EA5E9) : const Color(0xFF94A3B8),
+                color: isActive ? const Color(0xFF60A5FA) : Colors.grey.shade500,
                 fontSize: 12,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -1302,8 +1174,6 @@ class _EnhancedBottomBarItem extends StatelessWidget {
     );
   }
 }
-
-/* ====================== DATA MODELS ====================== */
 
 class _AlertItem {
   final String title;

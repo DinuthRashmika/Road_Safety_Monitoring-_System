@@ -47,7 +47,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Widget build(BuildContext context) {
     if (_loading || v == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF8FAFD),
+        backgroundColor: Colors.black, // Changed to black
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -56,10 +56,11 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF),
+                  color: const Color(0xFF1E293B), // Dark blue
                   borderRadius: BorderRadius.circular(40),
                 ),
-                child: const CircularProgressIndicator.adaptive(
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation(Color(0xFF0EA5E9)),
                 ),
               ),
@@ -69,7 +70,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
+                  color: Colors.grey, // Light grey
                 ),
               ),
             ],
@@ -82,11 +83,11 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     final photos = _allPhotos(vehicle);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: Colors.black, // Changed to black
       body: RefreshIndicator(
         onRefresh: () async => _load(vehicle.id),
         color: const Color(0xFF0EA5E9),
-        backgroundColor: const Color(0xFFF8FAFD),
+        backgroundColor: Colors.grey.shade900, // Dark background for refresh
         child: CustomScrollView(
           slivers: [
             // Enhanced App Bar with Hero Image
@@ -94,8 +95,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               elevation: 0,
               pinned: true,
               stretch: true,
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF0F172A),
+              backgroundColor: Colors.black, // Changed to black
+              foregroundColor: Colors.white, // White text/icons
               expandedHeight: 320,
               flexibleSpace: _EnhancedVehicleHeader(
                 vehicle: vehicle,
@@ -105,9 +106,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 preferredSize: const Size.fromHeight(0),
                 child: Container(
                   height: 20,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF8FAFD),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  decoration: BoxDecoration(
+                    color: Colors.black, // Changed to black
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                 ),
               ),
@@ -186,7 +187,7 @@ class _EnhancedVehicleHeader extends StatelessWidget {
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;
                   return const Center(
-                    child: CircularProgressIndicator.adaptive(
+                    child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation(Color(0xFF0EA5E9)),
                     ),
                   );
@@ -205,7 +206,7 @@ class _EnhancedVehicleHeader extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withOpacity(0.8),
                   ],
                   stops: const [0.5, 1.0],
                 ),
@@ -317,8 +318,8 @@ class _VehicleImagePlaceholder extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF0EA5E9),
-            Color(0xFF0284C7),
+            Color(0xFF1E293B),
+            Color(0xFF0F172A),
           ],
         ),
       ),
@@ -329,13 +330,13 @@ class _VehicleImagePlaceholder extends StatelessWidget {
             Icon(
               Icons.directions_car_filled_rounded,
               size: 80,
-              color: Colors.white,
+              color: Colors.grey,
             ),
             SizedBox(height: 12),
             Text(
               'Vehicle Image',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.grey,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -359,30 +360,30 @@ class _EnhancedInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade900, // Dark card
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1D4ED8).withOpacity(0.08),
+            color: Colors.black.withOpacity(0.3), // Darker shadow
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: Colors.grey.shade800),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.info_rounded, color: Color(0xFF0EA5E9), size: 20),
-              SizedBox(width: 8),
-              Text(
+              const Icon(Icons.info_rounded, color: Color(0xFF0EA5E9), size: 20),
+              const SizedBox(width: 8),
+              const Text(
                 'Vehicle Information',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: Colors.white, // White text
                 ),
               ),
             ],
@@ -392,28 +393,28 @@ class _EnhancedInfoCard extends StatelessWidget {
             icon: Icons.confirmation_number_rounded,
             label: 'Plate Number',
             value: vehicle.plateNo,
-            color: Color(0xFF0EA5E9),
+            color: const Color(0xFF0EA5E9),
           ),
           const SizedBox(height: 16),
           _EnhancedInfoRow(
             icon: Icons.category_rounded,
             label: 'Vehicle Type',
             value: vehicle.vehicleType,
-            color: Color(0xFF10B981),
+            color: const Color(0xFF10B981),
           ),
           const SizedBox(height: 16),
           _EnhancedInfoRow(
             icon: Icons.directions_car_rounded,
             label: 'Vehicle Model',
             value: vehicle.vehicleModel.isNotEmpty ? vehicle.vehicleModel : 'Not specified',
-            color: Color(0xFFF59E0B),
+            color: const Color(0xFFF59E0B),
           ),
           const SizedBox(height: 16),
           _EnhancedInfoRow(
             icon: Icons.calendar_today_rounded,
             label: 'Registration Date',
             value: vehicle.registrationDate,
-            color: Color(0xFFEF4444),
+            color: const Color(0xFFEF4444),
           ),
         ],
       ),
@@ -439,9 +440,9 @@ class _EnhancedInfoRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
+        color: const Color(0xFF1F2937), // Dark background
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Colors.grey.shade800),
       ),
       child: Row(
         children: [
@@ -449,7 +450,7 @@ class _EnhancedInfoRow extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -464,7 +465,7 @@ class _EnhancedInfoRow extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: Colors.grey, // Light grey
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -473,7 +474,7 @@ class _EnhancedInfoRow extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
+                    color: Colors.white, // White text
                   ),
                 ),
               ],
@@ -498,16 +499,16 @@ class _EnhancedPhotosCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade900, // Dark card
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1D4ED8).withOpacity(0.08),
+            color: Colors.black.withOpacity(0.3), // Darker shadow
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF1F5F9)),
+        border: Border.all(color: Colors.grey.shade800),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,7 +522,7 @@ class _EnhancedPhotosCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: Colors.white, // White text
                 ),
               ),
             ],
@@ -532,19 +533,19 @@ class _EnhancedPhotosCard extends StatelessWidget {
               height: 120,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFD),
+                color: const Color(0xFF1F2937), // Dark background
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: Colors.grey.shade800),
               ),
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.photo_camera_rounded, size: 40, color: Color(0xFF94A3B8)),
-                  SizedBox(height: 8),
+                  Icon(Icons.photo_camera_rounded, size: 40, color: Colors.grey.shade600),
+                  const SizedBox(height: 8),
                   Text(
                     'No photos available',
                     style: TextStyle(
-                      color: Color(0xFF64748B),
+                      color: Colors.grey.shade400, // Light grey
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -579,7 +580,7 @@ class _EnhancedPhotosCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withOpacity(0.3), // Darker shadow
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -593,17 +594,17 @@ class _EnhancedPhotosCard extends StatelessWidget {
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
+                                color: Colors.grey.shade800, // Dark background
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: const Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8)),
+                              child: Icon(Icons.broken_image_rounded, color: Colors.grey.shade600),
                             );
                           },
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return Container(
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
+                                color: Colors.grey.shade800, // Dark background
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               child: Center(
@@ -655,16 +656,16 @@ class _EnhancedActionButtons extends StatelessWidget {
         Expanded(
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.grey.shade900, // Dark card
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1D4ED8).withOpacity(0.08),
+                  color: Colors.black.withOpacity(0.3), // Darker shadow
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
               ],
-              border: Border.all(color: const Color(0xFFF1F5F9)),
+              border: Border.all(color: Colors.grey.shade800),
             ),
             child: Material(
               color: Colors.transparent,
@@ -673,17 +674,17 @@ class _EnhancedActionButtons extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.edit_rounded, color: Color(0xFF475569), size: 20),
-                      SizedBox(width: 8),
+                      Icon(Icons.edit_rounded, color: Colors.grey.shade300, size: 20),
+                      const SizedBox(width: 8),
                       Text(
                         'Edit Details',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
-                          color: Color(0xFF475569),
+                          color: Colors.grey.shade300, // Light grey
                         ),
                       ),
                     ],
@@ -708,7 +709,7 @@ class _EnhancedActionButtons extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                  color: const Color(0xFF0EA5E9).withOpacity(0.5), // Brighter shadow for dark theme
                   blurRadius: 15,
                   offset: const Offset(0, 6),
                 ),

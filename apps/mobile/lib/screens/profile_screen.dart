@@ -55,7 +55,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
+        SnackBar(
+          content: const Text('Profile updated'),
+          backgroundColor: Colors.grey.shade800,
+        ),
       );
     } finally {
       setState(() => _saving = false);
@@ -65,7 +68,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_me == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+        ),
+      );
     }
 
     final me = _me!;
@@ -74,26 +82,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: Colors.black, // Changed to black
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Profile', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: Colors.black, // Changed to black
+        foregroundColor: Colors.white,
         actions: [
           if (_editing)
             IconButton(
               icon: _saving
                   ? const SizedBox(
-                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.check_rounded),
+                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_rounded, color: Colors.white),
               onPressed: _saving ? null : _save,
               tooltip: 'Save',
             )
           else
             IconButton(
-              icon: const Icon(Icons.edit_rounded),
+              icon: const Icon(Icons.edit_rounded, color: Colors.white),
               onPressed: () => setState(() => _editing = true),
               tooltip: 'Edit',
             ),
@@ -113,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 88,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFF2F4F7),
+                      color: Colors.grey.shade800,
                       image: (me.imageUrl != null && me.imageUrl!.isNotEmpty)
                           ? DecorationImage(
                               image: NetworkImage(me.imageUrl!),
@@ -122,7 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : null,
                     ),
                     child: (me.imageUrl == null || me.imageUrl!.isEmpty)
-                        ? const Icon(Icons.person, size: 44, color: Colors.black38)
+                        ? const Icon(Icons.person, size: 44, color: Colors.grey)
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -131,18 +139,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: Colors.black87,
+                      color: Colors.white,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     me.phone.isNotEmpty ? me.phone : '—',
-                    style: const TextStyle(color: Colors.black54),
+                    style: TextStyle(color: Colors.grey.shade400),
                   ),
                   Text(
                     email.isNotEmpty ? email : '—',
-                    style: const TextStyle(color: Colors.black54),
+                    style: TextStyle(color: Colors.grey.shade400),
                   ),
                 ],
               ),
@@ -155,7 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _SectionTitle('Profile Info'),
-                  const Divider(height: 20),
+                  const Divider(height: 20, color: Colors.grey),
                   _infoRow(
                     label: 'Full Name',
                     value: me.fullName,
@@ -190,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _SectionTitle('Security'),
-                  const Divider(height: 20),
+                  const Divider(height: 20, color: Colors.grey),
                   _rowTile(
                     leading: 'Password',
                     trailing: '•••••••',
@@ -208,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const _SectionTitle('Notifications'),
-                  const Divider(height: 20),
+                  const Divider(height: 20, color: Colors.grey),
                   _switchTile(
                     'App Alerts',
                     _notifyApp,
@@ -264,13 +272,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return TextField(
       controller: c,
       keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade500),
         isDense: true,
+        filled: true,
+        fillColor: Colors.grey.shade800,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE6E9EF)),
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: Colors.grey.shade700),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF2563EB)),
         ),
       ),
     );
@@ -282,8 +302,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Widget? editor,
     bool multiline = false,
   }) {
-    final labelStyle = TextStyle(color: Colors.black54, fontSize: 13, fontWeight: FontWeight.w600);
-    final valueStyle = TextStyle(color: Colors.black87, fontSize: 14, fontWeight: FontWeight.w600);
+    final labelStyle = TextStyle(color: Colors.grey.shade400, fontSize: 13, fontWeight: FontWeight.w600);
+    final valueStyle = TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -325,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text(
                 leading,
                 style: const TextStyle(
-                  color: Colors.black87,
+                  color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -333,11 +353,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (trailing != null)
               Text(
                 trailing,
-                style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w600),
               ),
             if (trailingIcon != null) ...[
               const SizedBox(width: 8),
-              Icon(trailingIcon, color: Colors.black26),
+              Icon(trailingIcon, color: Colors.grey.shade600),
             ],
           ],
         ),
@@ -353,7 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
           Switch(
@@ -361,6 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: onChanged,
             activeColor: Colors.white,
             activeTrackColor: const Color(0xFF2563EB),
+            inactiveTrackColor: Colors.grey.shade700,
           ),
         ],
       ),
@@ -374,13 +395,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFEAF2FF),
+          color: const Color(0xFF1E3A8A), // Dark blue
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           text,
           style: const TextStyle(
-            color: Color(0xFF2563EB),
+            color: Color(0xFF60A5FA), // Light blue
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -402,12 +423,12 @@ class _Card extends StatelessWidget {
       width: double.infinity,
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6E9EF)),
+        border: Border.all(color: Colors.grey.shade800),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -429,7 +450,7 @@ class _SectionTitle extends StatelessWidget {
       style: const TextStyle(
         fontWeight: FontWeight.w800,
         fontSize: 16,
-        color: Colors.black87,
+        color: Colors.white,
       ),
     );
   }

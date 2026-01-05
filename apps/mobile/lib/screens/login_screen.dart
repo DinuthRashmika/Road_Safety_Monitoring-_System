@@ -39,42 +39,43 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   InputDecoration _decoration({
-    required String hint,
-    required String label,
-    Widget? prefix,
-    Widget? suffix,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: prefix,
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: Colors.grey.shade50,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Colors.red, width: 2),
-      ),
-      labelStyle: TextStyle(
-        color: Colors.grey.shade600,
-        fontWeight: FontWeight.w500,
-      ),
-      hintStyle: TextStyle(color: Colors.grey.shade400),
-    );
-  }
+  required String hint,
+  required String label,
+  Widget? prefix,
+  Widget? suffix,
+}) {
+  return InputDecoration(
+    labelText: label,
+    hintText: hint, // Remove this duplicate line
+    prefixIcon: prefix,
+    suffixIcon: suffix,
+    filled: true,
+    fillColor: Colors.grey.shade900,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: Colors.grey.shade800, width: 1.5),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Colors.red, width: 2),
+    ),
+    labelStyle: TextStyle(
+      color: Colors.grey.shade400,
+      fontWeight: FontWeight.w500,
+    ),
+    hintStyle: TextStyle(color: Colors.grey.shade500),
+    floatingLabelStyle: TextStyle(color: Colors.grey.shade300),
+  );
+}
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -96,10 +97,10 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF2563EB);
-    const secondaryColor = Color(0xFF64748B);
+    const secondaryColor = Color(0xFF94A3B8); // Lighter secondary for dark theme
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black, // Changed to black background
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -122,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: primaryColor.withOpacity(0.3),
+                                color: primaryColor.withOpacity(0.5), // Brighter shadow for dark background
                                 blurRadius: 15,
                                 offset: const Offset(0, 8),
                               ),
@@ -140,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black87,
+                            color: Colors.white, // White text for dark background
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -163,16 +164,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.grey.shade900, // Dark card background
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withOpacity(0.3), // Darker shadow
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
                       ],
-                      border: Border.all(color: Colors.grey.shade100, width: 1),
+                      border: Border.all(color: Colors.grey.shade800, width: 1), // Darker border
                     ),
                     child: Form(
                       key: _formKey,
@@ -189,13 +190,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
+                                  color: Colors.white, // White text in inputs
                                 ),
                                 decoration: _decoration(
                                   hint: 'Enter your email or NIC',
                                   label: 'Email or NIC',
                                   prefix: Icon(
                                     Icons.person_outline,
-                                    color: Colors.grey.shade500,
+                                    color: Colors.grey.shade400, // Lighter icon color
                                     size: 22,
                                   ),
                                 ),
@@ -227,13 +229,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
+                                  color: Colors.white, // White text in inputs
                                 ),
                                 decoration: _decoration(
                                   hint: 'Enter your password',
                                   label: 'Password',
                                   prefix: Icon(
                                     Icons.lock_outline,
-                                    color: Colors.grey.shade500,
+                                    color: Colors.grey.shade400, // Lighter icon color
                                     size: 22,
                                   ),
                                   suffix: IconButton(
@@ -243,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       _obscure
                                           ? Icons.visibility_off_outlined
                                           : Icons.visibility_outlined,
-                                      color: Colors.grey.shade500, 
+                                      color: Colors.grey.shade400, // Lighter icon color
                                       size: 20,
                                     ),
                                   ),
@@ -278,15 +281,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
+                                color: Colors.red.shade900.withOpacity(0.3), // Darker red background
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFFECACA)),
+                                border: Border.all(color: Colors.red.shade800),
                               ),
                               child: Row(
                                 children: [
                                   Icon(
                                     Icons.error_outline,
-                                    color: Colors.red.shade600,
+                                    color: Colors.red.shade400, // Lighter red icon
                                     size: 20,
                                   ),
                                   const SizedBox(width: 12),
@@ -294,7 +297,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     child: Text(
                                       _error!,
                                       style: TextStyle(
-                                        color: Colors.red.shade800,
+                                        color: Colors.red.shade300, // Lighter red text
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -318,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
-                                shadowColor: primaryColor.withOpacity(0.3),
+                                shadowColor: primaryColor.withOpacity(0.5), // Brighter shadow
                               ),
                               child: _loading
                                   ? const SizedBox(
@@ -353,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               Expanded(
                                 child: Divider(
-                                  color: Colors.grey.shade300,
+                                  color: Colors.grey.shade800, // Darker divider
                                   thickness: 1,
                                 ),
                               ),
@@ -362,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Text(
                                   'Or continue with',
                                   style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: Colors.grey.shade400, // Lighter text
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -370,7 +373,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               Expanded(
                                 child: Divider(
-                                  color: Colors.grey.shade300,
+                                  color: Colors.grey.shade800, // Darker divider
                                   thickness: 1,
                                 ),
                               ),
@@ -386,13 +389,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: OutlinedButton(
                                   onPressed: _loading ? null : () {},
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.grey.shade700,
-                                    side: BorderSide(color: Colors.grey.shade300),
+                                    foregroundColor: Colors.grey.shade300, // Lighter text
+                                    side: BorderSide(color: Colors.grey.shade800), // Darker border
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     padding: const EdgeInsets.symmetric(vertical: 14),
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: Colors.grey.shade900, // Dark background
                                   ),
                                   child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -419,13 +422,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: OutlinedButton(
                                   onPressed: _loading ? null : () {},
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.grey.shade700,
-                                    side: BorderSide(color: Colors.grey.shade300),
+                                    foregroundColor: Colors.grey.shade300, // Lighter text
+                                    side: BorderSide(color: Colors.grey.shade800), // Darker border
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     padding: const EdgeInsets.symmetric(vertical: 14),
-                                    backgroundColor: Colors.white,
+                                    backgroundColor: Colors.grey.shade900, // Dark background
                                   ),
                                   child: const Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -463,7 +466,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         "Don't have an account? ",
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: Colors.grey.shade400, // Lighter text
                           fontSize: 15,
                         ),
                       ),

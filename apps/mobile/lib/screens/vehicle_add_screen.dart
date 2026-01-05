@@ -26,36 +26,38 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _picking = false;
 
-  // Colors
+  // Colors for dark theme
   final Color _primaryColor = const Color(0xFF2563EB);
+  final Color _primaryLight = const Color(0xFF60A5FA);
   final Color _primaryDark = const Color(0xFF1D4ED8);
   final Color _successColor = const Color(0xFF10B981);
   final Color _warningColor = const Color(0xFFF59E0B);
   final Color _errorColor = const Color(0xFFEF4444);
-  final Color _surfaceColor = Colors.white;
-  final Color _backgroundColor = const Color(0xFFF8FAFC);
-  final Color _borderColor = const Color(0xFFE2E8F0);
-  final Color _textPrimary = const Color(0xFF1E293B);
-  final Color _textSecondary = const Color(0xFF64748B);
-  final Color _textDisabled = const Color(0xFF94A3B8);
+  final Color _surfaceColor = Colors.grey.shade900; // Dark surface
+  final Color _backgroundColor = Colors.black; // Black background
+  final Color _borderColor = Colors.grey.shade800; // Dark border
+  final Color _textPrimary = Colors.white; // White primary text
+  final Color _textSecondary = Colors.grey.shade300; // Light grey secondary text
+  final Color _textDisabled = Colors.grey.shade500; // Grey disabled text
+  final Color _cardColor = const Color(0xFF1F2937); // Dark card color
 
-  // Text Styles
-  TextStyle get _titleStyle => const TextStyle(
+  // Text Styles for dark theme
+  TextStyle get _titleStyle => TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w700,
-        color: Colors.black87,
+        color: _textPrimary,
       );
 
-  TextStyle get _sectionTitleStyle => const TextStyle(
+  TextStyle get _sectionTitleStyle => TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w600,
-        color: Colors.black87,
+        color: _textPrimary,
       );
 
-  TextStyle get _labelStyle => const TextStyle(
+  TextStyle get _labelStyle => TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: Colors.black87,
+        color: _textPrimary,
       );
 
   TextStyle get _hintStyle => TextStyle(
@@ -73,13 +75,13 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: ColorScheme.dark(
               primary: _primaryColor,
               onPrimary: Colors.white,
               surface: _surfaceColor,
               onSurface: _textPrimary,
             ),
-            dialogBackgroundColor: Colors.white,
+            dialogBackgroundColor: _surfaceColor,
           ),
           child: child!,
         );
@@ -216,7 +218,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         border: Border.all(color: _borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -230,13 +232,13 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: _primaryColor.withOpacity(0.1),
+                  color: _primaryColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
                   Icons.photo_camera_outlined,
                   size: 16,
-                  color: _primaryColor,
+                  color: _primaryLight,
                 ),
               ),
               const SizedBox(width: 8),
@@ -262,7 +264,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             height: 140,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: _backgroundColor,
+              color: _cardColor,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: _borderColor, width: 1.5),
             ),
@@ -278,7 +280,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                           height: double.infinity,
                           errorBuilder: (c, e, s) {
                             return Container(
-                              color: _backgroundColor,
+                              color: _cardColor,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -319,13 +321,13 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: _primaryColor.withOpacity(0.1),
+                          color: _primaryColor.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.camera_alt_outlined,
                           size: 24,
-                          color: _primaryColor,
+                          color: _primaryLight,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -348,7 +350,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               onPressed: disabled ? null : onPick,
               style: FilledButton.styleFrom(
                 backgroundColor: path == null ? _primaryColor : Colors.transparent,
-                foregroundColor: path == null ? Colors.white : _primaryColor,
+                foregroundColor: path == null ? Colors.white : _primaryLight,
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -388,6 +390,8 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           child: DropdownButtonFormField<String>(
             value: _type.text,
             decoration: InputDecoration(
+              filled: true,
+              fillColor: _cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(color: _borderColor),
@@ -401,14 +405,14 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             items: ['Car', 'Motorcycle', 'Truck', 'SUV', 'Van']
                 .map((type) => DropdownMenuItem(
                       value: type,
-                      child: Text(type, style: const TextStyle(fontSize: 16)),
+                      child: Text(type, style: TextStyle(color: _textPrimary, fontSize: 16)),
                     ))
                 .toList(),
             onChanged: (value) => setState(() => _type.text = value ?? 'Car'),
-            style: const TextStyle(color: Colors.black87, fontSize: 16),
+            style: TextStyle(color: _textPrimary, fontSize: 16),
             dropdownColor: _surfaceColor,
             borderRadius: BorderRadius.circular(10),
-            icon: Icon(Icons.arrow_drop_down, color: _primaryColor),
+            icon: Icon(Icons.arrow_drop_down, color: _primaryLight),
           ),
         ),
         const SizedBox(height: 20),
@@ -420,7 +424,10 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           required: true,
           child: TextField(
             controller: _model,
+            style: TextStyle(color: _textPrimary, fontSize: 16),
             decoration: InputDecoration(
+              filled: true,
+              fillColor: _cardColor,
               hintText: 'e.g., Toyota Aqua 2016',
               hintStyle: _hintStyle,
               border: OutlineInputBorder(
@@ -433,7 +440,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
-            style: const TextStyle(fontSize: 16),
           ),
         ),
         const SizedBox(height: 20),
@@ -449,6 +455,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               decoration: BoxDecoration(
+                color: _cardColor,
                 border: Border.all(color: _borderColor),
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -485,7 +492,10 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           required: true,
           child: TextField(
             controller: _plate,
+            style: TextStyle(color: _textPrimary, fontSize: 16, letterSpacing: 1.2),
             decoration: InputDecoration(
+              filled: true,
+              fillColor: _cardColor,
               hintText: 'ABC-1234',
               hintStyle: _hintStyle,
               border: OutlineInputBorder(
@@ -498,7 +508,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
-            style: const TextStyle(fontSize: 16, letterSpacing: 1.2),
           ),
         ),
       ],
@@ -519,7 +528,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         border: Border.all(color: _borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -561,15 +570,15 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0F9FF),
+            color: const Color(0xFF0F172A), // Dark blue background
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFBAE6FD)),
+            border: Border.all(color: const Color(0xFF1E3A8A)),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFFF0F9FF),
-                const Color(0xFFE0F2FE),
+                const Color(0xFF0F172A),
+                const Color(0xFF1E293B),
               ],
             ),
           ),
@@ -592,7 +601,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                     Text(
                       'Photo Guidelines',
                       style: TextStyle(
-                        color: _primaryDark,
+                        color: _primaryLight,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -601,7 +610,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                     Text(
                       '• Use good lighting and avoid shadows\n• Ensure the number plate is fully visible and readable\n• Capture the entire vehicle in frame\n• Avoid blurry or dark photos',
                       style: TextStyle(
-                        color: _primaryDark.withOpacity(0.8),
+                        color: Colors.grey.shade300,
                         fontSize: 14,
                         height: 1.4,
                       ),
@@ -637,7 +646,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             border: Border.all(color: _borderColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -651,7 +660,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: _successColor.withOpacity(0.1),
+                      color: _successColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.check_circle_outline, color: _successColor, size: 20),
@@ -683,7 +692,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             border: Border.all(color: _borderColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -697,10 +706,10 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
+                      color: _primaryColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.photo_library_outlined, color: _primaryColor, size: 20),
+                    child: Icon(Icons.photo_library_outlined, color: _primaryLight, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Text(
@@ -725,7 +734,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: _backgroundColor,
+                    color: _cardColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -781,7 +790,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         ],
       ),
     );
-  }
+  } // Add this closing brace
 
   Widget _buildPhotoThumbnail(String path, String label) {
     return Column(
@@ -794,7 +803,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             border: Border.all(color: _borderColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withOpacity(0.3),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -807,7 +816,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               fit: BoxFit.cover,
               errorBuilder: (c, e, s) {
                 return Container(
-                  color: _backgroundColor,
+                  color: _cardColor,
                   child: Icon(Icons.error_outline, color: _textDisabled),
                 );
               },
@@ -839,9 +848,9 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         ),
         backgroundColor: _surfaceColor,
         elevation: 0,
-        foregroundColor: Colors.black87,
+        foregroundColor: _textPrimary,
         centerTitle: false,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withOpacity(0.3),
         surfaceTintColor: _surfaceColor,
       ),
       body: Column(
@@ -856,7 +865,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -911,7 +920,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withOpacity(0.3),
                   blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
@@ -927,6 +936,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         side: BorderSide(color: _borderColor),
+                        backgroundColor: Colors.transparent,
                       ),
                       child: Text(
                         'Back',
@@ -1008,7 +1018,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                   ? _successColor
                   : isActive
                       ? _primaryColor
-                      : _backgroundColor,
+                      : _cardColor,
               shape: BoxShape.circle,
               border: Border.all(
                 color: isCompleted
@@ -1021,7 +1031,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             ),
             child: Center(
               child: isCompleted
-                  ? Icon(Icons.check, color: Colors.white, size: 18)
+                  ? const Icon(Icons.check, color: Colors.white, size: 18)
                   : Text(
                       number.toString(),
                       style: TextStyle(

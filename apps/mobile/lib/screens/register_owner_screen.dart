@@ -68,6 +68,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Please accept the Privacy Policy and Terms.'),
+          backgroundColor: Colors.grey.shade800,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -89,7 +90,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Registration successful! Please log in.'),
-          backgroundColor: Colors.green.shade600,
+          backgroundColor: Colors.green.shade800,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -99,7 +100,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Registration failed. Please try again.'),
-          backgroundColor: Colors.red.shade600,
+          backgroundColor: Colors.red.shade800,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
@@ -122,11 +123,11 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
       prefixIcon: prefix,
       suffixIcon: suffix,
       filled: true,
-      fillColor: Colors.grey.shade50,
+      fillColor: Colors.grey.shade900,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+        borderSide: BorderSide(color: Colors.grey.shade800, width: 1.5),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -141,10 +142,10 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
         borderSide: const BorderSide(color: Colors.red, width: 2),
       ),
       labelStyle: TextStyle(
-        color: Colors.grey.shade600,
+        color: Colors.grey.shade400,
         fontWeight: FontWeight.w500,
       ),
-      hintStyle: TextStyle(color: Colors.grey.shade400),
+      hintStyle: TextStyle(color: Colors.grey.shade500),
     );
   }
 
@@ -177,10 +178,10 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
   @override
   Widget build(BuildContext context) {
     const primaryColor = Color(0xFF2563EB);
-    const secondaryColor = Color(0xFF64748B);
+    const secondaryColor = Color(0xFF94A3B8);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black, // Changed to black background
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -192,12 +193,12 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w700,
-            color: Colors.black87,
+            color: Colors.white, // White text for dark background
           ),
         ),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.black, // Black app bar
+        foregroundColor: Colors.white,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -218,7 +219,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                               ? DottedBorder(
                                   borderType: BorderType.Circle,
                                   dashPattern: const [6, 6],
-                                  color: Colors.grey.shade400,
+                                  color: Colors.grey.shade600, // Lighter for dark background
                                   strokeWidth: 2,
                                   child: Container(
                                     width: 100,
@@ -228,13 +229,13 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Icon(Icons.add_a_photo,
-                                            size: 32, color: Colors.grey.shade600),
+                                            size: 32, color: Colors.grey.shade400),
                                         const SizedBox(height: 4),
                                         Text(
                                           'Add Photo',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            color: Colors.grey.shade600,
+                                            color: Colors.grey.shade400,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -276,7 +277,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         Text(
                           'Add profile picture (Optional)',
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color: Colors.grey.shade400,
                             fontSize: 13,
                           ),
                         ),
@@ -288,7 +289,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black87,
+                        color: Colors.white, // White text
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -311,16 +312,16 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
               Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.grey.shade900, // Dark card background
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withOpacity(0.3), // Darker shadow
                       blurRadius: 30,
                       offset: const Offset(0, 10),
                     ),
                   ],
-                  border: Border.all(color: Colors.grey.shade100, width: 1),
+                  border: Border.all(color: Colors.grey.shade800, width: 1), // Darker border
                 ),
                 child: Form(
                   key: _formKey,
@@ -336,7 +337,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: Colors.white, // White text
                             ),
                           ),
                         ],
@@ -349,13 +350,14 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white, // White text
                         ),
                         decoration: _decoration(
                           label: 'Full Name',
                           hint: 'Enter your full name',
                           prefix: Icon(
                             Icons.person_outline,
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade400,
                             size: 22,
                           ),
                         ),
@@ -370,13 +372,14 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white, // White text
                         ),
                         decoration: _decoration(
                           label: 'Email Address',
                           hint: 'Enter your email address',
                           prefix: Icon(
                             Icons.email_outlined,
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade400,
                             size: 22,
                           ),
                         ),
@@ -390,13 +393,14 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white, // White text
                         ),
                         decoration: _decoration(
                           label: 'NIC/ID Number',
                           hint: 'Enter your NIC or ID number',
                           prefix: Icon(
                             Icons.badge_outlined,
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade400,
                             size: 22,
                           ),
                         ),
@@ -416,13 +420,14 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white, // White text
                         ),
                         decoration: _decoration(
                           label: 'Contact Number',
                           hint: 'Enter your phone number',
                           prefix: Icon(
                             Icons.phone_outlined,
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade400,
                             size: 22,
                           ),
                         ),
@@ -437,13 +442,14 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white, // White text
                         ),
                         decoration: _decoration(
                           label: 'Address',
                           hint: 'Enter your complete address',
                           prefix: Icon(
                             Icons.home_outlined,
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade400,
                             size: 22,
                           ),
                         ),
@@ -451,7 +457,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                       ),
 
                       const SizedBox(height: 32),
-                      Divider(color: Colors.grey.shade300, height: 1),
+                      Divider(color: Colors.grey.shade800, height: 1), // Darker divider
                       const SizedBox(height: 32),
 
                       // Security Section
@@ -464,7 +470,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: Colors.white, // White text
                             ),
                           ),
                         ],
@@ -479,13 +485,14 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
+                          color: Colors.white, // White text
                         ),
                         decoration: _decoration(
                           label: 'Password',
                           hint: 'Create a strong password',
                           prefix: Icon(
                             Icons.lock_outline,
-                            color: Colors.grey.shade500,
+                            color: Colors.grey.shade400,
                             size: 22,
                           ),
                           suffix: IconButton(
@@ -495,7 +502,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                               _obscure
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
-                              color: Colors.grey.shade500,
+                              color: Colors.grey.shade400,
                               size: 20,
                             ),
                           ),
@@ -515,7 +522,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                                 'Password Strength',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.grey.shade600,
+                                  color: Colors.grey.shade400, // Lighter text
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -535,7 +542,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                             child: LinearProgressIndicator(
                               value: _pwdStrength == 0 ? 0.02 : _pwdStrength,
                               minHeight: 8,
-                              backgroundColor: Colors.grey.shade200,
+                              backgroundColor: Colors.grey.shade800, // Darker background
                               valueColor: AlwaysStoppedAnimation<Color>(
                                   _pwdColor(_pwdStrength)),
                             ),
@@ -557,9 +564,9 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                          color: Colors.grey.shade900, // Dark background
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
+                          border: Border.all(color: Colors.grey.shade800), // Darker border
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,13 +578,21 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4),
                               ),
+                              fillColor: MaterialStateProperty.resolveWith<Color>(
+                                (Set<MaterialState> states) {
+                                  if (states.contains(MaterialState.selected)) {
+                                    return primaryColor;
+                                  }
+                                  return Colors.grey.shade700;
+                                },
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: RichText(
                                 text: TextSpan(
                                   style: TextStyle(
-                                    color: Colors.grey.shade700,
+                                    color: Colors.grey.shade300, // Lighter text
                                     fontSize: 14,
                                     height: 1.4,
                                   ),
@@ -631,7 +646,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            shadowColor: primaryColor.withOpacity(0.3),
+                            shadowColor: primaryColor.withOpacity(0.5), // Brighter shadow
                           ),
                           child: _loading
                               ? const SizedBox(
@@ -668,7 +683,7 @@ class _RegisterOwnerScreenState extends State<RegisterOwnerScreen> {
                           Text(
                             'Already have an account? ',
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: Colors.grey.shade400, // Lighter text
                               fontSize: 15,
                             ),
                           ),

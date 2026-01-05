@@ -1,4 +1,3 @@
-// lib/screens/splash_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 
@@ -37,26 +36,26 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black, // Changed to black
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: Colors.white,
+        color: Colors.black, // Changed to black
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // App Logo/Image - Increased size
             Container(
-              width: 500, // Increased from 150
-              height: 500, // Increased from 150
+              width: 250,
+              height: 250,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Colors.black, // Changed to black
                 borderRadius: BorderRadius.circular(24),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: Image.asset(
-                  'assets/images/logo.png', // Replace with your actual image path
+                  'assets/images/logo.png',
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
@@ -67,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       child: const Icon(
                         Icons.directions_car,
                         color: Colors.white,
-                        size: 80, // Increased icon size
+                        size: 80,
                       ),
                     );
                   },

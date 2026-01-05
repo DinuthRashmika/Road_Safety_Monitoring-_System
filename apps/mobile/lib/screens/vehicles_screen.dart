@@ -52,27 +52,27 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: Colors.black, // Changed to black
       appBar: AppBar(
         title: const Text(
           'My Vehicles',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 24,
-            color: Color(0xFF0F172A),
+            color: Colors.white, // White text
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.black, // Black background
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: Colors.grey.shade800, // Dark grey
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, 
-                size: 18, color: Color(0xFF475569)),
+            child: Icon(Icons.arrow_back_ios_new_rounded, 
+                size: 18, color: Colors.grey.shade300), // Light grey icon
           ),
           onPressed: () => Navigator.pop(context),
         ),
@@ -121,10 +121,11 @@ class _LoadingState extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF),
+              color: const Color(0xFF1E293B), // Dark blue
               borderRadius: BorderRadius.circular(40),
             ),
-            child: const CircularProgressIndicator.adaptive(
+            child: const CircularProgressIndicator(
+              strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation(Color(0xFF0EA5E9)),
             ),
           ),
@@ -134,7 +135,7 @@ class _LoadingState extends StatelessWidget {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF475569),
+              color: Colors.grey, // Light grey
             ),
           ),
         ],
@@ -161,13 +162,13 @@ class _ErrorState extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF2F2),
+                color: const Color(0xFF431C1C), // Dark red
                 borderRadius: BorderRadius.circular(60),
               ),
               child: const Icon(
                 Icons.error_outline_rounded,
                 size: 50,
-                color: Color(0xFFDC2626),
+                color: Color(0xFFF87171), // Light red
               ),
             ),
             const SizedBox(height: 24),
@@ -176,15 +177,15 @@ class _ErrorState extends StatelessWidget {
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
+                color: Colors.white, // White text
               ),
             ),
             const SizedBox(height: 8),
             Text(
               error,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
+              style: TextStyle(
+                color: Colors.grey.shade400, // Light grey
                 fontSize: 16,
               ),
             ),
@@ -200,7 +201,7 @@ class _ErrorState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                    color: const Color(0xFF0EA5E9).withOpacity(0.5), // Brighter shadow
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -254,17 +255,17 @@ class _EmptyState extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFFF0F9FF),
-                    Color(0xFFE0F2FE),
+                    Color(0xFF1E293B),
+                    Color(0xFF0F172A),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(80),
-                border: Border.all(color: const Color(0xFFBAE6FD), width: 2),
+                border: Border.all(color: const Color(0xFF334155), width: 2), // Darker border
               ),
               child: const Icon(
                 Icons.directions_car_filled_rounded,
                 size: 70,
-                color: Color(0xFF0EA5E9),
+                color: Color(0xFF60A5FA), // Light blue
               ),
             ),
             const SizedBox(height: 32),
@@ -273,15 +274,15 @@ class _EmptyState extends StatelessWidget {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
+                color: Colors.white, // White text
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Add your first vehicle to unlock all features\nand start tracking your journeys',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: Colors.grey.shade400, // Light grey
                 fontSize: 16,
                 height: 1.5,
               ),
@@ -298,7 +299,7 @@ class _EmptyState extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                    color: const Color(0xFF0EA5E9).withOpacity(0.5), // Brighter shadow
                     blurRadius: 15,
                     offset: const Offset(0, 6),
                   ),
@@ -354,7 +355,7 @@ class _VehiclesList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       color: const Color(0xFF0EA5E9),
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: Colors.grey.shade900, // Dark background
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
@@ -364,23 +365,23 @@ class _VehiclesList extends StatelessWidget {
                 children: [
                   Text(
                     '${vehicles.length} Vehicle${vehicles.length > 1 ? 's' : ''}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF64748B),
+                      color: Colors.grey.shade400, // Light grey
                     ),
                   ),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0F9FF),
+                      color: const Color(0xFF1E3A8A), // Dark blue
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       'All Active',
                       style: TextStyle(
-                        color: const Color(0xFF0EA5E9),
+                        color: const Color(0xFF60A5FA), // Light blue
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -455,16 +456,16 @@ class _EnhancedVehicleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.grey.shade900, // Dark card
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF1D4ED8).withOpacity(0.08),
+                color: Colors.black.withOpacity(0.3), // Darker shadow
                 blurRadius: 20,
                 offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: const Color(0xFFF1F5F9)),
+            border: Border.all(color: Colors.grey.shade800),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -483,15 +484,15 @@ class _EnhancedVehicleCard extends StatelessWidget {
                             style: const TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 22,
-                              color: Color(0xFF0F172A),
+                              color: Colors.white, // White text
                               letterSpacing: 0.5,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             subtitle,
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
+                            style: TextStyle(
+                              color: Colors.grey.shade400, // Light grey
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
                             ),
@@ -504,8 +505,8 @@ class _EnhancedVehicleCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [
-                            Color(0xFF10B981),
-                            Color(0xFF059669),
+                            Color(0xFF065F46), // Dark green
+                            Color(0xFF047857),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(20),
@@ -513,12 +514,12 @@ class _EnhancedVehicleCard extends StatelessWidget {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle_rounded, size: 14, color: Colors.white),
+                          Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF10B981)), // Light green
                           SizedBox(width: 6),
                           Text(
                             'Active',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF10B981), // Light green
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
@@ -538,12 +539,12 @@ class _EnhancedVehicleCard extends StatelessWidget {
                   width: double.infinity,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Color(0xFFF8FAFD),
-                        Color(0xFFF1F5F9),
+                        Colors.grey.shade900,
+                        Colors.grey.shade800,
                       ],
                     ),
                   ),
@@ -588,7 +589,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
-                          color: Color(0xFF0F172A),
+                          color: Colors.white, // White text
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -606,7 +607,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
+                                    color: Colors.black.withOpacity(0.3), // Darker shadow
                                     blurRadius: 6,
                                     offset: const Offset(0, 2),
                                   ),
@@ -620,12 +621,12 @@ class _EnhancedVehicleCard extends StatelessWidget {
                                   errorBuilder: (context, error, stackTrace) {
                                     return Container(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
+                                        color: Colors.grey.shade800, // Dark background
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.photo_camera_rounded,
-                                        color: Color(0xFF94A3B8),
+                                        color: Colors.grey.shade600, // Darker grey
                                         size: 24,
                                       ),
                                     );
@@ -634,7 +635,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                                     if (loadingProgress == null) return child;
                                     return Container(
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
+                                        color: Colors.grey.shade800, // Dark background
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Center(
@@ -664,14 +665,14 @@ class _EnhancedVehicleCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       colors: [
-                        Color(0xFFF8FAFD),
-                        Color(0xFFF1F5F9),
+                        Colors.grey.shade900,
+                        Colors.grey.shade800,
                       ],
                     ),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: Colors.grey.shade700),
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -688,14 +689,14 @@ class _EnhancedVehicleCard extends StatelessWidget {
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 15,
-                                color: Color(0xFF0EA5E9),
+                                color: Color(0xFF60A5FA), // Light blue
                               ),
                             ),
                             SizedBox(width: 8),
                             Icon(
                               Icons.arrow_forward_rounded,
                               size: 18,
-                              color: Color(0xFF0EA5E9),
+                              color: Color(0xFF60A5FA), // Light blue
                             ),
                           ],
                         ),
@@ -727,20 +728,20 @@ class _VehicleImageHandler extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: Colors.grey.shade800, // Dark background
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.directions_car_filled_rounded,
-                color: Color(0xFF475569),
+                color: Colors.grey.shade400, // Light grey
                 size: 40,
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Vehicle Image',
               style: TextStyle(
-                color: Color(0xFF64748B),
+                color: Colors.grey.shade400, // Light grey
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -762,20 +763,20 @@ class _VehicleImageHandler extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: Colors.grey.shade800, // Dark background
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.directions_car_filled_rounded,
-                  color: Color(0xFF475569),
+                  color: Colors.grey.shade400, // Light grey
                   size: 40,
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Image not available',
                 style: TextStyle(
-                  color: Color(0xFF64748B),
+                  color: Colors.grey.shade400, // Light grey
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -815,23 +816,23 @@ class _DetailItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFD),
+          color: const Color(0xFF1F2937), // Dark background
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: Colors.grey.shade800),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, size: 16, color: const Color(0xFF64748B)),
+                Icon(icon, size: 16, color: Colors.grey.shade400), // Light grey
                 const SizedBox(width: 6),
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                    color: Colors.grey.shade400, // Light grey
                   ),
                 ),
               ],
@@ -842,7 +843,7 @@ class _DetailItem extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+                color: Colors.white, // White text
               ),
               overflow: TextOverflow.ellipsis,
             ),
