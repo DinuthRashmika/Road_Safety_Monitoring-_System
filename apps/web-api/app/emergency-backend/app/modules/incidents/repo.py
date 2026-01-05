@@ -41,8 +41,70 @@ async def insert_incident(doc: dict) -> str:
 
 async def get_incident(incident_id: str) -> Optional[dict]:
     db = get_db()
-    doc = await db["incidents"].find_one({"_id": ObjectId(incident_id)})
-    return _norm(doc) if doc else None
+    try:
+        doc = await db["incidents"].find_one({"_id": ObjectId(incident_id)})
+        return _norm(doc) if doc else None
+    except:
+        return None
+
+
+async def find_nearby_active_incident(
+    lat: float, 
+    lng: float, 
+    source: str, 
+    max_distance_m: int = 150 
+) -> Optional[dict]:
+    """
+    NOVELTY FEATURE: Spatiotemporal Clustering.
+    Finds an existing active OR unverified incident to merge duplicate reports.
+    INCLUDES FALLBACK if MongoDB Index is missing.
+    """
+    db = get_db()
+    
+    active_statuses = ["unverified", "new", "accepted", "enroute", "arrived"]
+    
+    try:
+        query = {
+            "status": {"$in": active_statuses}, 
+            "source": source, 
+            "location": {
+                "$near": {
+                    "$geometry": {
+                        "type": "Point",
+                        "coordinates": [lng, lat]
+                    },
+                    "$maxDistance": max_distance_m
+                }
+            }
+        }
+        doc = await db["incidents"].find_one(query)
+        if doc:
+            return _norm(doc)
+            
+    except Exception as e:
+        pass
+    try:
+        fallback_query = {
+            "status": {"$in": active_statuses},
+            "source": source
+        }
+        
+        cursor = db["incidents"].find(fallback_query).sort("timestamp_utc", -1).limit(50)
+        
+        async for doc in cursor:
+            doc_lat = doc.get("location", {}).get("lat")
+            doc_lng = doc.get("location", {}).get("lng")
+            
+            dist_km = calculate_distance(lat, lng, doc_lat, doc_lng)
+            dist_m = dist_km * 1000.0
+            
+            if dist_m <= max_distance_m:
+                return _norm(doc)
+                
+    except Exception:
+        pass
+        
+    return None
 
 
 async def update_incident(incident_id: str, patch: dict) -> None:
@@ -56,10 +118,6 @@ async def delete_incident(incident_id: str) -> None:
 
 
 async def enrich_incident_with_responders(doc: dict) -> dict:
-    """
-    Fetches full details (Name, Role, Location) for any responder 
-    assigned to this incident.
-    """
     statuses = doc.get("responder_statuses", {})
     if not statuses:
         doc["assigned_responders"] = []
@@ -103,7 +161,6 @@ async def list_queue(
         results = []
         async for doc in cursor:
             d = _norm(doc)
-            
             await enrich_incident_with_responders(d)
             
             required = d.get("required_roles", [])
@@ -128,7 +185,6 @@ async def list_queue(
 
         return results[:limit]
     
-    
     if status == "resolved":
         query = {f"responder_statuses.{user_id}": "resolved"}
         cursor = db["incidents"].find(query).sort([("reported_at", -1)]).limit(limit)
@@ -152,7 +208,6 @@ async def list_queue(
         }
         
         cursor = db["incidents"].find(query).sort([("score", -1)]).limit(limit)
-        
         peers = []
         if role:
             peers = await get_responders_by_role(role)
@@ -168,27 +223,18 @@ async def list_queue(
                 continue
             
             inc_loc = d.get("location", {})
-            
             my_lat = user_location.get("lat") if user_location else None
             my_lng = user_location.get("lng") if user_location else None
-            
-            my_dist = calculate_distance(
-                my_lat, my_lng, 
-                inc_loc.get("lat"), inc_loc.get("lng")
-            )
+            my_dist = calculate_distance(my_lat, my_lng, inc_loc.get("lat"), inc_loc.get("lng"))
             
             is_nearest = True
-            
             for peer in peers:
-                if peer["id"] == user_id: 
-                    continue 
-                
+                if peer["id"] == user_id: continue 
                 peer_loc = peer.get("location", {})
                 peer_dist = calculate_distance(
                     peer_loc.get("lat"), peer_loc.get("lng"),
                     inc_loc.get("lat"), inc_loc.get("lng")
                 )
-                
                 if peer_dist < my_dist:
                     is_nearest = False
                     break

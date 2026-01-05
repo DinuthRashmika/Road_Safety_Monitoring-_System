@@ -8,7 +8,12 @@ from bson import ObjectId
 from app.db.mongo import get_db
 from app.modules.incidents.schemas import Incident, Accident
 from app.modules.incidents.service import compute_scores
-from app.modules.incidents.repo import insert_incident, update_incident, get_incident
+from app.modules.incidents.repo import (
+    insert_incident, 
+    update_incident, 
+    get_incident, 
+    find_nearby_active_incident 
+)
 from app.modules.incidents.broadcast import broadcast_incident_update
 from app.modules.hub.fire_detector import fire_present_from_image
 from app.utils.time import utcnow_iso
@@ -104,6 +109,42 @@ async def ingest(payload: dict = Body(...)):
                 await broadcast_incident_update(updated_doc)
 
             return {"id": inc.id}
+        
+        if not existing_doc:
+            lat = payload.get("location", {}).get("lat")
+            lng = payload.get("location", {}).get("lng")
+            src = payload.get("source")
+            
+            if lat and lng and src:
+                nearby_parent = await find_nearby_active_incident(lat, lng, src, max_distance_m=150)
+                
+                if nearby_parent:
+                    logger.info(f"CLUSTERING: Merging report {report_id} into parent {nearby_parent['id']}")
+                    
+                    current_score = nearby_parent.get("score", 0)
+                    new_score = min(100, current_score + 3) # +3 Bonus
+                    
+                    old_explain = nearby_parent.get("explain", [])
+                    new_note = f"CONFIRMED: +3 score boost from secondary camera ({report_id})"
+                    if new_note not in old_explain:
+                        old_explain.append(new_note)
+                        
+                    patch = {
+                        "score": new_score,
+                        "explain": old_explain
+                    }
+
+                    if nearby_parent["status"] == "unverified" and new_score >= MIN_SCORE_FOR_PROMOTION:
+                        patch["status"] = "new"
+                        patch["reported_at"] = utcnow_iso() 
+                        logger.info(f"CLUSTERING: Incident {nearby_parent['id']} promoted to NEW due to multi-source verification.")
+
+                    await update_incident(nearby_parent["id"], patch)
+                    
+                    updated_parent = await get_incident(nearby_parent["id"])
+                    await broadcast_incident_update(updated_parent)
+                    
+                    return {"id": nearby_parent["id"], "cluster_action": "merged"}
 
         if not payload.get("timestamp_utc") and not payload.get("reported_at"):
              payload["timestamp_utc"] = utcnow_iso()
