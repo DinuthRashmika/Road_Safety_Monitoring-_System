@@ -75,7 +75,7 @@ class ActionRecognition:
             Loaded Keras model or None
         """
         if self.verbose:
-            print("📦 Loading LRCN model...")
+            print("Loading LRCN model...")
         
         try:
             import tensorflow as tf

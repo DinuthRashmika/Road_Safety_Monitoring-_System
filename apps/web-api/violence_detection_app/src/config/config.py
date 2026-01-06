@@ -21,12 +21,12 @@ SAVED_FRAMES = os.path.join(DATA_DIR, 'frames')
 YOLO_MODEL_PATH = os.path.join(MODELS_DIR, 'yolo', 'best_v2.pt')
 YOLO_IMAGE_WIDTH = 640
 YOLO_IMAGE_HEIGHT = 640
-YOLO_CONFIDENCE_THRESHOLD = 0
+YOLO_CONFIDENCE_THRESHOLD = 0.25
 VIOLENT_OBJECTS = ['person', 'knife', 'gun', 'stick']
 OBJECT_WEIGHTS = {
-    "knife":0.6, 
-    "gun":0.9, 
-    "stick":0.2
+    "knife":0.9, 
+    "gun":1.0, 
+    "stick":0.5
 }
 OBJECT_DETECTION_WEIGHT = 0.4
 
@@ -38,10 +38,10 @@ LRCN_CONFIDENCE_THRESHOLD = 0
 SEQUENCE_LENGTH = 16
 VIOLENT_ACTIONS = ['running', 'shooting', 'fighting', 'attacking']
 ACTION_WEIGHTS = {
-    "shooting":0.9, 
-    "running":0.3, 
-    "attacking":0.7, 
-    "fighting":0.5
+    "shooting":1.0, 
+    "running":0.7, 
+    "attacking":0.9, 
+    "fighting":0.8
 }
 ACTION_RECOGNITION_WEIGHT = 0.6
 

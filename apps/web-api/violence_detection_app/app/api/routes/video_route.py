@@ -10,19 +10,14 @@ from requests import Session
 # # database models
 # from violence_detection_app.app.models.video_model import Video
 # backend schemas
-from violence_detection_app.app.api.schemas.video_schema import ( SourceRequest, SourcePropertiesResponse )
+from violence_detection_app.app.api.schemas.video_schema import ( CameraListResponse, SourceRequest, SourcePropertiesResponse )
 from violence_detection_app.app.api.schemas.yolo_schema import (FrameDetectionResponse)
-# from violence_detection_app.app.services.video_service import get_video_source
-# from violence_detection_app.app.services import video_service
 from violence_detection_app.app.services.video_service import VideoService
 from violence_detection_app.src.data_processing.video_handler import VideoHandler
 
-
-"""Different endpoints in different files, and different API prefixes for them"""
-
 router = APIRouter(
     prefix="/source",
-    tags=["Video Sources"]
+    tags=["Sources"]
 )
 
 video_service = VideoService()
@@ -53,6 +48,13 @@ def get_source_properties(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# Get all cameras
+@router.get("/cameras", response_model=CameraListResponse)
+def get_cameras():
+    """
+    Fetch available cameras (no DB, in-memory list)
+    """
+    return video_service.get_all_cameras()
 
 
 

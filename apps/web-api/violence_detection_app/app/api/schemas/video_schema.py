@@ -12,15 +12,13 @@ class SourceType(str, Enum):
     WEBCAM = "webcam"
     USB_CAMERA = "usb_camera"
 
+
 class SourceBase(BaseModel):
     """Base schema for video source"""
     source_id: str
 
 class SourceRequest(BaseModel):
-    """
-    Request to get video source properties
-    User sends: video path/URL → Backend returns properties
-    """
+    """Request to get video properties and the whole RSTL url"""
     # source_type: SourceType = Field(..., description="Source path type")
     source_path: str = Field(..., description="File path, RTSP URL, or camera index")
     # source_name: Optional[str] = Field(None, description="Human-readable name")
@@ -36,14 +34,8 @@ class SourceRequest(BaseModel):
             }
         }
 
-
 class SourcePropertiesResponse(BaseModel):
-    """
-    Response containing video source properties
-    Sent to UI after analyzing video metadata
-    """
-    # session_id: Optional[str] = None
-    # source_id: str = Field(..., description="Video ID given by backend")
+    """Response - to get video properties only"""
     fps: Optional[float] = Field(..., description="Original FPS")
     height: int = Field(..., gt=0, description="Height of original frame in pixels")
     width: int = Field(..., gt=0, description="Width of original frame in pixels")
@@ -51,22 +43,9 @@ class SourcePropertiesResponse(BaseModel):
     bitrate: Optional[float] = Field(..., ge=0.0, description="Video bitrate in seconds")
     duration: Optional[float] = Field(..., ge=0.0, description="Video duration in seconds")
 
-    # @validator('duration_seconds', always=True)
-    # def calculate_duration(cls, v, values):
-    #     """Auto-calculate duration from fps and total_frames"""
-    #     if 'fps' in values and 'total_frames' in values:
-    #         fps = values['fps']
-    #         total_frames = values['total_frames']
-    #         if fps > 0:
-    #             return total_frames / fps
-    #     return v
-    
     class Config:
         schema_extra = {
             "example": {
-                "source_id": "source_12345",
-                "source_name": "Main Gate Camera",
-                "source_location": "Building A - Entrance",
                 "fps": 30.0,
                 "width": 1920,
                 "height": 1080,
@@ -77,6 +56,18 @@ class SourcePropertiesResponse(BaseModel):
         }
 
 
+class CameraResponse(BaseModel):
+    id: str
+    name: str
+    source_type: str   # rtsp / webcam / file
+    url: str
+    location: str
+    status: str        # ONLINE / OFFLINE
+
+
+class CameraListResponse(BaseModel):
+    count: int
+    cameras: List[CameraResponse]
 
 # -------------------------------------------------------------------------------------------------------------------------------
 
