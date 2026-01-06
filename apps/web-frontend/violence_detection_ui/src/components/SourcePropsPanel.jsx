@@ -2,7 +2,7 @@ import React from 'react';
 import './../styles/SourcePropsPanel.css';
 import { useNavigate } from 'react-router-dom';
 
-function SourcesPropsPanel({ isOpen, onClose, camera, videoInfo }) {
+function SourcesPropsPanel({ isOpen, onClose, camera, videoInfo, videoSource  }) {
 
   const navigate = useNavigate();
 
@@ -10,7 +10,7 @@ function SourcesPropsPanel({ isOpen, onClose, camera, videoInfo }) {
     // Determine the source path
     let sourcePath = null;
     
-    if (videoSource) {
+    if (videoSource && videoInfo) {
       // If videoSource prop is passed (from manual input)
       sourcePath = videoSource;
     } else if (camera) {
@@ -27,7 +27,7 @@ function SourcesPropsPanel({ isOpen, onClose, camera, videoInfo }) {
     onClose();
 
     // Navigate to detection page with source info
-    navigate('/detection', {
+    navigate('/detection-monitering', {
       state: {
         videoSource: sourcePath,
         videoInfo: videoInfo,
@@ -149,26 +149,25 @@ function SourcesPropsPanel({ isOpen, onClose, camera, videoInfo }) {
                   </div>
                 )}
               </div>
-
-              <div className="panel-start-detection">
-                <button 
-                  className="panel-start-btn"
-                  onClick={handleStartDetection}
-                >
-                  Start Detection
-                </button>
-              </div>
             </>
           )}
 
 
-          {/* Action buttons */}
-          {camera && (
+          {/* Action buttons in panel*/}
+          {camera &&(
             <div className="panel-actions">
-              <button className="action-btn primary">Edit Camera</button>
-              <button className="action-btn secondary">View Stream</button>
+              <button className="btn-red"  onClick={onClose}>Close</button>
+              <button className="btn-dark"  onClick={handleStartDetection}>Start Detection</button>
             </div>
           )}
+
+          {videoInfo &&(
+            <div className="panel-actions">
+              <button className="btn-red"  onClick={onClose}>Close</button>
+              <button className="btn-dark"  onClick={handleStartDetection}>Start Detection</button>
+            </div>
+          )}
+
         </div>
       </div>
     </>

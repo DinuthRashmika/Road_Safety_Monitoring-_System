@@ -183,14 +183,43 @@ function Detection() {
         }
     };
 
-    const stopProcessing = () => {
-        if (wsRef.current) {
-            console.log("Stopping processing...");
-            wsRef.current.close();
-            wsRef.current = null;
+    const stopProcessing = async () => {
+        if (!videoProcessingInfo?.session_id) return;
+
+        try {
+            // Call backend to stop session
+            const response = await fetch("http://127.0.0.1:8000/detection/lrcn_stop", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    session_id: videoProcessingInfo.session_id
+                }),
+            });
+
+            const data = await response.json();
+            console.log("Stop response:", data);
+
+            // Close WebSocket
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+
+            setIsConnected(false);
+            setProcessingStatus("Detection stopped by user");
+            
+        } catch (error) {
+            console.error("Error stopping detection:", error);
+            // Still close WebSocket even if backend call fails
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
+            setIsConnected(false);
+            setProcessingStatus("Stopped (with errors)");
         }
-        setIsConnected(false);
-        setProcessingStatus("Stopped by user");
     };
 
     const handleBackToSources = () => {
@@ -205,26 +234,20 @@ function Detection() {
     return (
         <Layout>
             <div className="detection-container">
-                {/* Header with back button */}
+
                 {/* <div className="detection-header">
                     <button className="btn-grey" onClick={handleBackToSources}>
-                        ← Back to Sources
+                        Back to Sources
                     </button>
-                    <h2>Real-Time Detection Monitor</h2>
-                    {isConnected && (
-                        <button className="btn-dark" onClick={stopProcessing}>
-                            Stop Detection
-                        </button>
-                    )}
-                </div> */}
+                    <h2>Real-Time Detection Monitor</h2> */}
+                    
+                {/* </div> */}
 
-                {/* Grid Layout: Left column (video + stats) and Right column (results) */}
                 <div className="detection-grid">
                     
-                    {/* LEFT COLUMN */}
                     <div className="left-column">
                         
-                        {/* REC1: Video Player */}
+                        {/* REC1 */}
                         <div className="video-section">
                             <h3>Video Stream</h3>
                             <div className="video-placeholder">
@@ -234,7 +257,7 @@ function Detection() {
                             </div>
                         </div>
 
-                        {/* REC2: Connection Status & Stats */}
+                        {/* REC2 */}
                         <div className="stats-section">
                             <h3>Connection Status</h3>
                             
@@ -278,39 +301,51 @@ function Detection() {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN - REC3: Detection Results */}
+                    {/* REC3 Detection Results */}
                     <div className="right-column">
                         
                         {/* Current Detection */}
                         {currentAction && currentAction.ready ? (
                             <div className="detection-results">
+
+                                <p className={`stat-value ${isConnected ? 'status-connected' : 'status-disconnected'}`}>
+                                    {isConnected ? "🟢 Connected" : "⚫ Disconnected"}
+                                </p>
+
+                                {isConnected && (
+                                    <button className="btn-red" onClick={stopProcessing}>
+                                        Stop Detection
+                                    </button>
+                                )}
+
                                 <h3>Current Detection</h3>
                                 
                                 <div className={`current-detection ${currentAction.is_violent ? 'violent' : 'normal'}`}>
                                     <div className="detection-action">
-                                        {currentAction.action.toUpperCase()}
+                                        Action: {currentAction.action.toUpperCase()}
                                     </div>
 
-                                    <div className="detection-meta">
+                                    <div >
                                         <div className="meta-item">
                                             <span className="meta-label">Frame:</span>
                                             <span className="meta-value">{currentAction.frame_number}</span>
                                         </div>
                                         <div className="meta-item">
-                                            <span className="meta-label">Confidence:</span>
-                                            <span className="meta-value">{(currentAction.confidence * 100).toFixed(1)}%</span>
+                                            <p className="meta-label">Confidence: <span
+                                            className="meta-value">{(currentAction.confidence * 100).toFixed(1)}%</span></p>
                                         </div>
-                                        <div className="meta-item">
-                                            <span className="meta-label">Violent:</span>
-                                            <span className={`meta-value ${currentAction.is_violent ? 'violent-yes' : 'violent-no'}`}>
+                                        <div className="meta-card">
+                                            <span className="meta-violent-label">Violent:</span>
+                                            <span className={`meta-violent-value ${currentAction.is_violent ? 'violent-yes' : 'violent-no'}`}>
                                                 {currentAction.is_violent ? "YES ⚠️" : "NO"}
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Probabilities */}
+                                    {/* Probs */}
+                                    <h4>Action Probabilities</h4>
                                     <div className="probabilities">
-                                        <h4>Action Probabilities</h4>
+                                        
                                         {Object.entries(currentAction.all_probabilities).map(([action, prob]) => (
                                             <div key={action} className="prob-item">
                                                 <div className="prob-header">
@@ -368,7 +403,6 @@ function Detection() {
                     </div>
                 </div>
 
-                {/* Loading State */}
                 {loading && (
                     <div className="loading-overlay">
                         <div className="loading-spinner"></div>

@@ -1,9 +1,7 @@
-// import { useState } from 'react'
 import {BrowserRouter, Route, Routes, } from 'react-router-dom'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from '/vite.svg'
-import VideoSources from "./pages/video_sources"
-// import './App.css'
+import VideoSources from "./pages/VideoSources"
+import './index.css'
+import Detection from './pages/DetectionMonitering';
 
 function App() {
 
@@ -11,7 +9,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path='/' element={<VideoSources/>} />
-          {/* <Route path='/video_incoming' element={<VideoIncoming/>} /> */}
+          <Route path='/detection-monitering' element={<Detection/>} />
         </Routes>
       </BrowserRouter>
   )
