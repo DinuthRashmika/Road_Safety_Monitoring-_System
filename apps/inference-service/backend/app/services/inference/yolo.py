@@ -70,11 +70,11 @@ class SeatbeltPhoneDetector:
                     phone_conf = max(phone_conf, conf)
                 if cls_id in self.seatbelt_ids:
                     seatbelt_present = True
-                if cls_id in self.drowsiness_ids:
-                    drowsiness_present = True
-                if cls_id in self.yawning_ids:
-                    yawning_present = True
-                if cls_id in self.headpose_ids:
-                    headpose_present = True
+                # if cls_id in self.drowsiness_ids:
+                #     drowsiness_present = True
+                # if cls_id in self.yawning_ids:
+                #     yawning_present = True
+                # if cls_id in self.headpose_ids:
+                #     headpose_present = True
 
         return {"phone_conf": phone_conf, "seatbelt_present": seatbelt_present, "drowsiness_present": drowsiness_present, "yawning_present": yawning_present, "headpose_present": headpose_present}

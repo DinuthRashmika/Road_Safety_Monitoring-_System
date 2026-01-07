@@ -179,11 +179,11 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
             _showSessionEndDialog({
               'sessionId': widget.sessionId,
               'driverName': widget.driverName,
-              'duration': '15:42',
-              'distance': '5.0 km',
+              'duration': '1:42',
+              'distance': '10.0 km',
               'violations': {
-                'No Seatbelt': 0,
-                'Phone in Hand': 1,
+                'No Seatbelt': 8,
+                'Phone in Hand': 2,
                 'Drowsiness': 0,
                 'Inattention': 0,
                 'Lane Deviation': 0,
@@ -200,11 +200,11 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
         _showSessionEndDialog({
           'sessionId': widget.sessionId,
           'driverName': widget.driverName,
-          'duration': '15:42',
-          'distance': '5.0 km',
+          'duration': '1:42',
+          'distance': '10.0 km',
           'violations': {
-            'No Seatbelt': 0,
-            'Phone in Hand': 1,
+            'No Seatbelt': 8,
+            'Phone in Hand': 2,
             'Drowsiness': 0,
             'Inattention': 0,
             'Lane Deviation': 0,
@@ -220,11 +220,11 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
       _showSessionEndDialog({
         'sessionId': widget.sessionId,
         'driverName': widget.driverName,
-        'duration': '15:42',
-        'distance': '5.0 km',
+        'duration': '1:42',
+        'distance': '10.0 km',
         'violations': {
-          'No Seatbelt': 0,
-          'Phone in Hand': 1,
+          'No Seatbelt': 8,
+          'Phone in Hand': 2,
           'Drowsiness': 0,
           'Inattention': 0,
           'Lane Deviation': 0,
@@ -241,11 +241,11 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   Map<String, dynamic> _extractSessionDetails(Map<String, dynamic> data) {
     // Default values (as shown in your screenshot)
     Map<String, dynamic> details = {
-      'duration': '15:42',
-      'distance': '5.0 km',
+      'duration': '1:42',
+      'distance': '10.0 km',
       'violations': {
-        'No Seatbelt': 0,
-        'Phone in Hand': 1,
+        'No Seatbelt': 8,
+        'Phone in Hand': 2,
         'Drowsiness': 0,
         'Inattention': 0,
         'Lane Deviation': 0,
