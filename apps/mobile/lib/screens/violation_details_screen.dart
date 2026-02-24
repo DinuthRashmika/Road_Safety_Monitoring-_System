@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/notification_model.dart';
 import '../services/payment_service.dart';
 import './pay_fine_screen.dart'; // Import the PayFineScreen
+import '../core/api_client.dart'; // ✅ NEW: use same baseUrl as Dio
 
 class ViolationDetailsScreen extends StatefulWidget {
   final NotificationModel notification;
@@ -23,6 +24,31 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
     super.initState();
     _violationDetails = _parseViolationDetails();
     // _isPaid = widget.notification.isPaid; // Uncomment if your model has this
+  }
+
+  // ✅ Build full evidence image URL safely
+  String? _buildViolationImageUrl() {
+    final rel = widget.notification.violationImage;
+    if (rel == null || rel.trim().isEmpty) return null;
+
+    // 1) Convert Windows path slashes to URL slashes
+    final normalized = rel.replaceAll("\\", "/").replaceAll(RegExp(r'^/+'), '');
+
+    // 2) If backend already returns full URL, encode and return
+    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+      return Uri.encodeFull(normalized);
+    }
+
+    // 3) Use the same base URL as your API client
+    final base = ApiClient.dio.options.baseUrl.replaceAll(RegExp(r'\/+$'), '');
+
+    // 4) Build final URL
+    final url = normalized.startsWith("static/")
+        ? "$base/$normalized"
+        : "$base/static/$normalized";
+
+    // 5) Encode spaces and special characters
+    return Uri.encodeFull(url);
   }
 
   // --- Parse violation details from notification message ---
@@ -65,7 +91,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
   }
 
   // --- Logic Helpers ---
-
   double _getFineAmountValue() {
     final regex = RegExp(r'([0-9]+)');
     final match = regex.firstMatch(widget.notification.message);
@@ -91,8 +116,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
   // Navigate to PayFineScreen
   Future<void> _navigateToPayFineScreen() async {
     final amount = _getFineAmountValue();
-    
-    // Navigate to PayFineScreen and wait for result
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -103,13 +127,11 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
       ),
     );
 
-    // If payment was successful (result is true), update the state
     if (result == true && mounted) {
       setState(() {
         _isPaid = true;
       });
-      
-      // Show success message
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Payment successful! Violation marked as paid.'),
@@ -121,7 +143,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
   }
 
   Future<void> _handlePayment() async {
-    // Navigate to payment screen instead of processing payment directly
     await _navigateToPayFineScreen();
   }
 
@@ -132,23 +153,26 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
     final timeStr = DateFormat('h:mm a').format(widget.notification.createdAt);
     final overSpeed = _violationDetails['detectedSpeed'] - _violationDetails['speedLimit'];
 
+    // ✅ Evidence URL
+    final evidenceUrl = _buildViolationImageUrl();
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Violation Details',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 18),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
+            icon: const Icon(Icons.more_vert, color: Colors.white),
             onPressed: () {},
           ),
         ],
@@ -164,14 +188,14 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                 children: [
                   _buildBadge(
                     _violationDetails['violationType'].toUpperCase(),
-                    const Color(0xFFEFF6FF),
-                    const Color(0xFF2563EB),
+                    const Color(0xFF1E3A8A),
+                    const Color(0xFF60A5FA),
                   ),
                   const SizedBox(width: 12),
                   _buildBadge(
                     _isPaid ? 'Paid' : 'Unpaid',
-                    _isPaid ? const Color(0xFFDCFCE7) : const Color(0xFFEFF6FF),
-                    _isPaid ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                    _isPaid ? const Color(0xFF065F46) : const Color(0xFF1E3A8A),
+                    _isPaid ? const Color(0xFF34D399) : const Color(0xFF60A5FA),
                   ),
                 ],
               ),
@@ -181,115 +205,15 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               Text(
                 '${widget.notification.vehiclePlate} • $dateStr • $timeStr • ${widget.notification.location}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF6B7280),
+                style: TextStyle(
+                  color: Colors.grey.shade400,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 24),
 
-              // 3. Video Player UI (Replica) - Show relevant violation image
-              Container(
-                height: 220,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(16),
-                  image: const DecorationImage(
-                    image: NetworkImage(
-                      'https://images.unsplash.com/photo-1542282088-fe8426682b8f?q=80&w=1000&auto=format&fit=crop',
-                    ),
-                    fit: BoxFit.cover,
-                    opacity: 0.6,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Play Button
-                    Center(
-                      child: Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 32),
-                      ),
-                    ),
-                    // Controls Overlay
-                    Positioned(
-                      bottom: 12,
-                      left: 12,
-                      right: 12,
-                      child: Row(
-                        children: [
-                          const Text('00:10', style: TextStyle(color: Colors.white, fontSize: 12)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Container(
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 4,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                  Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Icon(Icons.volume_off, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.fullscreen, color: Colors.white, size: 20),
-                        ],
-                      ),
-                    ),
-                    // Violation type overlay
-                    Positioned(
-                      top: 12,
-                      left: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _violationDetails['violationType'],
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // 4. Stats Row - Dynamically show violation data
+              // 3. Stats Row
               Row(
                 children: [
                   Expanded(
@@ -313,19 +237,20 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                       '+$overSpeed',
                       'over',
                       'Over by',
-                      valueColor: overSpeed > 0 ? const Color(0xFFDC2626) : const Color(0xFF2563EB),
+                      valueColor: overSpeed > 0 ? const Color(0xFFF87171) : const Color(0xFF60A5FA),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // 5. Fine Details Card
+              // 4. Fine Details Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: Colors.grey.shade900,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade800),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,18 +264,18 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF111827),
+                              color: Colors.white,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Due date: ${DateFormat('MMM d, yyyy').format(widget.notification.createdAt.add(const Duration(days: 30)))}',
-                            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                           ),
                           const SizedBox(height: 4),
                           RichText(
                             text: TextSpan(
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                               children: [
                                 const TextSpan(text: 'Severity: '),
                                 TextSpan(
@@ -358,7 +283,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                                       ? 'High'
                                       : 'Medium',
                                   style: const TextStyle(
-                                    color: Color(0xFFDC2626),
+                                    color: Color(0xFFF87171),
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -373,12 +298,12 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                       children: [
                         Text(
                           'Due: ${DateFormat('MMM d, yyyy').format(widget.notification.createdAt.add(const Duration(days: 30)))}',
-                          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Case ID: ${widget.notification.id.substring(0, 6).toUpperCase()}',
-                          style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                         ),
                       ],
                     ),
@@ -387,12 +312,73 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 6. Violation Details Card
+              // ✅ NEW: Evidence Image
+              if (evidenceUrl != null) ...[
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade900,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade800),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
+                          child: Text(
+                            'Violation Evidence',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Image.network(
+                            evidenceUrl,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation(
+                                    const Color(0xFF60A5FA).withOpacity(0.8),
+                                  ),
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stack) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Text(
+                                    'Failed to load image',
+                                    style: TextStyle(color: Colors.grey.shade400),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // 5. Violation Details Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: Colors.grey.shade900,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade800),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,7 +388,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827),
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -417,14 +403,14 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 7. Buttons
+              // 6. Buttons
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _isPaid ? null : _handlePayment,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isPaid ? Colors.grey : const Color(0xFF2563EB),
+                        backgroundColor: _isPaid ? Colors.grey.shade700 : const Color(0xFF2563EB),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
@@ -452,19 +438,20 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        // Handle view video
+                        // Handle view evidence
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         side: const BorderSide(color: Color(0xFF2563EB)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: Colors.transparent,
                       ),
                       child: const Text(
                         'View Evidence',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
-                          color: Color(0xFF2563EB),
+                          color: Color(0xFF60A5FA),
                         ),
                       ),
                     ),
@@ -473,14 +460,14 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 8. Footer
+              // 7. Footer
               Center(
                 child: TextButton(
                   onPressed: () {},
                   child: const Text(
                     'Appeal',
                     style: TextStyle(
-                      color: Color(0xFF2563EB),
+                      color: Color(0xFF60A5FA),
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
@@ -491,7 +478,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               Center(
                 child: Text(
                   'Evidence captured by ${_violationDetails['cameraId']} • Confidence ${_violationDetails['confidence']}%',
-                  style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ),
               const SizedBox(height: 20),
@@ -522,8 +509,9 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade800),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,7 +525,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: valueColor ?? const Color(0xFF111827),
+                  color: valueColor ?? Colors.white,
                 ),
               ),
               const SizedBox(width: 4),
@@ -546,7 +534,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: valueColor ?? const Color(0xFF111827),
+                  color: valueColor ?? Colors.grey.shade300,
                 ),
               ),
             ],
@@ -554,7 +542,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 11),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
           ),
         ],
       ),
@@ -571,8 +559,8 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(
-                color: Color(0xFF6B7280),
+              style: TextStyle(
+                color: Colors.grey.shade400,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
@@ -582,7 +570,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
             child: Text(
               value,
               style: const TextStyle(
-                color: Color(0xFF111827),
+                color: Colors.white,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),

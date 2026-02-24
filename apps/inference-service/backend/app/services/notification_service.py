@@ -1,49 +1,43 @@
-import asyncio
-import logging
-from datetime import datetime
-from app.core.config import settings
-
-logger = logging.getLogger(__name__)
-
-async def send_notification_to_owner(owner: dict, plate_number: str, 
-                                    detection_time: datetime, location: str = None):
-    """Send notification to vehicle owner"""
+async def send_notification_to_owner(
+    owner: dict, 
+    plate_number: str, 
+    violation_type: str, 
+    fine_amount: float,
+    detection_time: datetime, 
+    violation_id: str = None, 
+    location: str = "Unknown",
+    image_path: str = None # <--- NEW ARGUMENT
+):
+    """
+    Creates an In-App Notification record in the database with detailed violation info.
+    """
     try:
-        # For now, just log the notification
-        # In production, you would integrate with:
-        # 1. SMS Gateway (Twilio, etc.)
-        # 2. Email Service
-        # 3. Push Notifications
+        if mongodb.db is None or mongodb.db.db is None:
+            logger.error("Database not connected, cannot save notification")
+            return False
+
+        database = mongodb.db.db
+
+        message = f"You have been fined LKR {fine_amount} for '{violation_type}' at {location}."
+        v_id = violation_id if violation_id else str(ObjectId())
+
+        # Create the notification document
+        notification = notification_doc(
+            owner_id=str(owner.get('id') or owner.get('_id')), # Handle both id formats
+            vehicle_plate=plate_number,
+            violation_id=v_id,
+            message=message,
+            location=location,
+            violation_type=violation_type,
+            fine_amount=fine_amount,
+            violation_image=image_path # <--- Pass the image path
+        )
+
+        await database.notifications.insert_one(notification)
         
-        message = f"🚗 Vehicle Detection Alert\n"
-        message += f"Plate Number: {plate_number}\n"
-        message += f"Time: {detection_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-        if location:
-            message += f"Location: {location}\n"
-        message += f"\n{settings.NOTIFICATION_MESSAGE}"
-        
-        logger.info(f"Notification for owner {owner.get('email')}:\n{message}")
-        
-        # Example: Send SMS (implement based on your SMS provider)
-        # await send_sms(owner['phone'], message)
-        
-        # Example: Send Email
-        # await send_email(owner['email'], "Vehicle Detection Alert", message)
-        
+        logger.info(f"✅ Notification saved with Image: {violation_type} for {plate_number}")
         return True
-        
+
     except Exception as e:
-        logger.error(f"Failed to send notification: {e}")
+        logger.error(f"❌ Failed to save notification: {e}")
         return False
-
-async def send_sms(phone_number: str, message: str) -> bool:
-    """Send SMS notification"""
-    # Implement SMS gateway integration
-    # Using Twilio, Vonage, or local SMS gateway
-    pass
-
-async def send_email(email: str, subject: str, message: str) -> bool:
-    """Send email notification"""
-    # Implement email service integration
-    # Using SMTP, SendGrid, AWS SES, etc.
-    pass

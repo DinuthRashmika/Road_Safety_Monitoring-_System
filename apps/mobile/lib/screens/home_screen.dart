@@ -282,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
                         child: _EnhancedSectionHeader(
                           title: 'Protective Alerts',
-                          subtitle: 'Stay updated with important notifications',
+                          subtitle: 'important notifications',
                           actionText: 'View all',
                           onAction: () =>
                               Navigator.pushNamed(context, '/alerts'),

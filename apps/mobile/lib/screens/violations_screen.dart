@@ -65,7 +65,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFD),
+      backgroundColor: Colors.black, // Changed to black
       body: CustomScrollView(
         slivers: [
           // Enhanced App Bar with gradient
@@ -75,9 +75,9 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
             pinned: true,
             snap: false,
             elevation: 0,
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            shadowColor: Colors.black.withOpacity(0.08),
+            backgroundColor: Colors.black, // Changed to black
+            surfaceTintColor: Colors.black,
+            shadowColor: Colors.black.withOpacity(0.3),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
                 decoration: const BoxDecoration(
@@ -85,8 +85,8 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF2563EB),
-                      Color(0xFF1D4ED8),
+                      Color(0xFF0F172A), // Dark blue
+                      Color(0xFF1E293B), // Darker blue
                     ],
                   ),
                 ),
@@ -98,7 +98,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                       children: [
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: IconButton(
@@ -128,7 +128,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.white70,
+                                  color: Colors.grey,
                                 ),
                               ),
                             ],
@@ -136,7 +136,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                         ),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: IconButton(
@@ -165,7 +165,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: Colors.white, // White text
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -187,24 +187,24 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                           label: 'Critical',
                           isSelected: _selectedFilter == 'Critical',
                           onTap: () => setState(() => _selectedFilter = 'Critical'),
-                          backgroundColor: const Color(0xFFDC2626),
-                          textColor: Colors.white,
+                          backgroundColor: const Color(0xFF7F1D1D), // Dark red
+                          textColor: const Color(0xFFFCA5A5), // Light red
                         ),
                         const SizedBox(width: 12),
                         _EnhancedFilterChip(
                           label: 'High',
                           isSelected: _selectedFilter == 'High',
                           onTap: () => setState(() => _selectedFilter = 'High'),
-                          backgroundColor: const Color(0xFFEA580C),
-                          textColor: Colors.white,
+                          backgroundColor: const Color(0xFF7C2D12), // Dark orange
+                          textColor: const Color(0xFFFDBA74), // Light orange
                         ),
                         const SizedBox(width: 12),
                         _EnhancedFilterChip(
                           label: 'Medium',
                           isSelected: _selectedFilter == 'Medium',
                           onTap: () => setState(() => _selectedFilter = 'Medium'),
-                          backgroundColor: const Color(0xFFCA8A04),
-                          textColor: Colors.white,
+                          backgroundColor: const Color(0xFF713F12), // Dark yellow
+                          textColor: const Color(0xFFFCD34D), // Light yellow
                         ),
                       ],
                     ),
@@ -222,9 +222,9 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return SliverFillRemaining(
                     child: Center(
-                      child: CircularProgressIndicator.adaptive(
+                      child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation(
-                          const Color(0xFF2563EB).withOpacity(0.8),
+                          const Color(0xFF60A5FA).withOpacity(0.8),
                         ),
                       ),
                     ),
@@ -239,12 +239,12 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
+                              color: Colors.grey.shade900, // Dark background
                               borderRadius: BorderRadius.circular(40),
                             ),
                             child: const Icon(
                               Icons.error_outline_rounded,
-                              color: Color(0xFF64748B),
+                              color: Colors.grey, // Grey icon
                               size: 32,
                             ),
                           ),
@@ -254,15 +254,15 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF475569),
+                              color: Colors.grey, // Light grey
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             '${snapshot.error}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFF94A3B8),
+                              color: Colors.grey.shade500, // Medium grey
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -302,11 +302,11 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                             width: 100,
                             height: 100,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0F9FF),
+                              color: const Color(0xFF1E293B), // Dark blue
                               borderRadius: BorderRadius.circular(50),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF0EA5E9).withOpacity(0.1),
+                                  color: const Color(0xFF0EA5E9).withOpacity(0.2),
                                   blurRadius: 20,
                                   offset: const Offset(0, 8),
                                 ),
@@ -314,7 +314,7 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                             ),
                             child: const Icon(
                               Icons.check_circle_outline_rounded,
-                              color: Color(0xFF0EA5E9),
+                              color: Color(0xFF60A5FA), // Light blue
                               size: 40,
                             ),
                           ),
@@ -324,17 +324,17 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
+                              color: Colors.white, // White text
                             ),
                           ),
                           const SizedBox(height: 12),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 40),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 40),
                             child: Text(
                               'Great job! You have no traffic violations. Keep driving safely.',
                               style: TextStyle(
                                 fontSize: 15,
-                                color: Color(0xFF64748B),
+                                color: Colors.grey.shade400, // Light grey
                                 fontWeight: FontWeight.w500,
                                 height: 1.5,
                               ),
@@ -388,22 +388,22 @@ class _EnhancedViolationCard extends StatelessWidget {
   Color _getSeverityColor(String severity) {
     switch (severity) {
       case 'Critical':
-        return const Color(0xFFDC2626);
+        return const Color(0xFFF87171); // Light red
       case 'High':
-        return const Color(0xFFEA580C);
+        return const Color(0xFFFB923C); // Light orange
       default:
-        return const Color(0xFFCA8A04);
+        return const Color(0xFFFBBF24); // Light yellow
     }
   }
 
   Color _getSeverityBackgroundColor(String severity) {
     switch (severity) {
       case 'Critical':
-        return const Color(0xFFFEE2E2);
+        return const Color(0xFF431C1C); // Dark red
       case 'High':
-        return const Color(0xFFFFEDD5);
+        return const Color(0xFF4A271A); // Dark orange
       default:
-        return const Color(0xFFFEF3C7);
+        return const Color(0xFF4A3710); // Dark yellow
     }
   }
 
@@ -422,23 +422,23 @@ class _EnhancedViolationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade900, // Dark card
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1D4ED8).withOpacity(0.08),
+            color: Colors.black.withOpacity(0.3), // Darker shadow
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: const Color(0xFF1D4ED8).withOpacity(0.02),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
         border: Border.all(
           color: notification.isRead
-              ? const Color(0xFFF1F5F9)
+              ? Colors.grey.shade800 // Dark border
               : const Color(0xFF2563EB).withOpacity(0.3),
           width: notification.isRead ? 1.5 : 2,
         ),
@@ -484,7 +484,7 @@ class _EnhancedViolationCard extends StatelessWidget {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 17,
-                                    color: Color(0xFF0F172A),
+                                    color: Colors.white, // White text
                                     letterSpacing: -0.3,
                                   ),
                                   maxLines: 1,
@@ -493,8 +493,8 @@ class _EnhancedViolationCard extends StatelessWidget {
                                 const SizedBox(height: 4),
                                 Text(
                                   notification.vehiclePlate,
-                                  style: const TextStyle(
-                                    color: Color(0xFF475569),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade400, // Light grey
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -513,7 +513,7 @@ class _EnhancedViolationCard extends StatelessWidget {
                           color: const Color(0xFF2563EB),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white,
+                            color: Colors.grey.shade900, // Match card background
                             width: 2,
                           ),
                           boxShadow: [
@@ -562,18 +562,18 @@ class _EnhancedViolationCard extends StatelessWidget {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFD),
+                        color: Colors.grey.shade800, // Dark background
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFFE2E8F0),
+                          color: Colors.grey.shade700,
                           width: 1,
                         ),
                       ),
                       child: Text(
                         DateFormat('MMM d, h:mm a')
                             .format(notification.createdAt.toLocal()),
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
+                        style: TextStyle(
+                          color: Colors.grey.shade400, // Light grey
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -589,14 +589,14 @@ class _EnhancedViolationCard extends StatelessWidget {
                     Icon(
                       Icons.location_on_outlined,
                       size: 16,
-                      color: const Color(0xFF64748B).withOpacity(0.8),
+                      color: Colors.grey.shade500,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         notification.location,
                         style: TextStyle(
-                          color: const Color(0xFF475569).withOpacity(0.9),
+                          color: Colors.grey.shade300,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           height: 1.4,
@@ -623,7 +623,7 @@ class _EnhancedViolationCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2563EB).withOpacity(0.3),
+                          color: const Color(0xFF2563EB).withOpacity(0.5), // Brighter shadow
                           blurRadius: 8,
                           offset: const Offset(0, 4),
                         ),
@@ -692,10 +692,10 @@ class _EnhancedFilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? backgroundColor : Colors.white,
+          color: isSelected ? backgroundColor : Colors.grey.shade900, // Dark background when not selected
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? backgroundColor : const Color(0xFFE2E8F0),
+            color: isSelected ? backgroundColor : Colors.grey.shade700,
             width: isSelected ? 0 : 1.5,
           ),
           boxShadow: isSelected
@@ -722,14 +722,14 @@ class _EnhancedFilterChip extends StatelessWidget {
                 height: 6,
                 margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: textColor,
                   shape: BoxShape.circle,
                 ),
               ),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? textColor : const Color(0xFF64748B),
+                color: isSelected ? textColor : Colors.grey.shade400,
                 fontSize: 15,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                 letterSpacing: -0.2,

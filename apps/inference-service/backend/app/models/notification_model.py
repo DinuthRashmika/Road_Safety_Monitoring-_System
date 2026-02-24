@@ -25,7 +25,7 @@ def notification_doc(
         # Detailed Info for App
         "violationType": violation_type,
         "fineAmount": fine_amount,
-        "violationImage": violation_image, # <--- Store the image path
+        "violationImage": violation_image, # <--- Stores relative path (e.g. "detections/2026-01-07/img.jpg")
         
         "isRead": False,
         "type": "violation_alert",
