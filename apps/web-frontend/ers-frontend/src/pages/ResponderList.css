@@ -1,0 +1,230 @@
+.page-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.create-responder-button {
+    background-color: #28a745; /* Green */
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background-color 0.2s;
+}
+
+.create-responder-button:hover {
+    background-color: #218838;
+}
+
+.responder-list-container {
+    margin-top: 10px;
+}
+
+.responder-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 5px solid;
+}
+
+.responder-card:has(.responder-role:contains("police")) { border-left-color: #0275d8; }
+.responder-card:has(.responder-role:contains("ambulance")) { border-left-color: #5cb85c; }
+.responder-card:has(.responder-role:contains("fire")) { border-left-color: #d9534f; }
+.responder-card:has(.responder-role:contains("admin")) { border-left-color: #f0ad4e; }
+
+/* Fallback for :has support */
+.responder-card { border-left-color: #ccc; } 
+
+.responder-left {
+    flex-grow: 1;
+}
+
+.responder-right {
+    display: flex;
+    align-items: center;
+    gap: 15px; 
+}
+
+.responder-info h4 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.responder-role {
+    margin: 4px 0 0 0;
+    font-size: 0.85rem;
+    color: #777;
+    text-transform: capitalize;
+}
+
+.responder-details {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    font-size: 0.9rem;
+    margin-right: 15px;
+}
+
+.responder-details span {
+    display: block;
+}
+
+.responder-details .location {
+    color: #555;
+    margin-top: 5px;
+    font-size: 0.8rem;
+}
+
+
+.delete-responder-button {
+    background-color: #E4080A;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+
+.delete-responder-button:hover:not(:disabled) {
+    background-color: #c00;
+}
+
+.edit-responder-button {
+    background-color: #0275d8; 
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+.edit-responder-button:hover:not(:disabled) {
+    background-color: #015a99; 
+}
+
+.error-message {
+    color: #E4080A;
+    padding: 10px;
+    background-color: #fcebeb;
+    border: 1px solid #E4080A;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
+
+/* MODAL STYLES REUSED FROM PREVIOUS STEPS (Confirmed mostly same) */
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    width: 90%;
+    max-width: 800px; 
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #888;
+}
+
+.modal-header-title {
+    margin-bottom: 20px;
+    border-bottom: 2px solid #E4080A;
+    padding-bottom: 8px;
+    color: #333;
+}
+
+.form-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    background-color: #fcfcfc;
+    border-radius: 6px;
+}
+
+.form-section h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #555; 
+    font-size: 1rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 600;
+    color: #555;
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem; 
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; 
+    font-size: 1rem;
+}
+
+.form-group-grid {
+    display: flex;
+    gap: 15px;
+}
+.form-group-grid .form-group {
+    flex: 1;
+}
+
+.modal-footer {
+    margin-top: 24px;
+    border-top: 1px solid #eee;
+    padding-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
