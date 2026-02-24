@@ -22,14 +22,14 @@ class PlateDetector:
     def load_model(self):
         """Load YOLO model"""
         try:
-            if not os.path.exists(settings.YOLO_MODEL):
-                raise FileNotFoundError(f"Model file not found: {settings.YOLO_MODEL}")
+            if not os.path.exists(settings.YOLO_MODELS):
+                raise FileNotFoundError(f"Model file not found: {settings.YOLO_MODELS}")
             
             # Load YOLOv5 model
             self.model = torch.hub.load('ultralytics/yolov5', 'custom', 
-                                       path=settings.YOLO_MODEL, force_reload=True)
+                                       path=settings.YOLO_MODELS, force_reload=True)
             self.model.conf = self.confidence_threshold
-            logger.info(f"Model loaded from {settings.YOLO_MODEL}")
+            logger.info(f"Model loaded from {settings.YOLO_MODELS}")
             return True
         except Exception as e:
             logger.error(f"Failed to load model: {e}")

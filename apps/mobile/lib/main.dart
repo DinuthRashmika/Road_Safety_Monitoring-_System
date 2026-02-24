@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_stripe/flutter_stripe.dart'; 
-import 'services/payment_service.dart'; 
+import 'package:flutter_stripe/flutter_stripe.dart';
+import 'services/payment_service.dart';
+
 // ... keep your other screen imports ...
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -12,13 +13,17 @@ import 'screens/vehicle_detail_screen.dart';
 import 'screens/vehicles_screen.dart';
 import 'screens/violations_screen.dart';
 
+// ✅ add these (only)
+import 'screens/start_trip_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); 
+  WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Stripe with your PUBLISHABLE Key
-  await PaymentService.initializeStripe('pk_test_51ShA9KBSOx34RK9GubYkjaMDWdHtXrCzKOqkm0kJyDEw2x4P9toIzs2QwI0h9P3Cwau6uYbzY7uHQV5Dd4NEGhjD00XZwLgzVp');
-  
+  await PaymentService.initializeStripe(
+    'pk_test_51ShA9KBSOx34RK9GubYkjaMDWdHtXrCzKOqkm0kJyDEw2x4P9toIzs2QwI0h9P3Cwau6uYbzY7uHQV5Dd4NEGhjD00XZwLgzVp',
+  );
+
   runApp(const RoadGuruApp());
 }
 
@@ -27,7 +32,6 @@ class RoadGuruApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ... your existing theme code ...
     final theme = ThemeData(
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFF2563EB),
@@ -64,9 +68,12 @@ class RoadGuruApp extends StatelessWidget {
         '/vehicles': (context) => const VehiclesScreen(),
         '/violations': (context) => const ViolationsScreen(),
         '/forgot': (context) => Scaffold(
-          appBar: AppBar(title: const Text('Reset Password')),
-          body: const Center(child: Text('Password Reset Feature Coming Soon')),
-        ),
+              appBar: AppBar(title: const Text('Reset Password')),
+              body: const Center(child: Text('Password Reset Feature Coming Soon')),
+            ),
+
+        // ✅ NOW Home Live Monitoring button goes to StartTripScreen
+        '/monitor': (context) => const StartTripScreen(),
       },
     );
   }

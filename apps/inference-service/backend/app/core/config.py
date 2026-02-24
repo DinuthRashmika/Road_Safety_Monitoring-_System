@@ -23,10 +23,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "production"] = "development"
     
     # Plate Detection Model
-    YOLO_MODEL: str = "weights/licence.pt"
+    YOLO_MODELS: str = "weights/licence.pt"
     
     # --- NEW: Violation Model & Fines ---
-    VIOLATION_MODEL: str = "weights/best.pt"
+    VIOLATION_MODEL: str = "weights/bests.pt"
 
     # Violation Fines (Currency: LKR)
     # Make sure these keys match the CLASS NAMES inside your violation.pt model
@@ -54,6 +54,10 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
 
+# ---- DMS (seatbelt/phone stage) ----
+    YOLO_MODEL: str = "weights/best.pt"  # path to your trained model
+    MAX_FPS: int = 2
+    LOG_LEVEL: str = "INFO"
     
 
 settings = Settings()

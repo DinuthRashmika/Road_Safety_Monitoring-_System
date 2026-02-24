@@ -6,6 +6,8 @@ async def ensure_indexes():
     if mongodb.db is None:
         return
 
+    database = mongodb.db.db  # ✅ real motor database
+
     # Users collection indexes
     await mongodb.db.users.create_index("email", unique=True)
     await mongodb.db.users.create_index("nic", unique=True)
@@ -27,3 +29,7 @@ async def ensure_indexes():
     await mongodb.db.notifications.create_index([("ownerId", ASCENDING), ("createdAt", DESCENDING)])
     await mongodb.db.notifications.create_index([("type", ASCENDING), ("createdAt", DESCENDING)])
     await mongodb.db.notifications.create_index("violationId")
+    
+    # ✅ DMS
+    await database.sessions.create_index([("ownerId", 1), ("startedAt", -1)])
+    await database.events.create_index([("sessionId", 1), ("createdAt", -1)])

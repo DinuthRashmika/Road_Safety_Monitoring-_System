@@ -2,8 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict
 
 class SessionCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
-
+    distanceKm:float = Field(..., gt=0)
 class SessionOut(BaseModel):
     id: str
     name: str

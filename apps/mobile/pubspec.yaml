@@ -22,6 +22,11 @@ dependencies:
   dotted_border: ^2.1.0
   cached_network_image: ^3.3.0
   flutter_stripe: ^9.5.0  
+  web_socket_channel: ^3.0.3
+  yuv_to_png: ^1.0.1 
+  audioplayers: ^6.5.1
+  camera_windows: ^0.2.1
+  geolocator: ^12.0.0
 
 # REMOVED INCORRECT ANDROID CODE FROM HERE
 

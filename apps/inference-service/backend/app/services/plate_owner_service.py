@@ -29,8 +29,8 @@ class PlateOwnerService:
         try:
             from ultralytics import YOLO
             # 1. Load Plate Detection Model
-            self.plate_model = YOLO(settings.YOLO_MODEL)
-            logger.info(f"✅ Plate Model loaded: {settings.YOLO_MODEL}")
+            self.plate_model = YOLO(settings.YOLO_MODELS)
+            logger.info(f"✅ Plate Model loaded: {settings.YOLO_MODELS}")
 
             # 2. Load Violation Detection Model
             self.violation_model = YOLO(settings.VIOLATION_MODEL)
