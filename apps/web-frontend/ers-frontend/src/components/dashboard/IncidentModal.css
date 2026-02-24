@@ -1,0 +1,214 @@
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #888;
+}
+
+.modal-body {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+}
+
+.modal-left, .modal-right {
+  flex: 1;
+}
+
+.mt-2 { margin-top: 16px; }
+
+.analysis-fire {
+  color: #E4080A;
+  font-weight: 700;
+}
+
+.role-tags-modal {
+  display: flex;
+  gap: 8px;
+}
+
+.role-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  text-transform: capitalize;
+  display: inline-block;
+}
+.role-tag.police { background-color: #0275d8; }
+.role-tag.ambulance { background-color: #5cb85c; }
+.role-tag.fire { background-color: #E4080A; }
+
+.map-placeholder {
+  width: 100%;
+  height: 200px;
+  background: #eee;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #888;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.scene-image-placeholder {
+  width: 100%;
+  min-height: 200px;
+  background: #f5f5f5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #888;
+  font-weight: 600;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.modal-footer {
+  margin-top: 24px;
+  border-top: 1px solid #eee;
+  padding-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+}
+
+.btn-accept, .btn-directions, .btn-action {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: white;
+  transition: background 0.2s;
+}
+
+.btn-accept {
+  background-color: #E4080A;
+}
+.btn-accept:disabled {
+  background-color: #aaa;
+}
+
+.btn-directions {
+  background-color: #0275d8;
+}
+
+.btn-action.enroute {
+  background-color: #f0ad4e; 
+}
+.btn-action.enroute:hover {
+  background-color: #ec971f;
+}
+
+.btn-action.arrived {
+  background-color: #5bc0de; 
+}
+.btn-action.arrived:hover {
+  background-color: #31b0d5;
+}
+
+.btn-action.resolve {
+  background-color: #5cb85c; 
+}
+.btn-action.resolve:hover {
+  background-color: #449d44;
+}
+
+.btn-action:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.time-display-group {
+  margin-bottom: 10px;
+  padding: 5px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.time-row { margin: 2px 0; }
+.time-ago-text { color: #d9534f; margin-left: 8px; font-weight: bold; }
+.evidence-iframe { border: none; }
+.evidence-image { max-width: 100%; max-height: 250px; object-fit: contain; }
+.no-image-text { color: #888; }
+.view-original-container { text-align: right; margin-top: 5px; }
+.view-original-link { font-size: 0.85rem; color: #007bff; }
+.image-load-error { color: #666; font-size: 0.8rem; }
+
+.admin-responders-box {
+  margin-top: 20px;
+  background: #fafafa;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+.resp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.resp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.resp-row.accepted { border-left: 4px solid #0275d8; }
+.resp-row.enroute { border-left: 4px solid #f0ad4e; }
+.resp-row.arrived { border-left: 4px solid #5bc0de; }
+.resp-row.resolved { border-left: 4px solid #5cb85c; background-color: #f6ffed; opacity: 0.8; }
+
+.resp-row.pending {
+  border-left: 4px solid #E4080A;
+  background-color: #fff1f0;
+  border-style: dashed; 
+  border-width: 1px 1px 1px 4px;
+}
+
+.resp-info { display: flex; align-items: center; }
+
+.resp-name { font-weight: 600; font-size: 0.9rem; }
+
+.resp-name-pending { 
+  font-weight: 400; 
+  font-style: italic; 
+  color: #888; 
+}
+
+.resp-status { font-size: 0.8rem; font-weight: bold; color: #555; }

@@ -1,0 +1,156 @@
+.incident-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  margin-bottom: 16px;
+  border-left: 5px solid #ccc;
+  transition: box-shadow 0.3s ease;
+  position: relative; /* For popup positioning */
+}
+
+.incident-card:hover {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.incident-card.critical { border-color: #E4080A; }
+.incident-card.high { border-color: #f0ad4e; }
+.incident-card.medium { border-color: #5bc0de; }
+.incident-card.low { border-color: #5cb85c; }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.severity-tag {
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.severity-tag.critical { color: #E4080A; }
+.severity-tag.high { color: #f0ad4e; }
+.severity-tag.medium { color: #5bc0de; }
+.severity-tag.low { color: #5cb85c; }
+
+.incident-id {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+/* NEW STYLES FOR ADMIN ALERT */
+.pending-alert-icon {
+  background-color: #E4080A;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  position: relative;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.pending-popup {
+  position: absolute;
+  top: 25px;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  z-index: 100;
+  min-width: 150px;
+  color: #333;
+}
+
+.pending-popup ul {
+  list-style: none;
+  padding: 0;
+  margin: 5px 0 0 0;
+}
+.pending-popup li {
+  text-transform: capitalize;
+  font-weight: 600;
+  color: #E4080A;
+}
+
+/* Existing styles below... */
+.card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+}
+
+.card-content h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.25rem;
+}
+.card-content p {
+  margin: 0 0 12px 0;
+  color: #555;
+}
+
+.card-tags {
+  display: flex;
+  gap: 8px;
+}
+.role-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  color: #fff;
+  text-transform: capitalize;
+}
+.role-tag.police { background-color: #0275d8; }
+.role-tag.ambulance { background-color: #5cb85c; }
+.role-tag.fire { background-color: #E4080A; }
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.score-badge {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.accept-button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #E4080A;
+  transition: background-color 0.3s ease;
+}
+.accept-button:hover {
+  background-color: #E4080A;
+}
+
+.view-details-button {
+  background-color: #E4080A; 
+  color: #fff;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.view-details-button:hover {
+  background-color: #E4080A; 
+}
