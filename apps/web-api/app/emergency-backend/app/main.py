@@ -13,6 +13,7 @@ from app.modules.telemetry.routes import router as telemetry_router
 from app.modules.hub.ingest_routes import router as hub_router
 from app.modules.routing.routes import router as routing_router
 from app.seed.seed_cli import create_admin
+from app.jobs.scheduler import start_scheduler
 
 app = FastAPI(title=settings.APP_NAME, default_response_class=ORJSONResponse)
 
@@ -29,6 +30,8 @@ async def on_startup():
     db = get_db()
     await ensure_all(db)
     await create_admin()  
+    print("Starting AI Validation & Database Polling Worker...")
+    start_scheduler()
 
 @app.get("/health")
 async def health():
