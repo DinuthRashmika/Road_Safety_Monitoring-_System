@@ -5,11 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, validator
 from typing import List
-# from violence_detection_app.app.config.config import settings
 from violence_detection_app.app.api.routes.video_route import router as video_router
 from violence_detection_app.app.api.routes.lrcn_routes import router as detection_router
 from violence_detection_app.app.api.routes.lrcn_routes import ws_router
-# from violence_detection_app.app.api.routes.websocket_route import ws_router
 
 app = FastAPI(
     title = "Violence Detection APp",

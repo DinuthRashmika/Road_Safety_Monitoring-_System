@@ -118,7 +118,7 @@ function Detection() {
 
                 switch (message.type) {
                     case "lrcn_result":
-                        handleLrcnResult(message.data.lrcn);
+                        handleLrcnResult(message.data);
                         break;
 
                     case "status":
@@ -162,19 +162,31 @@ function Detection() {
     };
 
     const handleLrcnResult = (data) => {
-        // Update current action (most recent)
-        setCurrentAction(data);
+        console.log("Raw data received:", data);
 
-        // Add to results history (keep last 50 for performance)
+        // Merge all data together
+        const mergedData = {
+            ...data.lrcn,
+            frame_number: data.frame_number,
+            timestamp: data.timestamp,
+            buffer_progress: data.buffer_progress,
+            buffer_size: data.buffer_size,
+            yolo_detections: data.yolo?.detections || [],
+            total_objects: data.yolo?.total_objects || 0
+        };
+
+        console.log("Merged data:", mergedData);
+
+        setCurrentAction(mergedData);
+
         setLrcnResults((prev) => {
-            const newResults = [...prev, data];
+            const newResults = [...prev, mergedData];
             return newResults.slice(-50);
         });
 
-        // Update status
-        if (data.ready) {
+        if (mergedData.ready) {
             setProcessingStatus(
-                `Frame ${data.frame_number}: ${data.action.toUpperCase()} (${(data.confidence * 100).toFixed(1)}%)`
+                `Frame ${mergedData.frame_number}: ${mergedData.action.toUpperCase()} (${(mergedData.confidence * 100).toFixed(1)}%)`
             );
         } else {
             setProcessingStatus(
@@ -194,7 +206,7 @@ function Detection() {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    session_id: videoProcessingInfo.session_id
+                    source_path: videoProcessingInfo.session_id
                 }),
             });
 
@@ -234,14 +246,6 @@ function Detection() {
     return (
         <Layout>
             <div className="detection-container">
-
-                {/* <div className="detection-header">
-                    <button className="btn-grey" onClick={handleBackToSources}>
-                        Back to Sources
-                    </button>
-                    <h2>Real-Time Detection Monitor</h2> */}
-                    
-                {/* </div> */}
 
                 <div className="detection-grid">
                     
@@ -304,19 +308,31 @@ function Detection() {
                     {/* REC3 Detection Results */}
                     <div className="right-column">
                         
+                        {/*FIXED: Header always visible */}
+                        <div className="detection-header-section">
+                            <p className={`stat-value ${isConnected ? 'status-connected' : 'status-disconnected'}`}>
+                                {isConnected ? "🟢 Connected" : "⚫ Disconnected"}
+                            </p>
+
+                            {/* Show stop button if session exists (even after stopping) */}
+                            {videoProcessingInfo && (
+                                <button 
+                                    className="btn-red" 
+                                    onClick={stopProcessing}
+                                    disabled={!isConnected}
+                                    style={{
+                                        opacity: isConnected ? 1 : 0.5,
+                                        cursor: isConnected ? 'pointer' : 'not-allowed'
+                                    }}
+                                >
+                                    {isConnected ? 'Stop Detection' : 'Detection Stopped'}
+                                </button>
+                            )}
+                        </div>
+
                         {/* Current Detection */}
                         {currentAction && currentAction.ready ? (
                             <div className="detection-results">
-
-                                <p className={`stat-value ${isConnected ? 'status-connected' : 'status-disconnected'}`}>
-                                    {isConnected ? "🟢 Connected" : "⚫ Disconnected"}
-                                </p>
-
-                                {isConnected && (
-                                    <button className="btn-red" onClick={stopProcessing}>
-                                        Stop Detection
-                                    </button>
-                                )}
 
                                 <h3>Current Detection</h3>
                                 
@@ -325,7 +341,7 @@ function Detection() {
                                         Action: {currentAction.action.toUpperCase()}
                                     </div>
 
-                                    <div >
+                                    <div>
                                         <div className="meta-item">
                                             <span className="meta-label">Frame:</span>
                                             <span className="meta-value">{currentAction.frame_number}</span>
@@ -337,15 +353,14 @@ function Detection() {
                                         <div className="meta-card">
                                             <span className="meta-violent-label">Violent:</span>
                                             <span className={`meta-violent-value ${currentAction.is_violent ? 'violent-yes' : 'violent-no'}`}>
-                                                {currentAction.is_violent ? "YES ⚠️" : "NO"}
+                                                {currentAction.is_violent ? "YES " : "NO"}
                                             </span>
                                         </div>
                                     </div>
 
-                                    {/* Probs */}
-                                    <h4>Action Probabilities</h4>
+                                    {/* LRCN Action Probabilities */}
                                     <div className="probabilities">
-                                        
+                                        <h4>Action Probabilities</h4>
                                         {Object.entries(currentAction.all_probabilities).map(([action, prob]) => (
                                             <div key={action} className="prob-item">
                                                 <div className="prob-header">
@@ -361,6 +376,31 @@ function Detection() {
                                             </div>
                                         ))}
                                     </div>
+                                    
+                                    {/* YOLO stays visible even after stopping */}
+                                    {currentAction.yolo_detections && currentAction.yolo_detections.length > 0 && (
+                                        <div className="yolo-detections">
+                                            <h4>Detected Objects ({currentAction.total_objects})</h4>
+                                            {currentAction.yolo_detections.map((detection, index) => (
+                                                <div key={index} className="yolo-item">
+                                                    <div className="yolo-header">
+                                                        <span className="yolo-object">{detection.object.toUpperCase()}</span>
+                                                        <span className="yolo-conf">{(detection.confidence * 100).toFixed(1)}%</span>
+                                                    </div>
+                                                    <div className="yolo-bar-container">
+                                                        <div 
+                                                            className="yolo-bar-fill"
+                                                            style={{ 
+                                                                width: `${detection.confidence * 100}%`,
+                                                                background: 'linear-gradient(90deg, #dc2626 0%, #ef4444 100%)'
+                                                            }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                 </div>
 
                                 {/* Statistics when complete */}
@@ -385,7 +425,7 @@ function Detection() {
                                                         <span className="history-frame">Frame {result.frame_number}</span>
                                                         <span className="history-action">{result.action.toUpperCase()}</span>
                                                         <span className="history-conf">{(result.confidence * 100).toFixed(1)}%</span>
-                                                        {result.is_violent && <span className="history-warning">⚠️</span>}
+                                                        {result.is_violent && <span className="history-warning">warning</span>}
                                                     </div>
                                                 )
                                             ))}

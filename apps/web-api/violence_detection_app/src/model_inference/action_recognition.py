@@ -303,10 +303,7 @@ class ActionRecognition:
         print(f"{'='*70}\n")
     
     
-    def process_video_file_test(self, 
-                          video_path: str,
-                          display: bool = True,
-                          save_output: str = None) -> Dict:
+    def process_video_file_test(self, video_path: str,display: bool = True, save_output: str = None) -> Dict:
         """
         Process entire video file (for testing/batch processing)
         
@@ -330,7 +327,7 @@ class ActionRecognition:
         cap = cv2.VideoCapture(video_path)
         
         if not cap.isOpened():
-            print(f"❌ Error: Cannot open video: {video_path}")
+            print(f"Error: Cannot open video: {video_path}")
             return {}
         
         # Get properties
@@ -366,7 +363,7 @@ class ActionRecognition:
                 ret, frame = cap.read()
                 
                 if not ret:
-                    print("📹 End of video")
+                    print("End of video")
                     break
                 
                 # Process frame
@@ -507,7 +504,7 @@ def main():
     detector.process_video_file_test(
         video_path= config.VIDEO_PATH,  # Or 0 for webcam
         display=True,
-        save_output='lrcn_output.mp4'
+        save_output='lrcn_output_demo.mp4'
     )
 
 

@@ -6,7 +6,7 @@ const ws = new WebSocket("ws://localhost:8000/ws/detection/session_abc123");
 
 // Event: connection opened
 ws.onopen = () => {
-  console.log("✅ WebSocket connected");
+  console.log(" WebSocket connected");
 };
 
 // Event: receiving messages

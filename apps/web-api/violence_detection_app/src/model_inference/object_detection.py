@@ -276,7 +276,7 @@ class ObjectDetection:
                 # ==========================================
                 # DRAW DETECTIONS ON FRAME
                 # ==========================================
-                display_frame = self.draw_detections_on_frame(
+                display_frame = self.draw_detections_on_frame_test(
                     frame, 
                     detections, 
                     frame_index
@@ -381,7 +381,7 @@ class ObjectDetection:
                 detections = self.detect_in_frame(frame, frame_index)
                 
                 # Draw detections
-                display_frame = self.draw_detections_on_frame(
+                display_frame = self.draw_detections_on_frame_test(
                     frame, 
                     detections, 
                     frame_index
@@ -413,7 +413,7 @@ class ObjectDetection:
     def save_frame_with_detections(self, frame: np.ndarray, detections: List[Dict], output_path: str, frame_index: int = None):
 
         # Draw detections on frame
-        display_frame = self.draw_detections_on_frame(frame, detections, frame_index)
+        display_frame = self.draw_detections_on_frame_test(frame, detections, frame_index)
         
         # Save
         cv2.imwrite(output_path, display_frame)
@@ -438,17 +438,17 @@ if __name__ == "__main__":
     # Testttttt Process video file
     stats = detector.process_video_test(
         video_path=config.VIDEO_PATH,
-        output_path=config.OUTPUT_DIR + '/result3.mp4',
+        output_path=config.OUTPUT_DIR + '/yolo_output_demo.mp4',
         display=True  # Show video while processing
     )
     
-    # Example 2: Process webcam (uncomment to use)
+    # Process webcam
     # detector.process_webcam(
     #     camera_index=0,
     #     output_path='webcam_output.mp4'
     # )
     
-    # Example 3: Process single frame
+    # Process single frame
     # frame = cv2.imread('test_image.jpg')
     # detections = detector.detect_in_frame(frame)
     # detector.save_frame_with_detections(

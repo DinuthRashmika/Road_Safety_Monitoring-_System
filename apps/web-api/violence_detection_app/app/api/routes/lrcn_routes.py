@@ -1,14 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Cookie, Response, BackgroundTasks, WebSocket, WebSocketDisconnect
-import uuid
-from typing import Optional
-from datetime import datetime
-from requests import Session
-
-from violence_detection_app.app.api.schemas.video_schema import (SourceRequest, SourcePropertiesResponse )
-from violence_detection_app.app.api.schemas.lrcn_schema import ( LrcnDetectionStartedResponse)
-from violence_detection_app.app.api.schemas.yolo_schema import (FrameDetectionResponse)
-from violence_detection_app.app.services.video_service import VideoService
-from violence_detection_app.src.data_processing.video_handler import VideoHandler
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Response
+from violence_detection_app.app.api.schemas.video_schema import SourceRequest
+from violence_detection_app.app.api.schemas.lrcn_schema import LrcnDetectionStartedResponse
 from violence_detection_app.app.services.session_service import SessionService
 
 
@@ -17,22 +9,24 @@ router = APIRouter(
     tags=["Detection"]
 )
 
+ws_router = APIRouter(tags=["WebSocket"])
+
 detection_service = SessionService()
 
-# in-memory session registry (OK for now)
-ACTIVE_SESSIONS = {}
 
-# 01. start detection
-@router.post("/lrcn_start", response_model= LrcnDetectionStartedResponse)
-def start_lrcn_detection(
-    request: SourceRequest, 
-    response: Response
-):
+# Start detection
+@router.post("/lrcn_start", response_model=LrcnDetectionStartedResponse)
+def start_lrcn_detection(request: SourceRequest, response: Response):
+    """
+    Start a new detection session
+    
+    Creates a session with LRCN model and returns WebSocket URL
+    """
     try:
-        # 02. Create new session
+        # Create new session
         session_id = detection_service.create_session(request.source_path)
         
-        # Build WebSocket URL (model is in memory.Video is open)
+        # Build WebSocket URL
         websocket_url = f"ws://localhost:8000/ws/detection/{session_id}"
         
         return LrcnDetectionStartedResponse(
@@ -47,28 +41,64 @@ def start_lrcn_detection(
             status_code=500,
             detail=f"Failed to start detection: {str(e)}"
         )
-    
-ws_router = APIRouter(tags=["WebSocket"])
 
-@router.post("/detection/lrcn_stop")
-async def stop_detection(request: StopRequest):
-    detection_service.stop_session(request.session_id)
-    return {"success": True, "message": "Stopped"}
+
+# Stop detection
+@router.post("/lrcn_stop")
+async def stop_detection(request: SourceRequest):
+    """
+    Stop a running detection session
     
-# Client connects via WebSocket
+    Request body should contain session_id in source_path field
+    """
+    try:
+        # Extract session_id from source_path
+        session_id = request.source_path
+        
+        # Get session
+        session = detection_service.get_session(session_id)
+        
+        if not session:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session {session_id} not found or already stopped"
+            )
+        
+        # Set stop flag
+        session.stop()
+        
+        # Stop and cleanup
+        detection_service.stop_session(session_id)
+        
+        return {
+            "success": True,
+            "message": "Detection stopped successfully",
+            "session_id": session_id
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"❌ Error stopping detection: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to stop detection: {str(e)}"
+        )
+
+
+# WebSocket endpoint
 @ws_router.websocket("/ws/detection/{session_id}")
 async def websocket_detection(websocket: WebSocket, session_id: str):
     """
-    WebSocket endpoint for receiving real-time LRCN results
+    WebSocket endpoint for receiving real-time detection results
     
-    Client connects here after calling /start
+    Client connects here after calling /lrcn_start
     """
-    # 04. WebSocket handshake
+    # Accept WebSocket connection
     await websocket.accept()
     
     try:
-        # 05. Check if session exists (Session lookup )
-        # close it if a session is not found 
+        # Check if session exists
         session = detection_service.get_session(session_id)
         
         if not session:
@@ -79,9 +109,9 @@ async def websocket_detection(websocket: WebSocket, session_id: str):
             await websocket.close()
             return
         
-        # 06. Start streaming if a session is found PAMALAIII
+        # Start streaming detection results
+        print(f"WebSocket connected for session {session_id}")
         await detection_service.process_video_stream(session_id, websocket)
-        print(f"----Pamali we found a session streaming starting")
     
     except WebSocketDisconnect:
         print(f"Client disconnected from session {session_id}")
@@ -96,21 +126,114 @@ async def websocket_detection(websocket: WebSocket, session_id: str):
     
     finally:
         await websocket.close()
+        # from fastapi import APIRouter, Depends, HTTPException, Cookie, Response, BackgroundTasks, WebSocket, WebSocketDisconnect
+# import uuid
+# from typing import Optional
+# from datetime import datetime
+# from requests import Session
+
+# from violence_detection_app.app.api.schemas.video_schema import (SourceRequest, SourcePropertiesResponse )
+# from violence_detection_app.app.api.schemas.lrcn_schema import ( LrcnDetectionStartedResponse)
+# from violence_detection_app.app.api.schemas.yolo_schema import (FrameDetectionResponse)
+# from violence_detection_app.app.services.video_service import VideoService
+# from violence_detection_app.src.data_processing.video_handler import VideoHandler
+# from violence_detection_app.app.services.session_service import SessionService
 
 
-# @router.post("/stop/{session_id}")
-# async def stop_detection(session_id: str):
-#     """
-#     Manually stop a detection session
-#     """
+# router = APIRouter(
+#     prefix="/detection",
+#     tags=["Detection"]
+# )
+
+# detection_service = SessionService()
+
+# # in-memory session registry (OK for now)
+# ACTIVE_SESSIONS = {}
+
+# # 01. start detection
+# @router.post("/lrcn_start", response_model= LrcnDetectionStartedResponse)
+# def start_lrcn_detection(
+#     request: SourceRequest, 
+#     response: Response
+# ):
 #     try:
-#         detection_service.stop_session(session_id)
-#         return {
-#             "success": True,
-#             "message": f"Session {session_id} stopped"
-#         }
+#         # 02. Create new session
+#         session_id = detection_service.create_session(request.source_path)
+        
+#         # Build WebSocket URL (model is in memory.Video is open)
+#         websocket_url = f"ws://localhost:8000/ws/detection/{session_id}"
+        
+#         return LrcnDetectionStartedResponse(
+#             session_id=session_id,
+#             websocket_url=websocket_url,
+#             success=True,
+#             message="LRCN Detection session created"
+#         )
+    
 #     except Exception as e:
 #         raise HTTPException(
-#             status_code=404,
-#             detail=f"Session not found: {str(e)}"
+#             status_code=500,
+#             detail=f"Failed to start detection: {str(e)}"
 #         )
+    
+# ws_router = APIRouter(tags=["WebSocket"])
+    
+# # Client connects via WebSocket
+# @ws_router.websocket("/ws/detection/{session_id}")
+# async def websocket_detection(websocket: WebSocket, session_id: str):
+#     """
+#     WebSocket endpoint for receiving real-time LRCN results
+    
+#     Client connects here after calling /start
+#     """
+#     # 04. WebSocket handshake
+#     await websocket.accept()
+    
+#     try:
+#         # 05. Check if session exists (Session lookup )
+#         # close it if a session is not found 
+#         session = detection_service.get_session(session_id)
+        
+#         if not session:
+#             await websocket.send_json({
+#                 "type": "error",
+#                 "data": {"message": f"Session {session_id} not found"}
+#             })
+#             await websocket.close()
+#             return
+        
+#         # 06. Start streaming if a session is found PAMALAIII
+#         await detection_service.process_video_stream(session_id, websocket)
+#         print(f"----Pamali we found a session streaming starting")
+    
+#     except WebSocketDisconnect:
+#         print(f"Client disconnected from session {session_id}")
+#         detection_service.stop_session(session_id)
+    
+#     except Exception as e:
+#         print(f"WebSocket error: {e}")
+#         await websocket.send_json({
+#             "type": "error",
+#             "data": {"message": str(e)}
+#         })
+    
+#     finally:
+#         await websocket.close()
+
+
+# # @router.post("/stop/{session_id}")
+# # async def stop_detection(session_id: str):
+# #     """
+# #     Manually stop a detection session
+# #     """
+# #     try:
+# #         detection_service.stop_session(session_id)
+# #         return {
+# #             "success": True,
+# #             "message": f"Session {session_id} stopped"
+# #         }
+# #     except Exception as e:
+# #         raise HTTPException(
+# #             status_code=404,
+# #             detail=f"Session not found: {str(e)}"
+# #         )
