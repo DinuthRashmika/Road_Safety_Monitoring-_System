@@ -11,10 +11,10 @@ import 'package:audioplayers/audioplayers.dart';
 
 /// ⚠️ MUST match backend IP
 String wsUrl(String sessionId, String token) =>
-    'ws://192.168.8.174:8000/ws/sessions/$sessionId?token=$token';
+    'ws://192.168.8.196:8000/ws/sessions/$sessionId?token=$token';
 
 /// Base URL for HTTP requests
-String baseUrl = 'http://192.168.8.174:8000';
+String baseUrl = 'http://192.168.8.196:8000';
 
 class LiveMonitoringScreen extends StatefulWidget {
   final String sessionId;

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'services/payment_service.dart';
 
-// ... keep your other screen imports ...
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_owner_screen.dart';
@@ -12,14 +11,14 @@ import 'screens/vehicle_add_screen.dart';
 import 'screens/vehicle_detail_screen.dart';
 import 'screens/vehicles_screen.dart';
 import 'screens/violations_screen.dart';
-
-// ✅ add these (only)
 import 'screens/start_trip_screen.dart';
+
+// ✅ NEW
+import 'screens/alerts_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Stripe with your PUBLISHABLE Key
   await PaymentService.initializeStripe(
     'pk_test_51ShA9KBSOx34RK9GubYkjaMDWdHtXrCzKOqkm0kJyDEw2x4P9toIzs2QwI0h9P3Cwau6uYbzY7uHQV5Dd4NEGhjD00XZwLgzVp',
   );
@@ -65,15 +64,18 @@ class RoadGuruApp extends StatelessWidget {
         '/profile': (_) => const ProfileScreen(),
         '/vehicle-add': (_) => const VehicleAddScreen(),
         '/vehicle-detail': (_) => const VehicleDetailScreen(),
-        '/vehicles': (context) => const VehiclesScreen(),
-        '/violations': (context) => const ViolationsScreen(),
-        '/forgot': (context) => Scaffold(
+        '/vehicles': (_) => const VehiclesScreen(),
+        '/violations': (_) => const ViolationsScreen(),
+
+        '/forgot': (_) => Scaffold(
               appBar: AppBar(title: const Text('Reset Password')),
               body: const Center(child: Text('Password Reset Feature Coming Soon')),
             ),
 
-        // ✅ NOW Home Live Monitoring button goes to StartTripScreen
-        '/monitor': (context) => const StartTripScreen(),
+        '/monitor': (_) => const StartTripScreen(),
+
+        // ✅ NEW
+        '/alerts': (_) => const AlertsScreen(),
       },
     );
   }
