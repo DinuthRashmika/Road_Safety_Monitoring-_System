@@ -33,6 +33,23 @@ class LiveMonitoringScreen extends StatefulWidget {
 }
 
 class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
+  // ===== Theme =====
+  static const Color primaryBlue = Color(0xFF2563EB);
+
+  static const Color bgBlack = Colors.black;
+  static const Color cardDark = Color(0xFF111827);
+  static const Color borderDark = Color(0xFF1F2937);
+  static const Color textWhite = Colors.white;
+  static const Color textMuted = Color(0xFF9CA3AF);
+
+  // alert colors (red)
+  static const Color alertBg = Color(0xFF431C1C);
+  static const Color alertText = Color(0xFFF87171);
+
+  // no-alert colors (green)
+  static const Color okBg = Color(0xFF064E3B);
+  static const Color okText = Color(0xFF10B981);
+
   WebSocketChannel? _channel;
   StreamSubscription? _wsSub;
 
@@ -40,12 +57,20 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   Timer? _sendTimer;
 
   bool _cameraReady = false;
-  bool _isConverting = false; // 🔐 lock for camera conversion
+  bool _isConverting = false;
   Uint8List? _latestPngBytes;
 
-  String? _latestAlertText;
+  // ===== Alerts state =====
+  String? _latestAlertType; // only TYPE shown
+  bool _alertsDisplayEnabled = true; // keep double tap toggle
+
+  // 5 required categories (fixed row, no scroll)
+  late final List<_AlertCategory> _categories;
+
+  // Counts (categoryName -> count)
+  final Map<String, int> _alertCounts = {};
+
   bool _isStopping = false;
-  Map<String, dynamic>? _sessionEndData;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isAlarmPlaying = false;
@@ -53,6 +78,20 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   @override
   void initState() {
     super.initState();
+
+    _categories = const [
+      _AlertCategory(name: 'Mobile Phone Usage', icon: Icons.phone_iphone),
+      _AlertCategory(name: 'Drowsiness', icon: Icons.bedtime_outlined),
+      _AlertCategory(name: 'Yawning', icon: Icons.mood_bad_outlined),
+      _AlertCategory(name: 'Distraction', icon: Icons.visibility_off_outlined),
+      _AlertCategory(
+          name: 'No Seatbelt', icon: Icons.airline_seat_recline_normal),
+    ];
+
+    for (final c in _categories) {
+      _alertCounts[c.name] = 0;
+    }
+
     _connectWs();
     _initCamera();
     _startSenderTimer();
@@ -69,19 +108,72 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
         try {
           final data =
               msg is String ? msg : String.fromCharCodes(msg as Uint8List);
-          final alertData = data.contains('alert') ? data : null;
 
-          if (alertData != null) {
+          if (data.toLowerCase().contains('alert')) {
+            final alertType = _extractAlertType(data);
+            if (alertType == null) return;
+
             setState(() {
-              _latestAlertText = alertData;
+              _latestAlertType = alertType;
+              _alertCounts[alertType] = (_alertCounts[alertType] ?? 0) + 1;
             });
+
             _playAlarm();
           }
         } catch (_) {}
       },
-      onError: (_) => setState(() => _latestAlertText = 'Connection error'),
-      onDone: () => setState(() => _latestAlertText = 'Disconnected'),
+      onError: (_) {},
+      onDone: () {},
     );
+  }
+
+  // Extract alert TYPE only and map into your categories.
+  String? _extractAlertType(String raw) {
+    final s = raw.trim();
+
+    // JSON
+    if (s.startsWith('{') && s.endsWith('}')) {
+      try {
+        final m = jsonDecode(s);
+        if (m is Map) {
+          final type = (m['type'] ?? m['alert'] ?? m['name'] ?? '').toString();
+          final msg =
+              (m['message'] ?? m['msg'] ?? m['text'] ?? '').toString();
+          return _mapToCategory(type, msg);
+        }
+      } catch (_) {}
+    }
+
+    // Plain text
+    final cleaned =
+        s.replaceFirst(RegExp(r'(?i)\balert\b\s*[:\-]?\s*'), '').trim();
+    return _mapToCategory(cleaned, cleaned);
+  }
+
+  String? _mapToCategory(String type, String message) {
+    final all = '${type.toLowerCase()} ${message.toLowerCase()}';
+
+    if (all.contains('phone') || all.contains('mobile')) {
+      return 'Mobile Phone Usage';
+    }
+    if (all.contains('drowsy') || all.contains('sleep')) {
+      return 'Drowsiness';
+    }
+    if (all.contains('yawn')) {
+      return 'Yawning';
+    }
+    if (all.contains('distract') ||
+        all.contains('inattention') ||
+        all.contains('attention')) {
+      return 'Distraction';
+    }
+    if (all.contains('seatbelt') ||
+        all.contains('seat belt') ||
+        all.contains('belt') ||
+        all.contains('no belt')) {
+      return 'No Seatbelt';
+    }
+    return null;
   }
 
   // ================= CAMERA =================
@@ -122,22 +214,18 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
       }
     });
 
-    if (mounted) {
-      setState(() => _cameraReady = true);
-    }
+    if (mounted) setState(() => _cameraReady = true);
   }
 
-  // ================= END SESSION API CALL =================
+  // ================= END SESSION + SUMMARY POPUP =================
   Future<void> _endSession() async {
     if (_isStopping) return;
+    setState(() => _isStopping = true);
 
-    setState(() {
-      _isStopping = true;
-    });
+    Map<String, dynamic>? sessionData;
 
     try {
-      // First, end the session
-      final endResponse = await http.post(
+      await http.post(
         Uri.parse('$baseUrl/api/sessions/${widget.sessionId}/end'),
         headers: {
           'Authorization': 'Bearer ${widget.token}',
@@ -145,225 +233,27 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
         },
       );
 
-      if (endResponse.statusCode == 200) {
-        // Get the detailed session report with events
-        final reportResponse = await http.get(
-          Uri.parse('$baseUrl/api/sessions/${widget.sessionId}/report'),
-          headers: {
-            'Authorization': 'Bearer ${widget.token}',
-          },
+      try {
+        final res = await http.get(
+          Uri.parse('$baseUrl/api/sessions/${widget.sessionId}'),
+          headers: {'Authorization': 'Bearer ${widget.token}'},
         );
-
-        if (reportResponse.statusCode == 200) {
-          final Map<String, dynamic> reportData =
-              json.decode(reportResponse.body);
-          setState(() {
-            _sessionEndData = reportData;
-          });
-
-          _showSessionEndDialog(reportData);
-        } else {
-          // If report endpoint doesn't exist, use the basic session data
-          final sessionResponse = await http.get(
-            Uri.parse('$baseUrl/api/sessions/${widget.sessionId}'),
-            headers: {
-              'Authorization': 'Bearer ${widget.token}',
-            },
-          );
-
-          if (sessionResponse.statusCode == 200) {
-            final Map<String, dynamic> sessionData =
-                json.decode(sessionResponse.body);
-            setState(() {
-              _sessionEndData = sessionData;
-            });
-            _showSessionEndDialog(sessionData);
-          } else {
-            _showSessionEndDialog({
-              'sessionId': widget.sessionId,
-              'driverName': widget.driverName,
-              'duration': '1:42',
-              'distance': '10.0 km',
-              'violations': {
-                'No Seatbelt': 8,
-                'Phone in Hand': 2,
-                'Drowsiness': 0,
-                'Inattention': 0,
-                'Lane Deviation': 0,
-                'Speeding': 0,
-              },
-              'phoneViolationTime': '12:34 PM',
-            });
-          }
+        if (res.statusCode == 200) {
+          sessionData = json.decode(res.body);
         }
+      } catch (_) {}
 
-        _stopMonitoring();
-      } else {
-        // If API fails, show demo data
-        _showSessionEndDialog({
-          'sessionId': widget.sessionId,
-          'driverName': widget.driverName,
-          'duration': '1:42',
-          'distance': '10.0 km',
-          'violations': {
-            'No Seatbelt': 8,
-            'Phone in Hand': 2,
-            'Drowsiness': 0,
-            'Inattention': 0,
-            'Lane Deviation': 0,
-            'Speeding': 0,
-          },
-          'phoneViolationTime': '12:34 PM',
-        });
-
-        _stopMonitoring();
-      }
-    } catch (e) {
-      // On error, show demo data
-      _showSessionEndDialog({
-        'sessionId': widget.sessionId,
-        'driverName': widget.driverName,
-        'duration': '1:42',
-        'distance': '10.0 km',
-        'violations': {
-          'No Seatbelt': 8,
-          'Phone in Hand': 2,
-          'Drowsiness': 0,
-          'Inattention': 0,
-          'Lane Deviation': 0,
-          'Speeding': 0,
-        },
-        'phoneViolationTime': '12:34 PM',
-      });
-
+      _showSummaryPopup(sessionData);
       _stopMonitoring();
-    }
-  }
-
-  // ================= FORMAT DATA =================
-  Map<String, dynamic> _extractSessionDetails(Map<String, dynamic> data) {
-    // Default values (as shown in your screenshot)
-    Map<String, dynamic> details = {
-      'duration': '1:42',
-      'distance': '10.0 km',
-      'violations': {
-        'No Seatbelt': 8,
-        'Phone in Hand': 2,
-        'Drowsiness': 0,
-        'Inattention': 0,
-        'Lane Deviation': 0,
-        'Speeding': 0,
-      },
-      'phoneViolationTime': '12:34 PM',
-    };
-
-    try {
-      // Extract duration
-      if (data['startedAt'] != null && data['endedAt'] != null) {
-        final started = DateTime.parse(data['startedAt']);
-        final ended = DateTime.parse(data['endedAt']);
-        final diff = ended.difference(started);
-        final minutes = diff.inMinutes.remainder(60);
-        final seconds = diff.inSeconds.remainder(60);
-        details['duration'] =
-            '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-      }
-
-      // Extract distance from metrics or statistics
-      if (data['metrics'] != null && data['metrics']['distance'] != null) {
-        final distance = data['metrics']['distance'] is double
-            ? data['metrics']['distance'].toStringAsFixed(1)
-            : data['metrics']['distance'].toString();
-        details['distance'] = '$distance km';
-      } else if (data['statistics'] != null &&
-          data['statistics']['totalDistance'] != null) {
-        final distance = data['statistics']['totalDistance'] is double
-            ? data['statistics']['totalDistance'].toStringAsFixed(1)
-            : data['statistics']['totalDistance'].toString();
-        details['distance'] = '$distance km';
-      }
-
-      // Extract violations from events
-      if (data['events'] != null && data['events'] is List) {
-        final List<dynamic> events = data['events'];
-
-        // Reset counts
-        details['violations'] = {
-          'No Seatbelt': 0,
-          'Phone in Hand': 0,
-          'Drowsiness': 0,
-          'Inattention': 0,
-          'Lane Deviation': 0,
-          'Speeding': 0,
-        };
-
-        // Find phone violation time
-        String? phoneTime;
-
-        for (var event in events) {
-          if (event['type'] != null) {
-            final type = event['type'].toString().toLowerCase();
-            final createdAt = event['createdAt']?.toString() ?? '';
-
-            if (type.contains('seatbelt') || type.contains('belt')) {
-              details['violations']['No Seatbelt']++;
-            } else if (type.contains('phone')) {
-              details['violations']['Phone in Hand']++;
-              if (phoneTime == null && createdAt.isNotEmpty) {
-                try {
-                  final time = DateTime.parse(createdAt);
-                  phoneTime =
-                      '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-                  if (time.hour < 12) {
-                    phoneTime = '$phoneTime AM';
-                  } else {
-                    final hour = time.hour > 12 ? time.hour - 12 : time.hour;
-                    phoneTime =
-                        '${hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')} PM';
-                  }
-                } catch (_) {
-                  phoneTime = '12:34 PM'; // Default
-                }
-              }
-            } else if (type.contains('drowsy') || type.contains('sleep')) {
-              details['violations']['Drowsiness']++;
-            } else if (type.contains('attention') ||
-                type.contains('distract')) {
-              details['violations']['Inattention']++;
-            } else if (type.contains('lane')) {
-              details['violations']['Lane Deviation']++;
-            } else if (type.contains('speed')) {
-              details['violations']['Speeding']++;
-            }
-          }
-        }
-
-        if (phoneTime != null) {
-          details['phoneViolationTime'] = phoneTime;
-        }
-      }
-    } catch (e) {
-      print("Error extracting session details: $e");
-    }
-
-    return details;
-  }
-
-  void _playAlarm() async {
-    if (_isAlarmPlaying) return;
-    _isAlarmPlaying = true;
-
-    try {
-      await _audioPlayer.play(AssetSource('sounds/alarm.mp3'), volume: 1.0);
-    } catch (e) {
-      print('Error playing alarm: $e');
+    } catch (_) {
+      _showSummaryPopup(sessionData);
+      _stopMonitoring();
     } finally {
-      _isAlarmPlaying = false;
+      if (mounted) setState(() => _isStopping = false);
     }
   }
 
-  // ================= SESSION END DIALOG =================
-  void _showSessionEndDialog(Map<String, dynamic> sessionData) {
+  void _showSummaryPopup(Map<String, dynamic>? sessionData) {
     final details = _extractSessionDetails(sessionData);
 
     showDialog(
@@ -371,272 +261,111 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.85),
       builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final dialogWidth =
-            screenWidth * 0.85 > 400 ? 400.0 : screenWidth * 0.85;
-
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: cardDark,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: borderDark),
           ),
-          child: SingleChildScrollView(
-            child: Container(
-              width: dialogWidth,
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Success icon
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 50,
-                    ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: okBg.withOpacity(0.30),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 20),
-
-                  // Title
-                  const Text(
-                    'Trip Complete',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: okText,
+                    size: 46,
                   ),
-                  const SizedBox(height: 8),
-
-                  // Subtitle
-                  const Text(
-                    'Journey Completed',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Session Summary',
+                  style: TextStyle(
+                    color: textWhite,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 20),
-
-                  // Distance and time
+                ),
+                const SizedBox(height: 8),
+                if (details != null)
                   Text(
-                    '${details['distance']} in ${details['duration']}',
+                    '${details['distance']}  •  ${details['duration']}',
                     style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: textMuted,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 32),
-
-                  // Distance and Duration cards
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Total Distance card
-                      Container(
-                        width: 140,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 20, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B1220),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: borderDark),
+                  ),
+                  child: Column(
+                    children: _categories.map((c) {
+                      final count = _alertCounts[c.name] ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Row(
                           children: [
-                            Text(
-                              'Total Distance',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
+                            Icon(c.icon, color: textMuted, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                c.name,
+                                style: const TextStyle(
+                                  color: textWhite,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
                             Text(
-                              details['distance'],
+                              count.toString(),
                               style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: okText,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
                           ],
                         ),
-                      ),
-
-                      // Duration card
-                      Container(
-                        width: 140,
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 20, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Duration',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              details['duration'],
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      );
+                    }).toList(),
                   ),
-                  const SizedBox(height: 40),
-
-                  // Violations Summary
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(20),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: borderDark),
+                      foregroundColor: textWhite,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Violations Summary',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Violations table
-                        Column(
-                          children: [
-                            // Table rows
-                            _buildViolationRow(
-                              'No Seatbelt',
-                              details['violations']['No Seatbelt'],
-                              null,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildViolationRow(
-                              'Phone in Hand',
-                              details['violations']['Phone in Hand'],
-                              details['violations']['Phone in Hand'] > 0
-                                  ? details['phoneViolationTime']
-                                  : null,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildViolationRow(
-                              'Drowsiness',
-                              details['violations']['Drowsiness'],
-                              null,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildViolationRow(
-                              'Inattention',
-                              details['violations']['Inattention'],
-                              null,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildViolationRow(
-                              'Lane Deviation',
-                              details['violations']['Lane Deviation'],
-                              null,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildViolationRow(
-                              'Speeding',
-                              details['violations']['Speeding'],
-                              null,
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
-                  const SizedBox(height: 40),
-
-                  // Action buttons
-                  Row(
-                    children: [
-                      // Start New Trip button
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.pop(context); // Close dialog
-                            Navigator.pop(
-                                context); // Go back to previous screen
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            side: BorderSide(color: Colors.grey.shade300),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            'Start New Trip',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-
-                      // Save Report button
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // TODO: Implement save report functionality
-                            Navigator.pop(context); // Close dialog
-                            Navigator.pop(
-                                context); // Go back to previous screen
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade600,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          child: const Text(
-                            'Save Report',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -644,98 +373,44 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     );
   }
 
-  Widget _buildViolationRow(String title, int count, String? time) {
-    final hasViolation = count > 0;
+  Map<String, dynamic>? _extractSessionDetails(Map<String, dynamic>? data) {
+    if (data == null) return null;
 
-    return Row(
-      children: [
-        // Violation indicator dot
-        if (hasViolation)
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: Colors.red,
-              shape: BoxShape.circle,
-            ),
-          )
-        else
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(right: 12),
-          ),
+    try {
+      String duration = '-';
+      String distance = '-';
 
-        // Violation title
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: hasViolation ? Colors.black87 : Colors.grey.shade600,
-                  fontWeight:
-                      hasViolation ? FontWeight.w500 : FontWeight.normal,
-                ),
-              ),
-              if (hasViolation && time != null && title == 'Phone in Hand')
-                const SizedBox(height: 4),
-              if (hasViolation && time != null && title == 'Phone in Hand')
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-            ],
-          ),
-        ),
+      if (data['startedAt'] != null && data['endedAt'] != null) {
+        final started = DateTime.parse(data['startedAt']);
+        final ended = DateTime.parse(data['endedAt']);
+        final diff = ended.difference(started);
+        final minutes = diff.inMinutes;
+        final seconds = diff.inSeconds.remainder(60);
+        duration =
+            '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+      }
 
-        // Violation count
-        SizedBox(
-          width: 50,
-          child: Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: hasViolation ? Colors.red : Colors.grey.shade600,
-            ),
-            textAlign: TextAlign.right,
-          ),
-        ),
-      ],
-    );
-  }
+      if (data['metrics'] != null && data['metrics']['distance'] != null) {
+        final d = data['metrics']['distance'];
+        distance = d is num ? '${d.toStringAsFixed(1)} km' : '$d km';
+      } else if (data['statistics'] != null &&
+          data['statistics']['totalDistance'] != null) {
+        final d = data['statistics']['totalDistance'];
+        distance = d is num ? '${d.toStringAsFixed(1)} km' : '$d km';
+      }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+      return {'duration': duration, 'distance': distance};
+    } catch (_) {
+      return null;
+    }
   }
 
   // ================= FRAME SENDER =================
   void _startSenderTimer() {
     _sendTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_latestPngBytes == null) return;
-
       try {
         _channel?.sink.add(_latestPngBytes!);
-        print("Sent ${_latestPngBytes!.length} bytes");
       } catch (e) {
         print("Error sending frame: $e");
       }
@@ -763,88 +438,279 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     super.dispose();
   }
 
+  void _playAlarm() async {
+    if (_isAlarmPlaying) return;
+    _isAlarmPlaying = true;
+
+    try {
+      await _audioPlayer.play(AssetSource('sounds/alarm.mp3'), volume: 1.0);
+    } catch (_) {} finally {
+      _isAlarmPlaying = false;
+    }
+  }
+
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: bgBlack,
       appBar: AppBar(
-        title: const Text('Monitoring Active'),
+        backgroundColor: bgBlack,
+        elevation: 0,
+        title: const Text(
+          'Monitoring Active',
+          style: TextStyle(color: textWhite, fontWeight: FontWeight.w800),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
+          icon: const Icon(Icons.arrow_back_ios, color: textWhite),
           onPressed: _stopSession,
         ),
       ),
       body: Column(
         children: [
           const SizedBox(height: 16),
+
+          // ===== Camera preview =====
           AspectRatio(
             aspectRatio: 1,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: _cameraReady && _cam != null
-                    ? CameraPreview(_cam!)
-                    : const Center(child: CircularProgressIndicator()),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: cardDark,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: borderDark),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    )
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: _cameraReady && _cam != null
+                      ? CameraPreview(_cam!)
+                      : const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(primaryBlue),
+                          ),
+                        ),
+                ),
               ),
             ),
           ),
-          if (_latestAlertText != null)
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.red.shade100,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning, color: Colors.red),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _latestAlertText!,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
+
+          const SizedBox(height: 12),
+
+          // ✅ increased height alert box
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _buildAlertTypeBox(),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ✅ FIXED 5 ITEMS in ONE ROW (no scrolling)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: List.generate(_categories.length, (i) {
+                final c = _categories[i];
+                final count = _alertCounts[c.name] ?? 0;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: i == _categories.length - 1 ? 0 : 10,
+                    ),
+                    child: _AlertCategoryTile(
+                      icon: c.icon,
+                      count: count,
                     ),
                   ),
-                ],
-              ),
+                );
+              }),
             ),
+          ),
+
           const Spacer(),
+
+          // ===== End Session button =====
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
+            child: Container(
               width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: _isStopping ? null : _endSession,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7F1D1D), Color(0xFFDC2626)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFDC2626).withOpacity(0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  )
+                ],
+              ),
+              child: SizedBox(
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: _isStopping ? null : _endSession,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: textWhite,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: _isStopping
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(textWhite),
+                          ),
+                        )
+                      : const Icon(Icons.stop),
+                  label: Text(
+                    _isStopping ? 'Ending Session...' : 'End Session',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
-                icon: _isStopping
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.stop),
-                label: Text(
-                  _isStopping ? 'Ending Session...' : 'End Session',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
-                ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ✅ Increased height alert box (bigger)
+  Widget _buildAlertTypeBox() {
+    const double fixedHeight = 72; // ✅ increased
+
+    if (!_alertsDisplayEnabled) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: GestureDetector(
+          onTap: () => setState(() => _alertsDisplayEnabled = true),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B1220),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: borderDark),
+            ),
+            child: const Text(
+              'Alerts hidden (tap to show)',
+              style: TextStyle(
+                color: textMuted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final type = _latestAlertType;
+    final hasAlert = type != null && type.trim().isNotEmpty;
+
+    return GestureDetector(
+      onDoubleTap: () => setState(() => _alertsDisplayEnabled = false),
+      child: SizedBox(
+        height: fixedHeight,
+        width: double.infinity,
+        child: Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: hasAlert ? alertBg : okBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: hasAlert
+                  ? const Color(0xFF7F1D1D)
+                  : const Color(0xFF065F46),
+            ),
+          ),
+          child: Text(
+            hasAlert ? type : 'No Any Alert',
+            style: TextStyle(
+              color: hasAlert ? alertText : okText,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== Models / Widgets =====
+
+class _AlertCategory {
+  final String name;
+  final IconData icon;
+  const _AlertCategory({required this.name, required this.icon});
+}
+
+/// ✅ Fixed tile for row (icon + count only)
+class _AlertCategoryTile extends StatelessWidget {
+  final IconData icon;
+  final int count;
+
+  const _AlertCategoryTile({
+    required this.icon,
+    required this.count,
+  });
+
+  static const Color cardDark = Color(0xFF111827);
+  static const Color borderDark = Color(0xFF1F2937);
+  static const Color textMuted = Color(0xFF9CA3AF);
+
+  static const Color alertBg = Color(0xFF431C1C);
+  static const Color alertText = Color(0xFFF87171);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 84,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: cardDark,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderDark),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: alertBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF7F1D1D)),
+            ),
+            child: Icon(icon, color: alertText, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            count.toString(),
+            style: const TextStyle(
+              color: textMuted,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
             ),
           ),
         ],

@@ -1,9 +1,14 @@
-import 'package:flutter/material.dart';
-import '../models/owner.dart';
-import '../models/vehicle.dart';
-import '../services/owner_service.dart';
-import '../services/vehicle_service.dart';
-import '../core/token_storage.dart';
+  import 'package:flutter/material.dart';
+  import '../models/owner.dart';
+  import '../models/vehicle.dart';
+  import '../services/owner_service.dart';
+  import '../services/vehicle_service.dart';
+  import '../core/token_storage.dart';
+  import 'previous_trips_screen.dart';
+  import 'dart:convert';
+  import 'package:dio/dio.dart';
+  import '../core/api_client.dart';
+  import '../core/token_storage.dart';
 
 // ✅ NEW
 import '../services/notification_service.dart';
@@ -15,10 +20,19 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  Owner? _owner;
-  List<Vehicle> _vehicles = [];
-  bool _loading = true;
+  class _HomeScreenState extends State<HomeScreen> {
+    Owner? _owner;
+    List<Vehicle> _vehicles = [];
+    bool _loading = true;
+String _formatDate(String iso) {
+  try {
+    final d = DateTime.parse(iso).toLocal();
+    // show like "Feb 27, 2026"
+    return '${_monthName(d.month)} ${d.day.toString().padLeft(2, '0')}, ${d.year}';
+  } catch (_) {
+    return 'Unknown date';
+  }
+}
 
   // ✅ NEW: real protective alerts from backend
   // ✅ FIXED: real protective alerts from backend
@@ -63,21 +77,65 @@ Future<void> _load() async {
   }
 }
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
+    final headers = <String, String>{
+      'Accept': 'application/json',
+    };
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
 
-  Future<void> _logout() async {
-    await TokenStorage.clear();
-    if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil('/login', (r) => false);
-  }
+    final res = await ApiClient.dio.get(
+      '/api/sessions',
+      options: Options(headers: headers),
+    );
 
-  @override
-  Widget build(BuildContext context) {
-    final name = _owner?.fullName.split(' ').first ?? 'Ethan';
+    dynamic data = res.data;
+    if (data is String) data = jsonDecode(data);
+
+    List<dynamic> list = [];
+    if (data is List) {
+      list = data;
+    } else if (data is Map && data['data'] is List) {
+      list = List<dynamic>.from(data['data']);
+    }
+
+    // Sort newest first using startedAt
+    list.sort((a, b) {
+      final aTime = DateTime.tryParse((a['startedAt'] ?? '').toString());
+      final bTime = DateTime.tryParse((b['startedAt'] ?? '').toString());
+      return (bTime ?? DateTime(1970)).compareTo(aTime ?? DateTime(1970));
+    });
+
+    setState(() {
+      _recentTrips = list.take(3).toList();
+    });
+  } catch (_) {
+    // if API fails, just keep empty list (no crash)
+    setState(() => _recentTrips = []);
+  }
+}
+   Future<void> _load() async {
+  try {
+    final me = await OwnerService.me();
+    final v = await VehicleService.mine();
+
+    setState(() {
+      _owner = me;
+      _vehicles = v;
+    });
+
+    // ✅ add this
+    await _loadRecentTrips();
+  } finally {
+    setState(() => _loading = false);
+  }
+}
+
+    @override
+    void initState() {
+      super.initState();
+      _load();
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -123,7 +181,6 @@ Future<void> _load() async {
                                       fit: BoxFit.cover,
                                     )
                                   : null,
-                              color: Colors.orange.shade100,
                             ),
                             child: _owner?.imageUrl == null
                                 ? Image.network(
@@ -173,7 +230,6 @@ Future<void> _load() async {
                         ],
                       ),
                     ),
-                  ),
 
                   SliverList(
                     delegate: SliverChildListDelegate([
@@ -187,9 +243,8 @@ Future<void> _load() async {
                                     .then((_) => _load()),
                             onSkip: () {},
                           ),
-                        ),
 
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -211,61 +266,25 @@ Future<void> _load() async {
                       if (_vehicles.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _EnhancedSectionHeader(
-                            title: 'My Vehicles',
-                            subtitle:
-                                '${_vehicles.length} vehicle${_vehicles.length > 1 ? 's' : ''} registered',
-                            actionText: 'View all',
-                            onAction: () =>
+                          child: _EnhancedQuickActions(
+                            onAdd: () =>
+                                Navigator.pushNamed(context, '/vehicle-add')
+                                    .then((_) => _load()),
+                            onMyVehicles: () =>
                                 Navigator.pushNamed(context, '/vehicles')
                                     .then((_) => _load()),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          height: 250,
-                          child: ListView.separated(
-                            primary: false,
-                            shrinkWrap: true,
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: _vehicles.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 16),
-                            itemBuilder: (_, i) {
-                              final v = _vehicles[i];
-                              String? cover;
-                              if (v.images is Map) {
-                                final map = v.images as Map<dynamic, dynamic>;
-                                final any = map['front'] ??
-                                    map['plate'] ??
-                                    map['back'] ??
-                                    map['side'];
-                                if (any is String &&
-                                    any.isNotEmpty &&
-                                    any.startsWith('http')) {
-                                  cover = any;
-                                }
-                              }
-                              final subtitle =
-                                  ((v.vehicleModel ?? v.vehicleType) ?? '')
-                                      .toString()
-                                      .trim();
-                              return _EnhancedVehicleCard(
-                                plate: v.plateNo,
-                                subtitle: subtitle,
-                                imageUrl: cover,
-                                active: true,
-                                onTap: () => Navigator.pushNamed(
-                                    context, '/vehicle-detail',
-                                    arguments: v.id),
+                            onTrips: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PreviousTripsScreen(),
+                                ),
                               );
                             },
+                            onViolations: () =>
+                                Navigator.pushNamed(context, '/violations'),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                      ],
 
                       // ✅ Protective Alerts Section (REAL DATA)
                       // ✅ FIXED: Protective Alerts Section (REAL DATA)
@@ -317,22 +336,90 @@ else
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
-                          ],
-                          border: Border.all(
-                            color: Colors.grey.shade800,
-                            width: 1,
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            height: 250,
+                            child: ListView.separated(
+                              primary: false,
+                              shrinkWrap: true,
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              itemCount: _vehicles.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 16),
+                              itemBuilder: (_, i) {
+                                final v = _vehicles[i];
+                                String? cover;
+                                if (v.images is Map) {
+                                  final map = v.images as Map<dynamic, dynamic>;
+                                  final any = map['front'] ??
+                                      map['plate'] ??
+                                      map['back'] ??
+                                      map['side'];
+                                  if (any is String &&
+                                      any.isNotEmpty &&
+                                      any.startsWith('http')) {
+                                    cover = any;
+                                  }
+                                }
+                                final subtitle =
+                                    ((v.vehicleModel ?? v.vehicleType) ?? '')
+                                        .toString()
+                                        .trim();
+                                return _EnhancedVehicleCard(
+                                  plate: v.plateNo,
+                                  subtitle: subtitle,
+                                  imageUrl: cover,
+                                  active: true,
+                                  onTap: () => Navigator.pushNamed(
+                                      context, '/vehicle-detail',
+                                      arguments: v.id),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Protective Alerts Section
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
+                          child: _EnhancedSectionHeader(
+                            title: 'Protective Alerts',
+                            subtitle: 'important notifications',
+                            actionText: 'View all',
+                            onAction: () =>
+                                Navigator.pushNamed(context, '/alerts'),
                           ),
                         ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Column(
-                            children: [
-                              for (int i = 0; i < _trips.length; i++)
-                                _EnhancedTripRow(
-                                  item: _trips[i],
-                                  isLast: i == _trips.length - 1,
+                        ..._alerts.map((a) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 6),
+                              child: _EnhancedAlertCard(
+                                title: a.title,
+                                subtitle: a.subtitle,
+                                cta: a.cta,
+                                onPressed: () {},
+                              ),
+                            )),
+
+                        // Trip History Section
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
+                          child: _EnhancedSectionHeader(
+                            title: 'Recent Trips',
+                            subtitle: 'Your latest journeys',
+                            actionText: 'View all',
+                            onAction: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PreviousTripsScreen(),
                                 ),
-                            ],
+                              );
+                            },
                           ),
                         ),
                       ),
@@ -342,13 +429,8 @@ else
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                         child: Container(
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF2563EB),
-                                Color(0xFF1D4ED8),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.grey.shade900, // Dark card
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFF2563EB).withOpacity(0.5),
@@ -356,54 +438,110 @@ else
                                 offset: const Offset(0, 6),
                               ),
                             ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: () =>
-                                Navigator.pushNamed(context, '/monitor'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                            border: Border.all(
+                              color: Colors.grey.shade800,
+                              width: 1,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Column(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.videocam_rounded,
-                                      size: 20),
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Live Monitoring',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                                if (_recentTrips.isEmpty)
+  Padding(
+    padding: const EdgeInsets.all(20),
+    child: Text(
+      'No recent trips',
+      style: TextStyle(color: Colors.grey.shade400),
+    ),
+  )
+else
+  for (int i = 0; i < _recentTrips.length; i++)
+    _EnhancedTripRow(
+      item: _TripItem(
+        date: _formatDate(_recentTrips[i]['startedAt']?.toString() ?? ''),
+        route: _recentTrips[i]['name']?.toString() ?? 'Trip',
+        distance: _formatDistance(_recentTrips[i]['metrics']),
+        duration: _formatDuration(
+          _recentTrips[i]['startedAt']?.toString() ?? '',
+          _recentTrips[i]['endedAt']?.toString(),
+        ),
+      ),
+      isLast: i == _recentTrips.length - 1,
+    ),
                               ],
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 32),
-                    ]),
-                  ),
-                ],
+
+                        // Live Monitoring Button
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF2563EB),
+                                  Color(0xFF1D4ED8),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF2563EB)
+                                      .withOpacity(0.5), // Brighter shadow
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  Navigator.pushNamed(context, '/monitor'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.videocam_rounded,
+                                        size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Live Monitoring',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ]),
+                    ),
+                  ],
+                ),
               ),
-            ),
-    );
+      );
+    }
   }
-}
 
 /* ====================== UI COMPONENTS (UNCHANGED) ====================== */
 
@@ -411,7 +549,7 @@ class _AddVehicleBanner extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onSkip;
 
-  const _AddVehicleBanner({required this.onAdd, required this.onSkip});
+    const _AddVehicleBanner({required this.onAdd, required this.onSkip});
 
   @override
   Widget build(BuildContext context) {
@@ -442,53 +580,52 @@ class _AddVehicleBanner extends StatelessWidget {
               color: Colors.grey.shade400,
               height: 1.5,
             ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              ElevatedButton(
-                onPressed: onAdd,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: onAdd,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                child: const Text(
-                  'Add Vehicle',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              TextButton(
-                onPressed: onSkip,
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                child: const Text(
-                  'Skip for now',
-                  style: TextStyle(
-                    color: Color(0xFF2563EB),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                  child: const Text(
+                    'Add Vehicle',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+                const SizedBox(width: 16),
+                TextButton(
+                  onPressed: onSkip,
+                  style: TextButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  child: const Text(
+                    'Skip for now',
+                    style: TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
   }
-}
 
 class _EnhancedQuickActions extends StatelessWidget {
   const _EnhancedQuickActions({
@@ -498,42 +635,41 @@ class _EnhancedQuickActions extends StatelessWidget {
     required this.onViolations,
   });
 
-  final VoidCallback onAdd;
-  final VoidCallback onMyVehicles;
-  final VoidCallback onTrips;
-  final VoidCallback onViolations;
+    final VoidCallback onAdd;
+    final VoidCallback onMyVehicles;
+    final VoidCallback onTrips;
+    final VoidCallback onViolations;
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _QuickActionSquare(
-            icon: Icons.add, label: 'Add Vehicle', onTap: onAdd),
-        _QuickActionSquare(
-            icon: Icons.directions_car_outlined,
-            label: 'My Vehicles',
-            onTap: onMyVehicles),
-        _QuickActionSquare(
-            icon: Icons.assignment_outlined,
-            label: 'Trip History',
-            onTap: onTrips),
-        _QuickActionSquare(
-            icon: Icons.warning_amber_rounded,
-            label: 'Violations',
-            onTap: onViolations),
-      ],
-    );
+    @override
+    Widget build(BuildContext context) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _QuickActionSquare(icon: Icons.add, label: 'Add Vehicle', onTap: onAdd),
+          _QuickActionSquare(
+              icon: Icons.directions_car_outlined,
+              label: 'My Vehicles',
+              onTap: onMyVehicles),
+          _QuickActionSquare(
+              icon: Icons.assignment_outlined,
+              label: 'Trip History',
+              onTap: onTrips),
+          _QuickActionSquare(
+              icon: Icons.warning_amber_rounded,
+              label: 'Violations',
+              onTap: onViolations),
+        ],
+      );
+    }
   }
-}
 
 class _QuickActionSquare extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _QuickActionSquare(
-      {required this.icon, required this.label, required this.onTap});
+    const _QuickActionSquare(
+        {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -567,11 +703,10 @@ class _QuickActionSquare extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: Colors.grey.shade300,
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    }
   }
-}
 
 class _EnhancedSectionHeader extends StatelessWidget {
   const _EnhancedSectionHeader({
@@ -581,10 +716,10 @@ class _EnhancedSectionHeader extends StatelessWidget {
     this.onAction,
   });
 
-  final String title;
-  final String subtitle;
-  final String? actionText;
-  final VoidCallback? onAction;
+    final String title;
+    final String subtitle;
+    final String? actionText;
+    final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -637,13 +772,12 @@ class _EnhancedSectionHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
-      ],
-    );
+            ],
+          ),
+        ],
+      );
+    }
   }
-}
 
 class _EnhancedVehicleCard extends StatelessWidget {
   const _EnhancedVehicleCard({
@@ -654,11 +788,11 @@ class _EnhancedVehicleCard extends StatelessWidget {
     this.onTap,
   });
 
-  final String plate;
-  final String subtitle;
-  final String? imageUrl;
-  final bool active;
-  final VoidCallback? onTap;
+    final String plate;
+    final String subtitle;
+    final String? imageUrl;
+    final bool active;
+    final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -702,10 +836,28 @@ class _EnhancedVehicleCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
+                ],
+                border: Border.all(color: Colors.grey.shade800),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 120,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.grey.shade900,
+                          Colors.grey.shade800,
+                        ],
+                      ),
                     ),
                     child: _VehicleImageHandler(imageUrl: imageUrl),
                   ),
@@ -766,21 +918,20 @@ class _EnhancedVehicleCard extends StatelessWidget {
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
 class _VehicleImageHandler extends StatelessWidget {
   final String? imageUrl;
@@ -824,12 +975,12 @@ class _VehicleImageHandler extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade800,
+                  color: Colors.grey.shade800, // Darker background
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.directions_car_filled_rounded,
-                  color: Colors.grey.shade400,
+                  color: Colors.grey.shade400, // Lighter icon
                   size: 32,
                 ),
               ),
@@ -896,7 +1047,7 @@ class _EnhancedAlertCard extends StatelessWidget {
           const SizedBox(width: 16),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   title,
@@ -917,70 +1068,51 @@ class _EnhancedAlertCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF7F1D1D),
-                  Color(0xFFDC2626),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(10),
+          );
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF2563EB),
             ),
-            child: ElevatedButton(
-              onPressed: onPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                cta,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+          );
+        },
+      );
+    }
   }
-}
 
 class _EnhancedTripRow extends StatelessWidget {
   const _EnhancedTripRow({required this.item, required this.isLast});
   final _TripItem item;
   final bool isLast;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade800,
-                  width: 1,
-                ),
-              ),
-      ),
-      child: Padding(
+    final String title;
+    final String subtitle;
+    final String cta;
+    final VoidCallback? onPressed;
+
+    @override
+    Widget build(BuildContext context) {
+      return Container(
         padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade900, // Dark card
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3), // Darker shadow
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+          border: Border.all(color: Colors.grey.shade800),
+        ),
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: const Color(0xFF0C4A6E),
                 borderRadius: BorderRadius.circular(12),
@@ -997,19 +1129,20 @@ class _EnhancedTripRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.route,
+                    title,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 15,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    item.date,
+                    subtitle,
                     style: TextStyle(
                       color: Colors.grey.shade400,
                       fontSize: 13,
+                      height: 1.3,
                     ),
                   ),
                 ],
@@ -1032,16 +1165,16 @@ class _EnhancedTripRow extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.grey.shade400,
                     fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
+              ),
             ),
           ],
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
 class _EnhancedBottomBar extends StatelessWidget {
   const _EnhancedBottomBar({required this.currentIndex, required this.onTap});
@@ -1066,47 +1199,73 @@ class _EnhancedBottomBar extends StatelessWidget {
             width: 1,
           ),
         ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 80,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _EnhancedBottomBarItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home_rounded,
-                label: 'Home',
-                isActive: currentIndex == 0,
-                onTap: () => onTap(0),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0C4A6E), // Dark blue background
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.route_rounded,
+                  color: Color(0xFF38BDF8), // Lighter blue icon
+                  size: 20,
+                ),
               ),
-              _EnhancedBottomBarItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'Profile',
-                isActive: currentIndex == 1,
-                onTap: () => onTap(1),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.route,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: Colors.white, // White text
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.date,
+                      style: TextStyle(
+                        color: Colors.grey.shade400, // Lighter grey
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              _EnhancedBottomBarItem(
-                icon: Icons.report_gmailerrorred_outlined,
-                activeIcon: Icons.report,
-                label: 'Violations',
-                isActive: currentIndex == 2,
-                onTap: () => onTap(2),
-              ),
-              _EnhancedBottomBarItem(
-                icon: Icons.shield_outlined,
-                activeIcon: Icons.shield,
-                label: 'Alerts',
-                isActive: currentIndex == 3,
-                onTap: () => onTap(3),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    item.distance,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: Colors.white, // White text
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.duration,
+                    style: TextStyle(
+                      color: Colors.grey.shade400, // Lighter grey
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    }
   }
 }
 
@@ -1119,19 +1278,15 @@ class _EnhancedBottomBarItem extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
+  // Updated for dark theme
+  class _EnhancedBottomBar extends StatelessWidget {
+    const _EnhancedBottomBar({required this.currentIndex, required this.onTap});
+    final int currentIndex;
+    final ValueChanged<int> onTap;
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    @override
+    Widget build(BuildContext context) {
+      return Container(
         decoration: BoxDecoration(
           color: isActive ? const Color(0xFF1E3A8A) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
@@ -1157,13 +1312,22 @@ class _EnhancedBottomBarItem extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color:
+                      isActive ? const Color(0xFF60A5FA) : Colors.grey.shade500,
+                  fontSize: 12,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
-}
 
 class _TripItem {
   final String date;
