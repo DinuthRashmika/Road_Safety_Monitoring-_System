@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../core/api_client.dart';
 import '../core/token_storage.dart';
 
@@ -13,16 +14,19 @@ class PreviousTripsScreen extends StatefulWidget {
 }
 
 class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
-  // Colors matching web design
-  static const primaryColor = Color(0xFF2563EB);
-  static const primaryDeep = Color(0xFF1D4ED8);
-  static const primaryLight = Color(0xFFF8E9EB);
-  static const inkColor = Color(0xFF0E1113);
-  static const grayDark = Color(0xFF8A8F98);
-  static const grayMedium = Color(0xFFDADDE1);
-  static const grayLight = Color(0xFFF1F2F4);
-  static const whiteColor = Color(0xFFFFFFFF);
-  static const blackColor = Color(0xFF000000);
+  // ===== Dark Theme (match your app) =====
+  static const Color primaryBlue = Color(0xFF2563EB);
+  static const Color primaryDeep = Color(0xFF1D4ED8);
+
+  static const Color bgBlack = Colors.black;
+  static const Color cardDark = Color(0xFF111827);
+  static const Color borderDark = Color(0xFF1F2937);
+  static const Color textWhite = Colors.white;
+  static const Color textMuted = Color(0xFF9CA3AF);
+
+  static const Color okGreen = Color(0xFF10B981);
+  static const Color warnOrange = Color(0xFFF59E0B);
+  static const Color dangerRed = Color(0xFFEF4444);
 
   List<dynamic> _trips = [];
   bool _isLoading = true;
@@ -73,6 +77,7 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
       try {
         token = await TokenStorage.read();
       } catch (e) {
+        // ignore: avoid_print
         print('Error reading token: $e');
       }
 
@@ -85,7 +90,7 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
         headers['Authorization'] = 'Bearer $token';
       }
 
-      // API call with pagination
+      // API call (your same endpoint)
       final response = await ApiClient.dio.get(
         '/api/sessions',
         options: Options(headers: headers),
@@ -111,6 +116,7 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
       // Pagination
       final startIndex = loadMore ? _trips.length : 0;
       final endIndex = startIndex + _pageSize;
+
       final paginatedTrips = newTrips.sublist(
         0,
         endIndex < newTrips.length ? endIndex : newTrips.length,
@@ -148,17 +154,22 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Trip'),
-        content: const Text('Are you sure you want to delete this trip?'),
+        backgroundColor: cardDark,
+        title: const Text('Delete Trip',
+            style: TextStyle(color: textWhite, fontWeight: FontWeight.w800)),
+        content: const Text(
+          'Are you sure you want to delete this trip?',
+          style: TextStyle(color: textMuted),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: textMuted)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-            child: const Text('Delete'),
+            style: ElevatedButton.styleFrom(backgroundColor: dangerRed),
+            child: const Text('Delete', style: TextStyle(color: textWhite)),
           ),
         ],
       ),
@@ -170,23 +181,42 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
       String? token = await TokenStorage.read();
       final headers = {
         'Content-Type': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
-      await ApiClient.dio.delete('/api/sessions/$tripId',
-          options: Options(headers: headers));
+
+      await ApiClient.dio.delete(
+        '/api/sessions/$tripId',
+        options: Options(headers: headers),
+      );
 
       setState(() {
-        _trips.removeWhere((trip) => trip['id'] == tripId);
+        _trips.removeWhere((trip) => (trip['id'] ?? '').toString() == tripId);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trip deleted successfully')),
-      );
+      _snack('Trip deleted successfully', okGreen);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete trip: $e')),
-      );
+      _snack('Failed to delete trip: $e', dangerRed);
     }
+  }
+
+  void _snack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: cardDark,
+        content: Row(
+          children: [
+            Icon(Icons.info_outline, color: color, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                msg,
+                style: const TextStyle(color: textWhite),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _formatDate(String dateString) {
@@ -221,7 +251,9 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
       final start = DateTime.parse(startTime);
       final end = endTime != null ? DateTime.parse(endTime) : DateTime.now();
       final duration = end.difference(start);
-      if (duration.inHours > 0) return '${duration.inHours}h ${duration.inMinutes % 60}m';
+      if (duration.inHours > 0) {
+        return '${duration.inHours}h ${duration.inMinutes % 60}m';
+      }
       return '${duration.inMinutes}m';
     } catch (_) {
       return 'Ongoing';
@@ -233,13 +265,13 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
       final start = DateTime.parse(startTime);
       final end = endTime != null ? DateTime.parse(endTime) : DateTime.now();
       final duration = end.difference(start);
-      
+
       if (duration.inDays > 0) {
         return '${duration.inDays} day${duration.inDays > 1 ? 's' : ''} '
-               '${duration.inHours % 24} hour${duration.inHours % 24 > 1 ? 's' : ''}';
+            '${duration.inHours % 24} hour${duration.inHours % 24 > 1 ? 's' : ''}';
       } else if (duration.inHours > 0) {
         return '${duration.inHours} hour${duration.inHours > 1 ? 's' : ''} '
-               '${duration.inMinutes % 60} minute${duration.inMinutes % 60 > 1 ? 's' : ''}';
+            '${duration.inMinutes % 60} minute${duration.inMinutes % 60 > 1 ? 's' : ''}';
       } else {
         return '${duration.inMinutes} minute${duration.inMinutes > 1 ? 's' : ''}';
       }
@@ -252,89 +284,59 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
     if (metrics == null) return 0;
     int total = 0;
     metrics.forEach((key, value) {
-      if (value is int) total += value;
+      if (value is int)
+        total += value;
       else if (value is String) total += int.tryParse(value) ?? 0;
     });
     return total;
   }
 
-  String _getStatus(String? endTime) => endTime == null ? 'Active' : 'Completed';
+  String _getStatus(String? endTime) =>
+      endTime == null ? 'Active' : 'Completed';
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
-        return primaryColor;
+        return primaryBlue;
       case 'completed':
-        return Colors.green;
+        return okGreen;
       default:
-        return Colors.grey;
+        return textMuted;
     }
   }
 
   Widget _buildViolationSummary(Map<String, dynamic>? metrics) {
     if (metrics == null || metrics.isEmpty) {
-      return Text(
+      return const Text(
         'Clean drive',
         style: TextStyle(
           fontSize: 12,
-          color: Colors.green,
-          fontWeight: FontWeight.w500,
+          color: okGreen,
+          fontWeight: FontWeight.w700,
         ),
       );
     }
-    
+
     final totalViolations = _getTotalViolations(metrics);
     if (totalViolations == 0) {
-      return Text(
+      return const Text(
         'Clean drive',
         style: TextStyle(
           fontSize: 12,
-          color: Colors.green,
-          fontWeight: FontWeight.w500,
+          color: okGreen,
+          fontWeight: FontWeight.w700,
         ),
       );
     }
-    
-    // Get top 2 violations
-    final violations = metrics.entries
-        .where((entry) {
-          int val = 0;
-          if (entry.value is int) val = entry.value;
-          else if (entry.value is String) val = int.tryParse(entry.value) ?? 0;
-          return val > 0;
-        })
-        .map((entry) => entry.key)
-        .take(2)
-        .toList();
-    
-    if (violations.isEmpty) {
-      return Text(
-        '$totalViolations violation${totalViolations > 1 ? 's' : ''}',
-        style: TextStyle(
-          fontSize: 12,
-          color: totalViolations >= 2 ? Colors.red : Colors.orange,
-          fontWeight: FontWeight.w500,
-        ),
-      );
-    }
-    
-    final violationNames = violations.map((key) {
-      final words = key
-          .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(0)}')
-          .replaceAll('_', ' ')
-          .split(' ')
-          .where((word) => word.isNotEmpty)
-          .map((word) => '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
-          .join(' ');
-      return words.split(' ').first;
-    }).join(' + ');
-    
+
+    Color c = totalViolations >= 2 ? dangerRed : warnOrange;
+
     return Text(
-      '$violationNames',
+      '$totalViolations violation${totalViolations > 1 ? 's' : ''}',
       style: TextStyle(
         fontSize: 12,
-        color: totalViolations >= 2 ? Colors.red : Colors.orange,
-        fontWeight: FontWeight.w500,
+        color: c,
+        fontWeight: FontWeight.w700,
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -344,245 +346,252 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: grayLight.withOpacity(0.3),
+      backgroundColor: bgBlack,
       appBar: AppBar(
-        backgroundColor: whiteColor,
+        backgroundColor: bgBlack,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: textWhite),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'Trip History',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: inkColor),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            color: textWhite,
+          ),
         ),
       ),
       body: _isLoading && _trips.isEmpty
-          ? const Center(child: CircularProgressIndicator(color: primaryColor))
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: primaryBlue,
+                strokeWidth: 2,
+              ),
+            )
           : _hasError && _trips.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: grayDark),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Failed to load trips',
-                        style: TextStyle(fontSize: 16, color: inkColor, fontWeight: FontWeight.w500),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _errorMessage,
-                        style: TextStyle(fontSize: 12, color: grayDark),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _fetchTrips,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: whiteColor,
-                        ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorState()
               : _trips.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.calendar_today_outlined, size: 64, color: grayDark),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No trips found',
-                            style: TextStyle(fontSize: 16, color: inkColor, fontWeight: FontWeight.w500),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Start a new trip to see it here',
-                            style: TextStyle(fontSize: 14, color: grayDark),
-                          ),
-                        ],
-                      ),
-                    )
+                  ? _buildEmptyState()
                   : RefreshIndicator(
                       onRefresh: () => _fetchTrips(),
-                      color: primaryColor,
+                      color: primaryBlue,
                       child: ListView.builder(
                         controller: _scrollController,
                         padding: const EdgeInsets.all(12),
                         itemCount: _trips.length + (_hasMore ? 1 : 0),
                         itemBuilder: (context, index) {
-                          if (index == _trips.length) return _buildLoadMoreIndicator();
+                          if (index == _trips.length) {
+                            return _buildLoadMoreIndicator();
+                          }
+
                           final trip = _trips[index];
                           final tripName = trip['name'] ?? 'Unnamed Trip';
                           final startTime = trip['startedAt'] ?? '';
                           final endTime = trip['endedAt'];
                           final metrics = trip['metrics'];
-                          final tripId = trip['id'] ?? '';
-                          final status = _getStatus(endTime);
-                          final duration = _calculateDuration(startTime, endTime);
-                          final totalViolations = _getTotalViolations(metrics != null ? Map<String, dynamic>.from(metrics) : null);
+                          final tripId = (trip['id'] ?? '').toString();
+
+                          final status = _getStatus(endTime?.toString());
+                          final duration = _calculateDuration(
+                              startTime.toString(), endTime?.toString());
 
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
+                            margin: const EdgeInsets.only(bottom: 10),
                             decoration: BoxDecoration(
-                              color: whiteColor,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: const [
+                              color: cardDark,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: borderDark),
+                              boxShadow: [
                                 BoxShadow(
-                                  color: Color.fromRGBO(0, 0, 0, 0.04),
-                                  blurRadius: 4,
-                                  offset: Offset(0, 2),
-                                ),
+                                  color: Colors.black.withOpacity(0.35),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                )
                               ],
                             ),
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: () => _showTripDetails(context, trip),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      // First row: Trip name and status
+                                      // Trip name + status
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              tripName,
+                                              tripName.toString(),
                                               style: const TextStyle(
                                                 fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: inkColor,
+                                                fontWeight: FontWeight.w800,
+                                                color: textWhite,
                                               ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
                                             decoration: BoxDecoration(
-                                              color: _getStatusColor(status).withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(6),
+                                              color: _getStatusColor(status)
+                                                  .withOpacity(0.18),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              border: Border.all(
+                                                color: _getStatusColor(status)
+                                                    .withOpacity(0.35),
+                                              ),
                                             ),
                                             child: Text(
                                               status,
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: _getStatusColor(status),
-                                                fontWeight: FontWeight.w600,
+                                                fontWeight: FontWeight.w800,
                                               ),
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 6),
-                                      
-                                      // Second row: Date and time
+                                      const SizedBox(height: 8),
+
+                                      // Date + time
                                       Row(
                                         children: [
                                           Text(
-                                            _formatDate(startTime),
-                                            style: TextStyle(
+                                            _formatDate(startTime.toString()),
+                                            style: const TextStyle(
                                               fontSize: 13,
-                                              color: grayDark,
+                                              color: textMuted,
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Container(
                                             width: 4,
                                             height: 4,
-                                            decoration: BoxDecoration(
-                                              color: grayMedium,
+                                            decoration: const BoxDecoration(
+                                              color: borderDark,
                                               shape: BoxShape.circle,
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            _formatTime(startTime),
-                                            style: TextStyle(
+                                            _formatTime(startTime.toString()),
+                                            style: const TextStyle(
                                               fontSize: 13,
-                                              color: grayDark,
+                                              color: textMuted,
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      
-                                      // Third row: Duration, violations, and action buttons in one line
+                                      const SizedBox(height: 10),
+
+                                      // Duration + violations + actions
                                       Row(
                                         children: [
-                                          // Duration
                                           Row(
                                             children: [
-                                              Icon(Icons.timer_outlined, size: 16, color: grayDark),
-                                              const SizedBox(width: 4),
+                                              const Icon(Icons.timer_outlined,
+                                                  size: 16, color: textMuted),
+                                              const SizedBox(width: 6),
                                               Text(
                                                 duration,
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                   fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: inkColor,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: textWhite,
                                                 ),
                                               ),
                                             ],
                                           ),
-                                          
                                           const SizedBox(width: 12),
-                                          
-                                          // Violations or clean drive
+
                                           Expanded(
-                                            child: _buildViolationSummary(metrics != null ? Map<String, dynamic>.from(metrics) : null),
+                                            child: _buildViolationSummary(
+                                              metrics != null
+                                                  ? Map<String, dynamic>.from(
+                                                      metrics)
+                                                  : null,
+                                            ),
                                           ),
-                                          
-                                          const SizedBox(width: 12),
-                                          
-                                          // View button (now icon only)
+
+                                          const SizedBox(width: 10),
+
+                                          // View
                                           InkWell(
-                                            onTap: () => _showTripDetails(context, trip),
-                                            borderRadius: BorderRadius.circular(6),
+                                            onTap: () =>
+                                                _showTripDetails(context, trip),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 8),
                                               decoration: BoxDecoration(
-                                                color: primaryColor.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6),
+                                                color: primaryBlue
+                                                    .withOpacity(0.18),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: primaryBlue
+                                                      .withOpacity(0.35),
+                                                ),
                                               ),
                                               child: Row(
-                                                children: [
-                                                  Icon(Icons.visibility_outlined, size: 14, color: primaryColor),
-                                                  const SizedBox(width: 4),
+                                                children: const [
+                                                  Icon(
+                                                    Icons.visibility_outlined,
+                                                    size: 16,
+                                                    color: primaryBlue,
+                                                  ),
+                                                  SizedBox(width: 6),
                                                   Text(
                                                     'View',
                                                     style: TextStyle(
                                                       fontSize: 12,
-                                                      color: primaryColor,
-                                                      fontWeight: FontWeight.w500,
+                                                      color: primaryBlue,
+                                                      fontWeight:
+                                                          FontWeight.w800,
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
                                           ),
-                                          
+
                                           const SizedBox(width: 8),
-                                          
-                                          // Delete button
+
+                                          // Delete
                                           InkWell(
                                             onTap: () => _deleteTrip(tripId),
-                                            borderRadius: BorderRadius.circular(6),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                             child: Container(
-                                              padding: const EdgeInsets.all(4),
+                                              padding: const EdgeInsets.all(8),
                                               decoration: BoxDecoration(
-                                                color: Colors.red.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6),
+                                                color:
+                                                    dangerRed.withOpacity(0.18),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: dangerRed
+                                                      .withOpacity(0.35),
+                                                ),
                                               ),
-                                              child: Icon(
+                                              child: const Icon(
                                                 Icons.delete_outline,
-                                                size: 14,
-                                                color: Colors.red,
+                                                size: 16,
+                                                color: dangerRed,
                                               ),
                                             ),
                                           ),
@@ -600,16 +609,106 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: textMuted),
+            const SizedBox(height: 16),
+            const Text(
+              'Failed to load trips',
+              style: TextStyle(
+                  fontSize: 16, color: textWhite, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage,
+              style: const TextStyle(fontSize: 12, color: textMuted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                gradient:
+                    const LinearGradient(colors: [primaryBlue, primaryDeep]),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryBlue.withOpacity(0.45),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                  )
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: _fetchTrips,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: textWhite,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Text('Retry',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(22),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calendar_today_outlined, size: 64, color: textMuted),
+            SizedBox(height: 16),
+            Text(
+              'No trips found',
+              style: TextStyle(
+                  fontSize: 16, color: textWhite, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Start a new trip to see it here',
+              style: TextStyle(fontSize: 14, color: textMuted),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadMoreIndicator() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Center(
         child: _hasMore
-            ? const CircularProgressIndicator(color: primaryColor)
+            ? const CircularProgressIndicator(
+                color: primaryBlue, strokeWidth: 2)
             : Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: grayLight, borderRadius: BorderRadius.circular(12)),
-                child: Text('No more trips', style: TextStyle(fontSize: 14, color: grayDark)),
+                decoration: BoxDecoration(
+                  color: cardDark,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderDark),
+                ),
+                child: const Text('No more trips',
+                    style: TextStyle(fontSize: 14, color: textMuted)),
               ),
       ),
     );
@@ -617,16 +716,18 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
 
   void _showTripDetails(BuildContext context, dynamic trip) {
     final tripName = trip['name'] ?? 'Unnamed Trip';
-    final startTime = trip['startedAt'] ?? '';
-    final endTime = trip['endedAt'];
-    final metrics = trip['metrics'] != null ? Map<String, dynamic>.from(trip['metrics']) : null;
+    final startTime = (trip['startedAt'] ?? '').toString();
+    final endTime = trip['endedAt']?.toString();
+    final metrics = trip['metrics'] != null
+        ? Map<String, dynamic>.from(trip['metrics'])
+        : null;
     final status = _getStatus(endTime);
     final totalViolations = _getTotalViolations(metrics);
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: whiteColor,
+      backgroundColor: cardDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(24),
@@ -643,216 +744,164 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
             return SingleChildScrollView(
               controller: scrollController,
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(22),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header with title and close button
+                    // Header
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
+                        const Expanded(
                           child: Text(
                             'Trip Details',
                             style: TextStyle(
                               fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: inkColor,
+                              fontWeight: FontWeight.w900,
+                              color: textWhite,
                             ),
                           ),
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close),
-                          color: grayDark,
+                          icon: const Icon(Icons.close, color: textMuted),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    
-                    // Trip name
+
                     Text(
-                      tripName,
-                      style: TextStyle(
+                      tripName.toString(),
+                      style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: primaryDeep,
+                        fontWeight: FontWeight.w800,
+                        color: primaryBlue,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    
-                    // Status and dates section
+                    const SizedBox(height: 18),
+
+                    // Status + times
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: grayLight.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: grayMedium),
+                        color: const Color(0xFF0B1220),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: borderDark),
                       ),
                       child: Column(
                         children: [
                           Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: _getStatusColor(status).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: _getStatusColor(status).withOpacity(0.3)),
+                                  color:
+                                      _getStatusColor(status).withOpacity(0.18),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: _getStatusColor(status)
+                                        .withOpacity(0.35),
+                                  ),
                                 ),
                                 child: Text(
                                   status.toUpperCase(),
                                   style: TextStyle(
                                     color: _getStatusColor(status),
                                     fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w900,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          
-                          // Start time
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.play_circle_outline, size: 18, color: primaryColor),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Start Time',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: grayDark,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _formatDateForDetails(startTime),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: inkColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 14),
+                          _detailRow(
+                            icon: Icons.play_circle_outline,
+                            iconColor: primaryBlue,
+                            label: 'Start Time',
+                            value: _formatDateForDetails(startTime),
                           ),
                           const SizedBox(height: 12),
-                          
-                          // End time or ongoing
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                endTime == null ? Icons.timer_outlined : Icons.stop_circle_outlined,
-                                size: 18,
-                                color: endTime == null ? primaryColor : Colors.green,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      endTime == null ? 'Status' : 'End Time',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: grayDark,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      endTime == null 
-                                          ? 'Currently Active' 
-                                          : _formatDateForDetails(endTime),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: endTime == null ? primaryColor : inkColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          _detailRow(
+                            icon: endTime == null
+                                ? Icons.timer_outlined
+                                : Icons.stop_circle_outlined,
+                            iconColor: endTime == null ? primaryBlue : okGreen,
+                            label: endTime == null ? 'Status' : 'End Time',
+                            value: endTime == null
+                                ? 'Currently Active'
+                                : _formatDateForDetails(endTime),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    
-                    // Duration and violations summary
+
+                    const SizedBox(height: 18),
+
                     Row(
                       children: [
                         Expanded(
-                          child: _buildDetailMetricItem(
+                          child: _metricCard(
                             icon: Icons.timer,
-                            iconColor: primaryColor,
+                            iconColor: primaryBlue,
                             label: 'Duration',
-                            value: _calculateDetailedDuration(startTime, endTime),
+                            value:
+                                _calculateDetailedDuration(startTime, endTime),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: _buildDetailMetricItem(
-                            icon: Icons.warning,
-                            iconColor: primaryColor,
+                          child: _metricCard(
+                            icon: Icons.warning_amber_rounded,
+                            iconColor: primaryBlue,
                             label: 'Violations',
                             value: '$totalViolations',
-                            isViolation: true,
+                            valueColor: totalViolations == 0
+                                ? okGreen
+                                : (totalViolations >= 2
+                                    ? dangerRed
+                                    : warnOrange),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    
-                    // Violations breakdown section
-                    Text(
+
+                    const SizedBox(height: 20),
+
+                    const Text(
                       'Violations Breakdown',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: inkColor,
+                        fontWeight: FontWeight.w900,
+                        color: textWhite,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     if (metrics == null || metrics.isEmpty)
                       Container(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
-                          color: grayLight.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFF0B1220),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: borderDark),
                         ),
                         child: Column(
-                          children: [
-                            Icon(Icons.check_circle_outline, size: 40, color: Colors.green),
-                            const SizedBox(height: 12),
+                          children: const [
+                            Icon(Icons.check_circle_outline,
+                                size: 40, color: okGreen),
+                            SizedBox(height: 10),
                             Text(
                               'No violations detected',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.green,
+                                fontWeight: FontWeight.w800,
+                                color: okGreen,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Great driving!',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: grayDark,
-                              ),
-                            ),
+                            SizedBox(height: 4),
+                            Text('Great driving!',
+                                style: TextStyle(color: textMuted)),
                           ],
                         ),
                       )
@@ -860,59 +909,62 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
                       Column(
                         children: metrics.entries.map((entry) {
                           int value = 0;
-                          if (entry.value is int) value = entry.value;
-                          else if (entry.value is String) value = int.tryParse(entry.value) ?? 0;
-                          
+                          if (entry.value is int)
+                            value = entry.value;
+                          else if (entry.value is String) {
+                            value = int.tryParse(entry.value) ?? 0;
+                          }
+
                           if (value == 0) return const SizedBox.shrink();
-                          
+
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: whiteColor,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: grayLight),
+                              color: const Color(0xFF0B1220),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: borderDark),
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  width: 36,
-                                  height: 36,
+                                  width: 38,
+                                  height: 38,
                                   decoration: BoxDecoration(
-                                    color: primaryLight,
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: primaryBlue.withOpacity(0.18),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: primaryBlue.withOpacity(0.35)),
                                   ),
                                   child: Center(
                                     child: Text(
                                       value.toString(),
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: primaryColor,
+                                      style: const TextStyle(
+                                        color: primaryBlue,
+                                        fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 10),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         _formatViolationName(entry.key),
-                                        style: TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: inkColor,
+                                          fontWeight: FontWeight.w800,
+                                          color: textWhite,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
+                                      const SizedBox(height: 4),
                                       Text(
                                         _getViolationDescription(entry.key),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: grayDark,
-                                        ),
+                                        style: const TextStyle(
+                                            fontSize: 12, color: textMuted),
                                       ),
                                     ],
                                   ),
@@ -922,38 +974,36 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
                           );
                         }).toList(),
                       ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Trip ID section
+
+                    const SizedBox(height: 18),
+
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: grayLight.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFF0B1220),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: borderDark),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, size: 18, color: grayDark),
+                          const Icon(Icons.info_outline,
+                              size: 18, color: textMuted),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Trip ID',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: grayDark,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
+                                const Text('Trip ID',
+                                    style: TextStyle(
+                                        fontSize: 11,
+                                        color: textMuted,
+                                        fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 4),
                                 SelectableText(
-                                  trip['id'] ?? 'N/A',
-                                  style: TextStyle(
+                                  (trip['id'] ?? 'N/A').toString(),
+                                  style: const TextStyle(
                                     fontSize: 13,
-                                    color: inkColor,
+                                    color: textWhite,
                                     fontFamily: 'monospace',
                                   ),
                                 ),
@@ -963,45 +1013,48 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
                         ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Action buttons
+
+                    const SizedBox(height: 18),
+
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: primaryColor,
-                              side: BorderSide(color: primaryColor),
+                              foregroundColor: primaryBlue,
+                              side: BorderSide(
+                                  color: primaryBlue.withOpacity(0.6)),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            child: const Text('Close'),
+                            child: const Text('Close',
+                                style: TextStyle(fontWeight: FontWeight.w900)),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: () => _deleteTrip(trip['id'] ?? ''),
+                            onPressed: () =>
+                                _deleteTrip((trip['id'] ?? '').toString()),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: whiteColor,
+                              backgroundColor: dangerRed,
+                              foregroundColor: textWhite,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            child: const Text('Delete Trip'),
+                            child: const Text('Delete Trip',
+                                style: TextStyle(fontWeight: FontWeight.w900)),
                           ),
                         ),
                       ],
                     ),
-                    
-                    const SizedBox(height: 20),
+
+                    const SizedBox(height: 18),
                   ],
                 ),
               ),
@@ -1012,57 +1065,82 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
     );
   }
 
-  Widget _buildDetailMetricItem({
+  Widget _detailRow({
     required IconData icon,
     required Color iconColor,
     required String label,
     required String value,
-    bool isViolation = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: iconColor),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: textMuted,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      color: textWhite,
+                      fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _metricCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    Color valueColor = textWhite,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: whiteColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: grayLight),
+        color: const Color(0xFF0B1220),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderDark),
       ),
       child: Column(
         children: [
           Icon(icon, size: 22, color: iconColor),
           const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: grayDark,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isViolation ? primaryColor : inkColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11, color: textMuted, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: valueColor,
+              ),
+              textAlign: TextAlign.center),
         ],
       ),
     );
   }
 
   String _formatViolationName(String key) {
-    // Convert snake_case or camelCase to Title Case
     final words = key
         .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(0)}')
         .replaceAll('_', ' ')
         .split(' ')
         .where((word) => word.isNotEmpty)
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
+        .map((word) =>
+            '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
         .join(' ');
-    
     return words;
   }
 
@@ -1079,7 +1157,7 @@ class _PreviousTripsScreenState extends State<PreviousTripsScreen> {
       'phone_usage': 'Mobile phone usage while driving',
       'seatbelt': 'Seatbelt not fastened',
     };
-    
+
     return descriptions[key.toLowerCase()] ?? 'Safety violation detected';
   }
 }
