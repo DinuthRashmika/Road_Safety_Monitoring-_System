@@ -5,6 +5,10 @@ import '../services/owner_service.dart';
 import '../services/vehicle_service.dart';
 import '../core/token_storage.dart';
 
+// ✅ NEW
+import '../services/notification_service.dart';
+import '../models/notification_model.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -16,25 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Vehicle> _vehicles = [];
   bool _loading = true;
 
-  // Mock data (replace with real data from your APIs)
-  final List<_AlertItem> _alerts = const [
-    _AlertItem(
-      title: 'Insurance expiring soon',
-      subtitle: 'Honda Civic (XYZ 789) - Expires in 15 days',
-      cta: 'Renew',
-    ),
-    _AlertItem(
-      title: 'Service due',
-      subtitle: 'Toyota Camry (ABC 123) - Next service at 30,000 km',
-      cta: 'Book',
-    ),
-    _AlertItem(
-      title: 'License renewal',
-      subtitle: 'Your driving license expires on Oct 31, 2023',
-      cta: 'View',
-    ),
-  ];
+  // ✅ NEW: real protective alerts from backend
+  // ✅ FIXED: real protective alerts from backend
+List<NotificationModel> _protective = [];
 
+  // Mock trips (unchanged)
   final List<_TripItem> _trips = const [
     _TripItem(
         date: 'Aug 18, 2023',
@@ -53,18 +43,25 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: '45 min'),
   ];
 
-  Future<void> _load() async {
-    try {
-      final me = await OwnerService.me();
-      final v = await VehicleService.mine();
-      setState(() {
-        _owner = me;
-        _vehicles = v;
-      });
-    } finally {
-      setState(() => _loading = false);
-    }
+Future<void> _load() async {
+  try {
+    final me = await OwnerService.me();
+    final v = await VehicleService.mine();
+
+    // ✅ FIXED: load protective alerts directly from the protective alerts endpoint
+    final protective = await NotificationService.getProtectiveAlerts();
+    
+    setState(() {
+      _owner = me;
+      _vehicles = v;
+      _protective = protective.take(3).toList();
+    });
+  } catch (e) {
+    debugPrint("Error loading home data: $e");
+  } finally {
+    setState(() => _loading = false);
   }
+}
 
   @override
   void initState() {
@@ -83,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final name = _owner?.fullName.split(' ').first ?? 'Ethan';
 
     return Scaffold(
-      backgroundColor: Colors.black, // Changed to black background
+      backgroundColor: Colors.black,
       bottomNavigationBar: _EnhancedBottomBar(
         currentIndex: 0,
         onTap: (i) {
@@ -105,9 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CustomScrollView(
                 primary: true,
                 slivers: [
-                  // 1. Updated Header to match the "Welcome, Ethan" image style
                   SliverAppBar(
-                    backgroundColor: Colors.black, // Black app bar
+                    backgroundColor: Colors.black,
                     floating: true,
                     pinned: false,
                     elevation: 0,
@@ -116,7 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.only(top: 10),
                       child: Row(
                         children: [
-                          // Avatar
                           Container(
                             width: 48,
                             height: 48,
@@ -138,53 +133,50 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : null,
                           ),
                           const SizedBox(width: 12),
-                          // Welcome Text
                           Text(
                             'Welcome, $name',
                             style: const TextStyle(
-                              color: Colors.white, // White text
+                              color: Colors.white,
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const Spacer(),
-                          // Icons
                           IconButton(
-                            onPressed: () =>
-                                Navigator.pushNamed(context, '/alerts'),
-                            icon: Stack(
-                              children: [
-                                const Icon(Icons.notifications_outlined,
-                                    color: Colors.white, size: 28), // White icon
-                                Positioned(
-                                  right: 2,
-                                  top: 2,
-                                  child: Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF2563EB),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+  onPressed: () =>
+      Navigator.pushNamed(context, '/alerts'),
+  icon: Stack(
+    children: [
+      const Icon(Icons.notifications_outlined,
+          color: Colors.white, size: 28),
+      if (_protective.isNotEmpty)  // Changed this line
+        Positioned(
+          right: 2,
+          top: 2,
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Color(0xFF2563EB),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+    ],
+  ),
+),
                           IconButton(
                             onPressed: () {},
                             icon: const Icon(Icons.search,
-                                color: Colors.white, size: 28), // White icon
+                                color: Colors.white, size: 28),
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Main Content
                   SliverList(
                     delegate: SliverChildListDelegate([
-                      // 2. "Add your first vehicle" Card (Updated for dark theme)
                       if (_vehicles.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(
@@ -199,7 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 24),
 
-                      // 3. Quick actions (Updated for dark theme)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: _EnhancedQuickActions(
@@ -217,7 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Existing Sections (My Vehicles, Alerts, Trips) - Updated for dark theme
                       if (_vehicles.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -277,47 +267,53 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 12),
                       ],
 
-                      // Protective Alerts Section
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-                        child: _EnhancedSectionHeader(
-                          title: 'Protective Alerts',
-                          subtitle: 'important notifications',
-                          actionText: 'View all',
-                          onAction: () =>
-                              Navigator.pushNamed(context, '/alerts'),
-                        ),
-                      ),
-                      ..._alerts.map((a) => Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 6),
-                            child: _EnhancedAlertCard(
-                              title: a.title,
-                              subtitle: a.subtitle,
-                              cta: a.cta,
-                              onPressed: () {},
-                            ),
-                          )),
+                      // ✅ Protective Alerts Section (REAL DATA)
+                      // ✅ FIXED: Protective Alerts Section (REAL DATA)
+Padding(
+  padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
+  child: _EnhancedSectionHeader(
+    title: 'Protective Alerts',
+    subtitle: 'important notifications',
+    actionText: 'View all',
+    onAction: () =>
+        Navigator.pushNamed(context, '/alerts'),
+  ),
+),
 
-                      // Trip History Section
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
-                        child: _EnhancedSectionHeader(
-                          title: 'Recent Trips',
-                          subtitle: 'Your latest journeys',
-                          actionText: 'View all',
-                          onAction: () =>
-                              Navigator.pushNamed(context, '/trips'),
-                        ),
-                      ),
+if (_protective.isEmpty)
+  Padding(
+    padding: const EdgeInsets.symmetric(
+        horizontal: 20, vertical: 6),
+    child: _EnhancedAlertCard(
+      title: 'No protective alerts',
+      subtitle: 'You have no nearby safety alerts yet.',
+      cta: 'View',
+      onPressed: () => Navigator.pushNamed(context, '/alerts'),
+    ),
+  )
+else
+  ..._protective.map((n) => Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: 20, vertical: 6),
+        child: _EnhancedAlertCard(
+          title: n.isProtective ? 'Protective Alert' : 'Alert',
+          subtitle: '${n.message}\n${n.location}',
+          cta: n.isRead ? 'Viewed' : 'Open',
+          onPressed: () async {
+            await NotificationService.markProtectiveAsRead(n.id);
+            if (!context.mounted) return;
+            Navigator.pushNamed(context, '/alerts');
+          },
+        ),
+      )),
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 20),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade900, // Dark card
+                          color: Colors.grey.shade900,
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3), // Darker shadow
+                              color: Colors.black.withOpacity(0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
@@ -341,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      // Live Monitoring Button
+                      // Live Monitoring Button (unchanged)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                         child: Container(
@@ -355,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2563EB).withOpacity(0.5), // Brighter shadow
+                                color: const Color(0xFF2563EB).withOpacity(0.5),
                                 blurRadius: 15,
                                 offset: const Offset(0, 6),
                               ),
@@ -409,9 +405,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/* ====================== UI COMPONENTS ====================== */
+/* ====================== UI COMPONENTS (UNCHANGED) ====================== */
 
-// Updated for dark theme
 class _AddVehicleBanner extends StatelessWidget {
   final VoidCallback onAdd;
   final VoidCallback onSkip;
@@ -424,7 +419,7 @@ class _AddVehicleBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.grey.shade900, // Dark background
+        color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.grey.shade800),
       ),
@@ -436,7 +431,7 @@ class _AddVehicleBanner extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.white, // White text
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
@@ -444,7 +439,7 @@ class _AddVehicleBanner extends StatelessWidget {
             'Get started by adding a vehicle to your\naccount.',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey.shade400, // Lighter grey
+              color: Colors.grey.shade400,
               height: 1.5,
             ),
           ),
@@ -495,7 +490,6 @@ class _AddVehicleBanner extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedQuickActions extends StatelessWidget {
   const _EnhancedQuickActions({
     required this.onAdd,
@@ -533,7 +527,6 @@ class _EnhancedQuickActions extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _QuickActionSquare extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -552,18 +545,18 @@ class _QuickActionSquare extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: Colors.grey.shade900, // Dark background
+              color: Colors.grey.shade900,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.grey.shade800),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2), // Darker shadow
+                  color: Colors.black.withOpacity(0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Icon(icon, color: Colors.grey.shade300, size: 28), // Lighter icon
+            child: Icon(icon, color: Colors.grey.shade300, size: 28),
           ),
         ),
         const SizedBox(height: 8),
@@ -572,7 +565,7 @@ class _QuickActionSquare extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Colors.grey.shade300, // Lighter text
+            color: Colors.grey.shade300,
           ),
         ),
       ],
@@ -580,7 +573,6 @@ class _QuickActionSquare extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedSectionHeader extends StatelessWidget {
   const _EnhancedSectionHeader({
     required this.title,
@@ -609,7 +601,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white, // White title
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -617,7 +609,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade400, // Lighter grey
+                    color: Colors.grey.shade400,
                   ),
                 ),
               ],
@@ -626,7 +618,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
             if (actionText != null)
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade800, // Darker background
+                  color: Colors.grey.shade800,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextButton(
@@ -640,7 +632,7 @@ class _EnhancedSectionHeader extends StatelessWidget {
                     actionText!,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade300, // Lighter text
+                      color: Colors.grey.shade300,
                       fontSize: 13,
                     ),
                   ),
@@ -653,7 +645,6 @@ class _EnhancedSectionHeader extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedVehicleCard extends StatelessWidget {
   const _EnhancedVehicleCard({
     required this.plate,
@@ -680,11 +671,11 @@ class _EnhancedVehicleCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.grey.shade900, // Dark card
+              color: Colors.grey.shade900,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3), // Darker shadow
+                  color: Colors.black.withOpacity(0.3),
                   blurRadius: 15,
                   offset: const Offset(0, 4),
                 ),
@@ -729,7 +720,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 16,
-                          color: Colors.white, // White text
+                          color: Colors.white,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -740,7 +731,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                         child: Text(
                           subtitle,
                           style: TextStyle(
-                            color: Colors.grey.shade400, // Lighter grey
+                            color: Colors.grey.shade400,
                             fontSize: 13,
                           ),
                           maxLines: 1,
@@ -753,7 +744,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF064E3B).withOpacity(0.3), // Dark green
+                            color: const Color(0xFF064E3B).withOpacity(0.3),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -763,7 +754,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                                 width: 6,
                                 height: 6,
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFF10B981), // Brighter green
+                                  color: Color(0xFF10B981),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -771,7 +762,7 @@ class _EnhancedVehicleCard extends StatelessWidget {
                               const Text(
                                 'Active',
                                 style: TextStyle(
-                                  color: Color(0xFF10B981), // Brighter green
+                                  color: Color(0xFF10B981),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -791,7 +782,6 @@ class _EnhancedVehicleCard extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _VehicleImageHandler extends StatelessWidget {
   final String? imageUrl;
   const _VehicleImageHandler({this.imageUrl});
@@ -808,12 +798,12 @@ class _VehicleImageHandler extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade800, // Darker background
+                color: Colors.grey.shade800,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.directions_car_filled_rounded,
-                color: Colors.grey.shade400, // Lighter icon
+                color: Colors.grey.shade400,
                 size: 32,
               ),
             ),
@@ -859,7 +849,6 @@ class _VehicleImageHandler extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedAlertCard extends StatelessWidget {
   const _EnhancedAlertCard({
     required this.title,
@@ -878,11 +867,11 @@ class _EnhancedAlertCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey.shade900, // Dark card
+        color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3), // Darker shadow
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -895,12 +884,12 @@ class _EnhancedAlertCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF431C1C), // Dark red background
+              color: const Color(0xFF431C1C),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.warning_amber_rounded,
-              color: Color(0xFFF87171), // Lighter red icon
+              color: Color(0xFFF87171),
               size: 20,
             ),
           ),
@@ -914,14 +903,14 @@ class _EnhancedAlertCard extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: Colors.white, // White text
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.grey.shade400, // Lighter grey
+                    color: Colors.grey.shade400,
                     fontSize: 13,
                     height: 1.3,
                   ),
@@ -967,7 +956,6 @@ class _EnhancedAlertCard extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedTripRow extends StatelessWidget {
   const _EnhancedTripRow({required this.item, required this.isLast});
   final _TripItem item;
@@ -994,12 +982,12 @@ class _EnhancedTripRow extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFF0C4A6E), // Dark blue background
+                color: const Color(0xFF0C4A6E),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
                 Icons.route_rounded,
-                color: Color(0xFF38BDF8), // Lighter blue icon
+                color: Color(0xFF38BDF8),
                 size: 20,
               ),
             ),
@@ -1013,14 +1001,14 @@ class _EnhancedTripRow extends StatelessWidget {
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
-                      color: Colors.white, // White text
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.date,
                     style: TextStyle(
-                      color: Colors.grey.shade400, // Lighter grey
+                      color: Colors.grey.shade400,
                       fontSize: 13,
                     ),
                   ),
@@ -1035,14 +1023,14 @@ class _EnhancedTripRow extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: Colors.white, // White text
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   item.duration,
                   style: TextStyle(
-                    color: Colors.grey.shade400, // Lighter grey
+                    color: Colors.grey.shade400,
                     fontSize: 13,
                   ),
                 ),
@@ -1055,7 +1043,6 @@ class _EnhancedTripRow extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedBottomBar extends StatelessWidget {
   const _EnhancedBottomBar({required this.currentIndex, required this.onTap});
   final int currentIndex;
@@ -1065,10 +1052,10 @@ class _EnhancedBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black, // Black background
+        color: Colors.black,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3), // Darker shadow
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -1123,7 +1110,6 @@ class _EnhancedBottomBar extends StatelessWidget {
   }
 }
 
-// Updated for dark theme
 class _EnhancedBottomBarItem extends StatelessWidget {
   const _EnhancedBottomBarItem({
     required this.icon,
@@ -1147,7 +1133,7 @@ class _EnhancedBottomBarItem extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF1E3A8A) : Colors.transparent, // Darker blue
+          color: isActive ? const Color(0xFF1E3A8A) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -1156,14 +1142,18 @@ class _EnhancedBottomBarItem extends StatelessWidget {
           children: [
             Icon(
               isActive ? activeIcon : icon,
-              color: isActive ? const Color(0xFF60A5FA) : Colors.grey.shade500, // Lighter icons
+              color: isActive
+                  ? const Color(0xFF60A5FA)
+                  : Colors.grey.shade500,
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isActive ? const Color(0xFF60A5FA) : Colors.grey.shade500,
+                color: isActive
+                    ? const Color(0xFF60A5FA)
+                    : Colors.grey.shade500,
                 fontSize: 12,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
               ),
@@ -1173,14 +1163,6 @@ class _EnhancedBottomBarItem extends StatelessWidget {
       ),
     );
   }
-}
-
-class _AlertItem {
-  final String title;
-  final String subtitle;
-  final String cta;
-  const _AlertItem(
-      {required this.title, required this.subtitle, required this.cta});
 }
 
 class _TripItem {
