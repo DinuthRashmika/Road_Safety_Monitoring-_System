@@ -1,6 +1,6 @@
 from typing import Dict
 from violence_detection_app.src.model_inference.object_detection import ObjectDetection
-from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 from violence_detection_app.src.config import config
 
 
@@ -9,7 +9,7 @@ class ModelFusion:
 
     def __init__(self, object_detection_weight=None, action_recognition_weight=None):
         self.object_detector = ObjectDetection()
-        self.action_detector = ActionRecognition()
+        self.action_detector = ActionRecognitionTorch()
 
         self.object_weights = config.OBJECT_WEIGHTS
         self.action_weights = config.ACTION_WEIGHTS
@@ -171,41 +171,41 @@ class ModelFusion:
 
 
         
-if __name__ == "__main__":
+# if __name__ == "__main__":
     
-    fusion = ModelFusion()
+#     fusion = ModelFusion()
 
-    # Fake YOLO output
-    yolo_result = {
-        'detections': [
-            {
-                'object': 'knife',
-                'confidence': 0.72,
-                'bbox': [100, 100, 200, 200],
-                'class_id': 43
-            },
-            {
-                'object': 'stick',
-                'confidence': 0.60,
-                'bbox': [50, 50, 120, 120],
-                'class_id': 44
-            }
-        ]
-    }
+#     # Fake YOLO output
+#     yolo_result = {
+#         'detections': [
+#             {
+#                 'object': 'knife',
+#                 'confidence': 0.72,
+#                 'bbox': [100, 100, 200, 200],
+#                 'class_id': 43
+#             },
+#             {
+#                 'object': 'stick',
+#                 'confidence': 0.60,
+#                 'bbox': [50, 50, 120, 120],
+#                 'class_id': 44
+#             }
+#         ]
+#     }
 
-    # Fake LRCN output
-    lrcn_result = {
-        'action': 'fighting',
-        'confidence': 0.85,
-        'ready': True,
-        'all_probabilities': {},
-        'is_violent': True
-    }
+#     # Fake LRCN output
+#     lrcn_result = {
+#         'action': 'fighting',
+#         'confidence': 0.85,
+#         'ready': True,
+#         'all_probabilities': {},
+#         'is_violent': True
+#     }
 
-    result = fusion.combine_results(yolo_result, lrcn_result)
+#     result = fusion.combine_results(yolo_result, lrcn_result)
 
-    print("\n----FINAL RESULT")
-    print(result)
+#     print("\n----FINAL RESULT")
+#     print(result)
 
 
     

@@ -1,9 +1,9 @@
 # def test_preprocess_frame():
 #     import numpy as np
 #     import cv2
-#     from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+#     from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 
-#     detector = ActionRecognition(verbose=False)
+#     detector = ActionRecognitionTorch(verbose=False)
 
 #     dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 #     processed = detector.preprocess_frame(dummy_frame)
@@ -16,9 +16,9 @@
 
 # def test_add_frame_to_buffer():
 #     import numpy as np
-#     from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+#     from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 
-#     detector = ActionRecognition(sequence_length=5, verbose=False)
+#     detector = ActionRecognitionTorch(sequence_length=5, verbose=False)
 
 #     dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
@@ -33,9 +33,9 @@
 
 # def test_predict_action_buffer_not_full():
 #     import numpy as np
-#     from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+#     from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 
-#     detector = ActionRecognition(sequence_length=5, verbose=False)
+#     detector = ActionRecognitionTorch(sequence_length=5, verbose=False)
 
 #     dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 #     detector.add_frame_to_buffer(dummy_frame)
@@ -49,9 +49,9 @@
 
 # def test_process_single_frame_buffering():
 #     import numpy as np
-#     from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+#     from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 
-#     detector = ActionRecognition(sequence_length=3, verbose=False)
+#     detector = ActionRecognitionTorch(sequence_length=3, verbose=False)
 
 #     dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
@@ -68,9 +68,9 @@
 
 def test_reset_buffer():
     import numpy as np
-    from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+    from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 
-    detector = ActionRecognition(sequence_length=5, verbose=False)
+    detector = ActionRecognitionTorch(sequence_length=5, verbose=False)
     dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
 
     detector.add_frame_to_buffer(dummy_frame)
@@ -83,9 +83,9 @@ def test_reset_buffer():
     print("✅ reset_buffer() passed")
 
 def test_get_statistics():
-    from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+    from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
 
-    detector = ActionRecognition(verbose=False)
+    detector = ActionRecognitionTorch(verbose=False)
     stats = detector.get_statistics()
 
     assert "frames_processed" in stats

@@ -1,6 +1,7 @@
 import cv2
 
-from violence_detection_app.src.model_inference.action_recognition import ActionRecognition
+from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
+from violence_detection_app.src.model_inference.object_detection import ObjectDetection
 from violence_detection_app.src.config import config
 
 
@@ -16,17 +17,24 @@ class DetectionSession:
         self.should_stop = False  # Flag to stop processing
         
         self.action_detector = None
-        # Note: object_detector not initialized here anymore (using microservice)
+        self.object_detector = None
         self.video_cap = None
         
     def initialize(self) -> bool:
         """Initialize LRCN model and open video"""
         try:
             # 1. Initialize LRCN model
-            self.action_detector = ActionRecognition(
-                model_path=config.LRCN_MODEL_PATH,
+            self.action_detector = ActionRecognitionTorch(
+                model_path=config.LRCN_TORCH_MODEL_PATH,
                 confidence_threshold=config.LRCN_CONFIDENCE_THRESHOLD,
                 sequence_length=config.SEQUENCE_LENGTH,
+                verbose=False
+            )
+
+            # 1. Initialize YOLO model (if needed)
+            self.object_detector = ObjectDetection(
+                model_path=config.YOLO_MODEL_PATH, 
+                confidence_threshold=config.YOLO_CONFIDENCE_THRESHOLD, 
                 verbose=False
             )
             
@@ -63,5 +71,8 @@ class DetectionSession:
             
         if self.action_detector:
             self.action_detector.reset_buffer()
+
+        # if self.object_detector:
+        #     self.object_detector.cleanup()
             
         print(f"🧹 Session {self.session_id} cleaned up")

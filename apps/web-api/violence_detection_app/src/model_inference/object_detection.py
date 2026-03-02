@@ -1,7 +1,11 @@
 import sys
+import threading
 from typing import Dict, List, Optional
 import cv2
 import numpy as np
+import threading
+import queue
+from collections import deque
 from violence_detection_app.src.config import config
 from violence_detection_app.src.data_processing.video_handler import VideoHandler
 from violence_detection_app.src.data_processing.frame_extractor import FrameExtractor
@@ -104,7 +108,7 @@ class ObjectDetection:
         return detections
 
 
-    def draw_detections_on_frame_test(self, frame, detections, frame_index=None):
+    def draw_detections_on_frame(self, frame, detections, frame_index=None):
 
         # Make a copy to draw on
         display_frame = frame.copy()
@@ -185,24 +189,24 @@ class ObjectDetection:
             )
         
         return display_frame
-    
+        
 
-
-    def process_video_test(self, video_path, output_path=None, display=True):
-
+    def process_video_test(self, video_path, output_path=None, display=True, display_skip=3):
+        """
+        Args:
+            display_skip: Display every Nth frame (3 = show 1 out of every 3 frames)
+        """
+        
         print("\n" + "="*70)
         print(f"PROCESSING VIDEO: {video_path}")
         print("="*70 + "\n")
         
-        # Open video
-        # cap = cv2.VideoCapture(video_path)
         cap = self.handler.read_video(video_path)
         
         if not cap.isOpened():
             print(f"Error: Cannot open video {video_path}")
             return None
         
-        # Get video properties
         fps = int(cap.get(cv2.CAP_PROP_FPS))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -212,16 +216,13 @@ class ObjectDetection:
         print(f"  Resolution: {width}x{height}")
         print(f"  FPS: {fps}")
         print(f"  Total frames: {total_frames}")
-        print(f"  Duration: {total_frames/fps:.1f}s\n")
+        print(f"  Display: Every {display_skip} frames\n")
         
-        # Setup video writer
         video_writer = None
         if output_path:
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             video_writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            print(f"Output will be saved to: {output_path}\n")
         
-        # Statistics
         stats = {
             'frames_processed': 0,
             'frames_with_detections': 0,
@@ -232,16 +233,11 @@ class ObjectDetection:
             'avg_confidences': {}
         }
         
-        print("Processing frames...")
-        if display:
-            print("Press 'q' to quit early\n")
-        
         frame_index = 0
         
         try:
             while True:
                 ret, frame = cap.read()
-                
                 if not ret:
                     break
                 
@@ -249,7 +245,7 @@ class ObjectDetection:
                 stats['frames_processed'] += 1
                 
                 # ==========================================
-                # DETECT OBJECTS IN THIS FRAME
+                # DETECT (happens for EVERY frame)
                 # ==========================================
                 detections = self.detect_in_frame(frame)
                 
@@ -267,52 +263,50 @@ class ObjectDetection:
                         
                         if obj_name not in stats['total_objects_detected']:
                             stats['total_objects_detected'].append(obj_name)
-
+                        
                         if obj_name in stats['confidence_sums']:
                             stats['confidence_sums'][obj_name] += confidence
                         else:
                             stats['confidence_sums'][obj_name] = confidence
                 
                 # ==========================================
-                # DRAW DETECTIONS ON FRAME
+                # DRAW (happens for EVERY frame)
                 # ==========================================
-                display_frame = self.draw_detections_on_frame_test(
+                display_frame = self.draw_detections_on_frame(
                     frame, 
                     detections, 
                     frame_index
                 )
                 
                 # ==========================================
-                # SAVE FRAME (if output path provided)
+                # SAVE (happens for EVERY frame)
                 # ==========================================
                 if video_writer:
                     video_writer.write(display_frame)
                 
                 # ==========================================
-                # DISPLAY FRAME (if display enabled)
+                # DISPLAY (happens for EVERY Nth frame) ← KEY FIX!
                 # ==========================================
-                if display:
+                if display and (frame_index % display_skip == 0):
                     cv2.imshow('Violence Detection - Object Detection', display_frame)
                     
-                    # Check for 'q' key to quit
-                    if cv2.waitKey(16) & 0xFF == ord('q'):
+                    # Use waitKey(1) - but only check every Nth frame
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
                         print("\n\nStopped by user")
                         break
                 
                 # Progress indicator
                 if frame_index % 30 == 0:
                     progress = frame_index / total_frames * 100
-                    print(f"Progress: {progress:.1f}% | Detections: {stats['total_detections']}", 
-                          end='\r')
-
-                # ==========================================
-                # CALCULATE REMAINING STATS
-                # ==========================================
-                for obj_name, total_conf in stats['confidence_sums'].items():
-                    count = stats['detections_by_object'].get(obj_name, 1)
-                    stats['avg_confidences'][obj_name] = total_conf / count
+                    print(f"Progress: {progress:.1f}% | Frame: {frame_index}/{total_frames} | Detections: {stats['total_detections']}", 
+                        end='\r')
+            
+            # Calculate avg confidences
+            for obj_name, total_conf in stats['confidence_sums'].items():
+                count = stats['detections_by_object'].get(obj_name, 1)
+                stats['avg_confidences'][obj_name] = total_conf / count
+                
         finally:
-            # Cleanup
             cap.release()
             if video_writer:
                 video_writer.release()
@@ -336,6 +330,126 @@ class ObjectDetection:
             print(f"\nOutput saved to: {output_path}")
         
         print("\n" + "="*70 + "\n")
+        
+        return stats
+        
+
+
+    def process_video_threaded(self, video_path, output_path=None, display=True):
+        """Multi-threaded version for smooth display"""
+        
+        print("\n" + "="*70)
+        print(f"PROCESSING VIDEO (THREADED): {video_path}")
+        print("="*70 + "\n")
+        
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Error: Cannot open video {video_path}")
+            return None
+        
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        # Frame queues
+        frame_queue = queue.Queue(maxsize=10)
+        display_queue = queue.Queue(maxsize=3)
+        
+        # Stats
+        stats = {
+            'frames_processed': 0,
+            'frames_with_detections': 0,
+            'total_detections': 0,
+            'detections_by_object': {}
+        }
+        
+        stop_event = threading.Event()
+        
+        # Thread 1: Read frames
+        def read_frames():
+            frame_idx = 0
+            while not stop_event.is_set():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame_idx += 1
+                frame_queue.put((frame_idx, frame))
+            frame_queue.put(None)  # Signal end
+        
+        # Thread 2: Detect objects
+        def detect_objects():
+            while not stop_event.is_set():
+                item = frame_queue.get()
+                if item is None:
+                    display_queue.put(None)
+                    break
+                
+                frame_idx, frame = item
+                
+                # Detect
+                detections = self.detect_in_frame(frame)
+                
+                # Update stats
+                stats['frames_processed'] += 1
+                if len(detections) > 0:
+                    stats['frames_with_detections'] += 1
+                    stats['total_detections'] += len(detections)
+                    
+                    for det in detections:
+                        obj_name = det['object']
+                        stats['detections_by_object'][obj_name] = \
+                            stats['detections_by_object'].get(obj_name, 0) + 1
+                
+                # Draw
+                display_frame = self.draw_detections_on_frame(
+                    frame, detections, frame_idx
+                )
+                
+                # Send to display (drop if queue full for smooth display)
+                try:
+                    display_queue.put((frame_idx, display_frame), block=False)
+                except queue.Full:
+                    pass  # Skip frame if display is lagging
+        
+        # Thread 3: Display frames
+        def display_frames():
+            while not stop_event.is_set():
+                item = display_queue.get()
+                if item is None:
+                    break
+                
+                frame_idx, display_frame = item
+                
+                cv2.imshow('Violence Detection', display_frame)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    stop_event.set()
+                    break
+        
+        # Start threads
+        read_thread = threading.Thread(target=read_frames)
+        detect_thread = threading.Thread(target=detect_objects)
+        display_thread = threading.Thread(target=display_frames)
+        
+        read_thread.start()
+        detect_thread.start()
+        if display:
+            display_thread.start()
+        
+        # Wait for completion
+        read_thread.join()
+        detect_thread.join()
+        if display:
+            display_thread.join()
+        
+        # Cleanup
+        cap.release()
+        cv2.destroyAllWindows()
+        
+        print("\nProcessing complete!")
+        print(f"Total frames: {stats['frames_processed']}")
+        print(f"Total detections: {stats['total_detections']}")
         
         return stats
 
@@ -378,10 +492,10 @@ class ObjectDetection:
                 frame_index += 1
                 
                 # Detect objects
-                detections = self.detect_in_frame(frame, frame_index)
+                detections = self.detect_in_frame(frame)
                 
                 # Draw detections
-                display_frame = self.draw_detections_on_frame_test(
+                display_frame = self.draw_detections_on_frame(
                     frame, 
                     detections, 
                     frame_index
@@ -413,7 +527,7 @@ class ObjectDetection:
     def save_frame_with_detections(self, frame: np.ndarray, detections: List[Dict], output_path: str, frame_index: int = None):
 
         # Draw detections on frame
-        display_frame = self.draw_detections_on_frame_test(frame, detections, frame_index)
+        display_frame = self.draw_detections_on_frame(frame, detections, frame_index)
         
         # Save
         cv2.imwrite(output_path, display_frame)
@@ -436,10 +550,11 @@ if __name__ == "__main__":
     )
     
     # Testttttt Process video file
-    stats = detector.process_video_test(
+    stats = detector.process_video_threaded(
         video_path=config.VIDEO_PATH,
         output_path=config.OUTPUT_DIR + '/yolo_output_demo.mp4',
         display=True  # Show video while processing
+        # display_skip=3
     )
     
     # Process webcam
