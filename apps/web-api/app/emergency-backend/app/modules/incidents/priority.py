@@ -4,7 +4,7 @@ from app.modules.incidents.schemas import Incident
 
 def get_temporal_impact() -> float:
     """
-    Calculates T (Temporal Impact) based on Time of Day.
+    Calculates Tr (Time-of-Day Risk).
     Red Zone (1.0)   = Rush Hours (School/Office)
     Yellow Zone (0.6) = Normal Day Activity
     Green Zone (0.2) = Late Night / Sleeping
@@ -21,24 +21,38 @@ def get_temporal_impact() -> float:
         if 480 <= current_min < 1320: # 08:00 AM to 10:00 PM
             return 0.6
         return 0.2
-
     else:
-        # Weekday Strategy (Your Custom Rules)
+        # Weekday Strategy 
         # RED ZONE 1: Morning Rush (06:30 - 09:00)
         if 390 <= current_min < 540:
             return 1.0
-            
         # RED ZONE 2: School End Rush (13:30 - 14:30)
         elif 810 <= current_min < 870:
             return 1.0
-            
         # GREEN ZONE: Night Time (22:00 - 06:30 next day)
         elif current_min >= 1320 or current_min < 390:
             return 0.2
-            
-        # YELLOW ZONE: Everything else (09:00-13:30 AND 14:30-22:00)
+        # YELLOW ZONE: Everything else
         else:
             return 0.6
+
+def get_holiday_surge(reported_at: datetime = None) -> float:
+    """
+    Calculates Hs (Holiday & Festival Surge).
+    High Risk (1.0) = Avurudu (April) and Late December holidays.
+    Normal (0.4) = Standard days.
+    """
+    dt = reported_at if reported_at else datetime.now()
+    month = dt.month
+    day = dt.day
+
+    # Check for Sri Lankan High-Risk Travel Seasons
+    is_avurudu_rush = (month == 4 and 10 <= day <= 20)
+    is_december_rush = (month == 12 and 20 <= day <= 31)
+
+    if is_avurudu_rush or is_december_rush:
+        return 1.0
+    return 0.4
 
 def map_risk(s: str) -> float:
     return {"low": 0.35, "medium": 0.65, "high": 0.90}.get(s, 0.35)
@@ -46,12 +60,21 @@ def map_risk(s: str) -> float:
 def clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
-# --- 2. MAIN SCORING ENGINE ---
+# --- MAIN SCORING ENGINE ---
 
 def score_incident(inc: Incident) -> Incident:
-    # 1. Get Context Parameters
-    R = map_risk(inc.camera_risk_class)  # Location Risk
-    T = get_temporal_impact()            # Time Risk (New)
+    # Parse the incident time if available, otherwise use now
+    dt = datetime.now()
+    if inc.reported_at:
+        try:
+            dt = datetime.fromisoformat(inc.reported_at.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+    # 1. Get Context Parameters for MFIPA
+    Lr = map_risk(inc.camera_risk_class)  # Location & Infrastructure Risk
+    Tr = get_temporal_impact()            # Time-of-Day Risk
+    Hs = get_holiday_surge(dt)            # Holiday Surge
     
     explain: list[str] = []
     
@@ -59,23 +82,21 @@ def score_incident(inc: Incident) -> Incident:
     fire_detected = (inc.accident and inc.accident.fire_present) or \
                     (inc.violence and hasattr(inc.violence, 'fire_present') and inc.violence.fire_present)
     
-    # --- SCENARIO A: ACCIDENT ---
+    # --- SCENARIO A: ACCIDENT (MFIPA ALGORITHM) ---
     if inc.accident:
         if inc.accident.fire_present:
             inc.score = 100
             explain.append("Fire detected → Critical Override")
             inc.required_roles = ["ambulance", "police", "fire"]
         else:
-            # Vu (Vulnerability): Setting default to 0.4 (Car)
+            # Vu (Vulnerability Index): Defaults to 0.4 for standard cars
             Vu = getattr(inc.accident, 'vulnerability', 0.4) 
             
-            V = clamp01((inc.accident.vehicles_involved - 1) / 2.0) # Vehicle Volume
-            
-            # Formula: 40% Vu + 30% V + 20% T + 10% R
-            raw_score = 100 * (0.40 * Vu + 0.30 * V + 0.20 * T + 0.10 * R)
+            # THE NEW MFIPA FORMULA: 40% Vu + 30% Lr + 20% Tr + 10% Hs
+            raw_score = 100 * (0.40 * Vu + 0.30 * Lr + 0.20 * Tr + 0.10 * Hs)
             inc.score = round(raw_score)
             
-            explain.append(f"Accident: Vu={Vu:.2f}, V={V:.2f}, T={T:.2f}, R={R:.2f}")
+            explain.append(f"MFIPA Calculated: Vu={Vu:.2f}, Lr={Lr:.2f}, Tr={Tr:.2f}, Hs={Hs:.2f}")
             inc.required_roles = ["ambulance", "police"]
 
     # --- SCENARIO B: VIOLENCE ---
@@ -83,11 +104,11 @@ def score_incident(inc: Incident) -> Incident:
         W = clamp01(inc.violence.weapon_conf) # Weapon Confidence
         P = clamp01((inc.violence.participants_count - 1) / 4.0) # Crowd Density
         
-        # Formula: 50% W + 20% P + 20% T + 10% R
-        raw_score = 100 * (0.50 * W + 0.20 * P + 0.20 * T + 0.10 * R)
+        # Formula: 50% W + 20% P + 20% Tr + 10% Lr
+        raw_score = 100 * (0.50 * W + 0.20 * P + 0.20 * Tr + 0.10 * Lr)
         inc.score = round(raw_score)
         
-        explain.append(f"Violence: W={W:.2f}, P={P:.2f}, T={T:.2f}, R={R:.2f}")
+        explain.append(f"Violence: W={W:.2f}, P={P:.2f}, Tr={Tr:.2f}, Lr={Lr:.2f}")
 
         if fire_detected:
             inc.required_roles = ["ambulance", "police", "fire"]
