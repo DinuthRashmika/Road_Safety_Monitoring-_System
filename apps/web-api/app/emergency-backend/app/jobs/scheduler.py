@@ -1,6 +1,7 @@
 import asyncio
 import cv2
 import os
+import re  
 import numpy as np
 import urllib.request
 from datetime import datetime, timedelta
@@ -32,6 +33,29 @@ def get_accident_model():
             logger.error(f"❌ Failed to load accident model: {e}")
             _accident_model = None
     return _accident_model
+
+def _get_direct_drive_url(url: str) -> str:
+    """Converts a Google Drive 'view' or 'open' link to a direct download URL."""
+    # Pattern for drive.google.com/file/d/FILE_ID/view
+    match = re.search(r'drive\.google\.com/file/d/([^/]+)', url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    
+    # Pattern for drive.google.com/open?id=FILE_ID
+    match = re.search(r'[?&]id=([^&]+)', url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    
+    # Pattern for drive.google.com/uc?export=view&id=FILE_ID
+    match = re.search(r'[?&]id=([^&]+)', url)
+    if match:
+        file_id = match.group(1)
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    
+    # If no pattern matches, return the original URL
+    return url
 
 def map_severity(violation_data: Dict[str, Any]) -> str:
     """Map violation data to severity grade (low/medium/high)"""
@@ -133,10 +157,12 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
         try:
             img = None
             if image_path.startswith(('http://', 'https://')):
+                # <-- MODIFIED: Convert Google Drive links to direct download URLs
+                actual_url = _get_direct_drive_url(image_path)
                 logger.info(f"Downloading image (attempt {attempt + 1}/{max_retries + 1})...")
                 
                 req = urllib.request.Request(
-                    image_path,
+                    actual_url,  
                     headers={
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     }
