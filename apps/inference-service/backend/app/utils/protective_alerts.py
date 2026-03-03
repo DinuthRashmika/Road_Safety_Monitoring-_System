@@ -7,6 +7,7 @@ from app.models.protective_notification_model import protective_notification_doc
 
 logger = logging.getLogger(__name__)
 
+
 async def send_protective_alert_to_owner(
     *,
     owner: dict,
@@ -29,6 +30,7 @@ async def send_protective_alert_to_owner(
 
         owner_id = str(owner.get("id") or owner.get("_id"))
         if not owner_id:
+            logger.error("Owner id missing, cannot save protective alert")
             return False
 
         message = (
@@ -46,7 +48,7 @@ async def send_protective_alert_to_owner(
             violation_image=violation_image,
         )
 
-        # ✅ IMPORTANT: Insert into new collection ONLY
+        # ✅ This line AUTO-CREATES the MongoDB collection if it does not exist
         await database.protective_alerts.insert_one(doc)
 
         logger.info(f"✅ Protective alert saved in protective_alerts for owner={owner_id} plate={near_plate}")

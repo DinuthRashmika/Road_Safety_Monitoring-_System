@@ -4,6 +4,7 @@ from datetime import datetime
 from bson import ObjectId
 from typing import Optional
 
+
 def protective_notification_doc(
     *,
     owner_id: str,
@@ -18,13 +19,13 @@ def protective_notification_doc(
 
     return {
         "_id": ObjectId(),
-        "ownerId": ObjectId(owner_id),
+        "ownerId": ObjectId(str(owner_id)),
 
         # ✅ Nearby vehicle plate only
         "vehiclePlate": vehicle_plate,
 
-        # ✅ Link to violation record
-        "violationId": ObjectId(violation_id) if violation_id else None,
+        # ✅ Link to violation record (optional)
+        "violationId": ObjectId(str(violation_id)) if violation_id else None,
 
         "message": message,
         "location": location,
@@ -38,5 +39,5 @@ def protective_notification_doc(
         "type": "protective_alert",
 
         "createdAt": now,
-        "updatedAt": now
+        "updatedAt": now,
     }

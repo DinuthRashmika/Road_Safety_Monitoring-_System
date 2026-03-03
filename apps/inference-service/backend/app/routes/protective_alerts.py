@@ -3,17 +3,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from bson import ObjectId
 from typing import List, Any, Dict
+from datetime import datetime
 import logging
 
 import app.db.mongodb as mongodb
 
-# ✅ IMPORTANT:
-# Use the SAME dependency you already use in other routes to get logged-in owner/user.
-# If your project has: from app.core.deps import get_current_user
-# OR: get_current_owner
-# Replace the import below to match your existing system.
-
-from app.core.deps import get_current_user  # <-- change ONLY if your project uses different name
+# ✅ Works with your project:
+# - If you have get_current_user, it will use it.
+# - Otherwise, it will use get_current_owner (your current file shows this exists).
+try:
+    from app.core.deps import get_current_user as _get_current
+except Exception:
+    from app.core.deps import get_current_owner as _get_current
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,8 @@ def _serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in doc.items():
         if isinstance(v, ObjectId):
             out[k] = str(v)
+        elif isinstance(v, datetime):
+            out[k] = v.isoformat()
         else:
             out[k] = v
     return out
@@ -43,14 +46,12 @@ def _serialize_doc(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 def _get_owner_id_from_user(current_user: dict) -> str:
     """
-    Your system has Owners and/or Users.
     We need the logged in person's Mongo _id for filtering.
+    Your get_current_owner returns a Mongo user doc with '_id'.
     """
     if not current_user:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # common patterns:
-    # {"id": "..."} or {"_id": ObjectId(...)}
     if "id" in current_user and current_user["id"]:
         return str(current_user["id"])
 
@@ -61,7 +62,7 @@ def _get_owner_id_from_user(current_user: dict) -> str:
 
 
 @router.get("/", response_model=List[dict])
-async def get_my_protective_alerts(current_user: dict = Depends(get_current_user)):
+async def get_my_protective_alerts(current_user: dict = Depends(_get_current)):
     """
     Returns protective alerts ONLY from collection: protective_alerts
     for the logged in owner/user.
@@ -81,7 +82,7 @@ async def get_my_protective_alerts(current_user: dict = Depends(get_current_user
 @router.put("/{alert_id}/read")
 async def mark_protective_alert_as_read(
     alert_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(_get_current),
 ):
     """
     Mark a protective alert as read (only if it belongs to logged user).
@@ -94,7 +95,7 @@ async def mark_protective_alert_as_read(
 
     res = await db.protective_alerts.update_one(
         {"_id": _oid(alert_id), "ownerId": _oid(owner_id)},
-        {"$set": {"isRead": True}},
+        {"$set": {"isRead": True, "updatedAt": datetime.utcnow()}},
     )
 
     if res.matched_count == 0:

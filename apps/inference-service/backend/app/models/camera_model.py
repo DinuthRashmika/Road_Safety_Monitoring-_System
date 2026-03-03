@@ -6,6 +6,7 @@ def camera_doc(
     *,
     name: str,
     location: str,
+    camera_risk_class: str = "low",   # ✅ NEW
 ):
     now = datetime.utcnow()
     return {
@@ -13,7 +14,8 @@ def camera_doc(
         "name": name,
         "location": location,
         "status": "active",
-        "secret_key": uuid.uuid4().hex, # Auto-generate a key for the camera
+        "secret_key": uuid.uuid4().hex,
+        "camera_risk_class": camera_risk_class,  # ✅ NEW
         "createdAt": now,
         "updatedAt": now,
     }
