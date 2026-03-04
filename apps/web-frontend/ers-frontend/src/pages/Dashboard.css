@@ -65,3 +65,60 @@
   border-radius: 5px;
   margin-bottom: 16px;
 }
+
+/* ========== HIDDEN REFRESH BUTTON (ADDED AT THE END) ========== */
+/* This section is completely invisible - won't affect your existing styles */
+
+.hidden-refresh-zone {
+  position: relative;
+  width: 100%;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hidden-refresh-button {
+  position: absolute;
+  top: -45px;
+  right: 5px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  pointer-events: auto;
+  /* Completely invisible - no hover effects, no tooltips, no outline */
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hidden-refresh-button:hover {
+  background: transparent; /* No hover effect */
+}
+
+.hidden-refresh-button:active {
+  background: transparent; /* No active effect */
+}
+
+.hidden-refresh-button:focus {
+  outline: none; /* No focus outline */
+}
+
+/* Responsive adjustment */
+@media (max-width: 768px) {
+  .hidden-refresh-button {
+    top: -40px;
+    right: 5px;
+    width: 25px;
+    height: 25px;
+  }
+}
+
+/* Print styles */
+@media print {
+  .hidden-refresh-zone {
+    display: none;
+  }
+}

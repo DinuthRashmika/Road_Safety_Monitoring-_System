@@ -36,25 +36,16 @@ def get_accident_model():
 
 def _get_direct_drive_url(url: str) -> str:
     """Converts a Google Drive 'view' or 'open' link to a direct download URL."""
-    # Pattern for drive.google.com/file/d/FILE_ID/view
     match = re.search(r'drive\.google\.com/file/d/([^/]+)', url)
     if match:
         file_id = match.group(1)
         return f"https://drive.google.com/uc?export=download&id={file_id}"
     
-    # Pattern for drive.google.com/open?id=FILE_ID
     match = re.search(r'[?&]id=([^&]+)', url)
     if match:
         file_id = match.group(1)
         return f"https://drive.google.com/uc?export=download&id={file_id}"
     
-    # Pattern for drive.google.com/uc?export=view&id=FILE_ID
-    match = re.search(r'[?&]id=([^&]+)', url)
-    if match:
-        file_id = match.group(1)
-        return f"https://drive.google.com/uc?export=download&id={file_id}"
-    
-    # If no pattern matches, return the original URL
     return url
 
 def map_severity(violation_data: Dict[str, Any]) -> str:
@@ -193,17 +184,14 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
                     continue
                 return False, 0.0
 
-            # Run accident detection
             logger.info("Running accident detection model on image...")
             results = model(img, conf=0.1)
 
-            # Check results
             if len(results) > 0 and len(results[0].boxes) > 0:
                 confidences = results[0].boxes.conf.cpu().numpy()
                 max_conf = float(max(confidences)) if len(confidences) > 0 else 0
                 num_detections = len(results[0].boxes)
                 
-                # Log what was detected
                 if hasattr(model, 'names'):
                     class_names = model.names
                     for i, box in enumerate(results[0].boxes):
@@ -278,17 +266,15 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             logger.info(f"No image path for violation {violation_id}")
             return False
         
-        # CRITICAL: Check if it's an actual accident using YOLO
         logger.info(f"Checking if image is an accident: {image_path[:100]}...")
         is_accident, accident_conf = await is_actual_accident(image_path)
         
         if not is_accident:
             logger.info(f"⏭️ Not an accident (conf: {accident_conf:.2f}) - skipping violation {violation_id}")
-            return False  # This prevents non-accidents from being ingested
+            return False
         
         logger.info(f"✅ Accident detected! Confidence: {accident_conf:.2f}")
         
-        # Check for duplicates
         existing = await check_duplicate_incident(
             incidents_collection.database, 
             location
@@ -313,7 +299,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             
             return True
         
-        # Fetch camera data
         camera_data = await fetch_camera_data(cameras_collection, location, camera_id)
         
         lat = 6.9271
@@ -380,8 +365,70 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         logger.error(f"Error processing violation {violation.get('_id')}: {e}")
         return False
 
+# NEW: Function to process ALL violations (for demo/force refresh)
+async def poll_shenal_database_once():
+    """Run one cycle of the database poller manually - processes ALL violations regardless of emergency_processed flag"""
+    logger.info("🔄 FORCE REFRESH: Processing all violations")
+    
+    try:
+        client = get_client()
+        shenal_db = client["road_safety"]
+        violations_collection = shenal_db["violations"]
+        cameras_collection = shenal_db["cameras"]
+        emergency_db = client["emergency_db"]
+        
+        # Get ALL violations (not just unprocessed)
+        total_violations = await violations_collection.count_documents({})
+        logger.info(f"📊 Total violations in database: {total_violations}")
+        
+        cursor = violations_collection.find({}).sort("_id", -1).limit(20)
+        violations = await cursor.to_list(length=20)
+        
+        if not violations:
+            logger.info("No violations found")
+            return 0
+        
+        logger.info(f"📦 Force processing {len(violations)} violations")
+        processed_count = 0
+        accident_count = 0
+        
+        for violation in violations:
+            try:
+                logger.info(f"Force processing violation {violation.get('_id')} - Type: {violation.get('violationType')}")
+                
+                # Process the violation
+                success = await process_violation(
+                    violation, 
+                    cameras_collection, 
+                    emergency_db
+                )
+                
+                if success:
+                    processed_count += 1
+                    
+                    # Check if it was an accident
+                    violation_type = violation.get("violationType", "").lower()
+                    if "accident" in violation_type or "crash" in violation_type:
+                        accident_count += 1
+                
+                # Don't update emergency_processed flag - let normal flow handle it
+                # This allows multiple force refreshes
+                
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logger.error(f"Error force processing violation: {e}")
+                continue
+        
+        logger.info(f"✅ Force refresh complete: Processed {processed_count} incidents ({accident_count} accidents)")
+        return processed_count
+        
+    except Exception as e:
+        logger.error(f"Force refresh error: {e}")
+        return 0
+
 async def poll_shenal_database():
-    """Main polling function"""
+    """Main polling function - only processes unprocessed violations"""
     logger.info("🚀 Starting database poller...")
     
     consecutive_errors = 0

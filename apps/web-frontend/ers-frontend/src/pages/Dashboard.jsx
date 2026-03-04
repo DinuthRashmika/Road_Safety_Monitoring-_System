@@ -11,6 +11,7 @@ const Dashboard = () => {
   const [loadingQueue, setLoadingQueue] = useState(true);
   const [loadingTelemetry, setLoadingTelemetry] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchTelemetry = async () => {
     try {
@@ -28,7 +29,6 @@ const Dashboard = () => {
   const fetchQueue = async () => {
     try {
       setLoadingQueue(true);
-
       const res = await api.get('/api/incidents/queue', {
         params: { status: 'active' }
       });
@@ -46,18 +46,44 @@ const Dashboard = () => {
     fetchQueue();
   };
 
+  // Silent refresh - no messages, no tooltips
+  const handleSilentRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      await api.post('/api/demo/force-refresh');
+      await fetchTelemetry();
+      await fetchQueue();
+    } catch (err) {
+      console.error('Refresh failed:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Keyboard shortcut: Ctrl+Shift+R
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        handleSilentRefresh();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   useEffect(() => {
     handleIncidentUpdate(); 
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    
     const intervalId = setInterval(() => {
       handleIncidentUpdate();
     }, 10000); 
 
-    
     return () => clearInterval(intervalId);
   }, []); 
 
@@ -66,6 +92,15 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <h2>Emergency Response Dashboard</h2>
         <p>Monitor and respond to active emergencies in your area</p>
+      </div>
+
+      {/* Completely hidden refresh button - no tooltip, no text, no hover effect */}
+      <div className="hidden-refresh-zone">
+        <div 
+          className="hidden-refresh-button"
+          onClick={handleSilentRefresh}
+          title="" /* Empty title to prevent tooltip */
+        />
       </div>
 
       <div className="telemetry-grid">

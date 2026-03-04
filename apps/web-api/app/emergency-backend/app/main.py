@@ -14,7 +14,7 @@ from app.modules.telemetry.routes import router as telemetry_router
 from app.modules.hub.ingest_routes import router as hub_router
 from app.modules.routing.routes import router as routing_router
 from app.seed.seed_cli import create_admin
-from app.jobs.scheduler import start_scheduler
+from app.jobs.scheduler import start_scheduler, poll_shenal_database_once  # Added poll_shenal_database_once
 
 # Setup logging
 logging.basicConfig(
@@ -45,7 +45,7 @@ async def on_startup():
     
     # Start background workers
     logger.info("Starting Shenal's Database Polling Worker...")
-    await start_scheduler()  # Make sure this is awaitable
+    await start_scheduler()
     
     logger.info("✅ System startup complete")
 
@@ -53,7 +53,6 @@ async def on_startup():
 async def on_shutdown():
     """Cleanup on shutdown"""
     logger.info("Shutting down Emergency Response System...")
-    # Add any cleanup code here if needed
 
 @app.get("/health")
 async def health():
@@ -72,6 +71,25 @@ async def version():
         "env": settings.ENV,
         "version": "1.0.0"
     }
+
+# NEW: Force refresh endpoint for demo purposes
+@app.post("/api/demo/force-refresh")
+async def force_refresh_incidents():
+    """Manually trigger processing of ALL violations (for demo purposes)"""
+    try:
+        logger.info("🔴 DEMO: Force refresh triggered manually")
+        result = await poll_shenal_database_once()
+        return {
+            "success": True,
+            "message": f"Processed {result} violations",
+            "count": result
+        }
+    except Exception as e:
+        logger.error(f"Force refresh failed: {e}")
+        return {
+            "success": False,
+            "message": str(e)
+        }
 
 # Include all routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
