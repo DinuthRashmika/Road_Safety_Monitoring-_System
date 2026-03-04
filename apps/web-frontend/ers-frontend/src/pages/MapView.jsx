@@ -14,35 +14,40 @@ const MapView = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [directionsResponse, setDirectionsResponse] = useState(null);
 
-  // 1. ONE-TIME AUTO REFRESH LOGIC
+  // --- REPROCESSED AUTO-REFRESH FIX ---
   useEffect(() => {
-    if (incident?.id) {
-      const refreshKey = `map_refreshed_${incident.id}`;
+    // Check if we have incident data
+    if (incident && incident.id) {
+      const refreshKey = `map_refresh_id_${incident.id}`;
       const hasRefreshed = sessionStorage.getItem(refreshKey);
 
       if (!hasRefreshed) {
+        console.log("Initial map load: Triggering one-time refresh...");
         sessionStorage.setItem(refreshKey, 'true');
-        window.location.reload();
+        
+        // Use a tiny timeout to ensure storage is set before reload
+        const timer = setTimeout(() => {
+          window.location.reload();
+        }, 100);
+        
+        return () => clearTimeout(timer);
       }
     }
-  }, [incident?.id]);
+  }, [incident]); 
+  // ------------------------------------
 
   const mapContainerStyle = {
     width: '100%',
-    height: '550px',
-    borderRadius: '8px'
+    height: '100%',
+    borderRadius: '16px'
   };
 
   const mapOrigin = route?.start || (route?.path && route.path[0]) || { lat: 6.9271, lng: 79.8612 };
   const mapDestination = incident?.location || route?.end || (route?.path && route.path[1]) || { lat: 6.9271, lng: 79.8612 };
 
   const directionsCallback = useCallback((response) => {
-    if (response !== null) {
-      if (response.status === 'OK') {
-        setDirectionsResponse(response);
-      } else {
-        console.error('Directions Error:', response.status);
-      }
+    if (response !== null && response.status === 'OK') {
+      setDirectionsResponse(response);
     }
   }, []);
 
@@ -51,13 +56,11 @@ const MapView = () => {
     try {
       await api.post(`/api/incidents/${incident.id}/status`, { status: newStatus });
       setIncident(prev => ({ ...prev, status: newStatus }));
-
       if (newStatus === 'resolved') {
-        alert('Incident resolved!');
         navigate('/history');
       }
     } catch (err) {
-      alert(`Failed to update status: ${err.response?.data?.detail || err.message}`);
+      alert(`System Error: ${err.response?.data?.detail || err.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -65,23 +68,34 @@ const MapView = () => {
 
   const renderActionButtons = () => {
     if (!incident) return null;
-    switch (incident.status) {
-      case 'accepted': return <button className="map-action-button btn-enroute" onClick={() => handleUpdateStatus('enroute')} disabled={isUpdating}>{isUpdating ? '...' : 'Go Enroute'}</button>;
-      case 'enroute': return <button className="map-action-button btn-arrived" onClick={() => handleUpdateStatus('arrived')} disabled={isUpdating}>{isUpdating ? '...' : 'Arrived at Scene'}</button>;
-      case 'arrived': return <button className="map-action-button btn-resolved" onClick={() => handleUpdateStatus('resolved')} disabled={isUpdating}>{isUpdating ? '...' : 'Resolve Incident'}</button>;
-      case 'resolved': return <p className="map-status-resolved">Incident Resolved</p>;
-      default: return null; 
-    }
+    const labels = {
+      'accepted': { text: 'Commence Response', class: 'btn-enroute', next: 'enroute' },
+      'enroute': { text: 'Confirm Arrival', class: 'btn-arrived', next: 'arrived' },
+      'arrived': { text: 'Mark Incident Resolved', class: 'btn-resolved', next: 'resolved' }
+    };
+
+    const config = labels[incident.status];
+    if (!config) return <div className="resolved-banner">✓ Incident Fully Resolved</div>;
+
+    return (
+      <button 
+        className={`pro-action-btn ${config.class}`} 
+        onClick={() => handleUpdateStatus(config.next)} 
+        disabled={isUpdating}
+      >
+        {isUpdating ? 'Updating...' : config.text}
+      </button>
+    );
   };
-  
+
   if (!incident || !route) {
     return (
       <Layout>
-        <h2>Map View</h2>
-        <div className="map-container">
-          <div className="map-placeholder-full">
-            <h3 style={{color: '#888'}}>MAP</h3>
-            <p style={{color: '#888'}}>Select an incident from the dashboard to view a route.</p>
+        <div className="empty-state-container">
+          <div className="empty-state-content">
+            <h3>No Active Deployment</h3>
+            <p>Please select an incident from your dashboard to begin navigation.</p>
+            <button className="back-dash-btn" onClick={() => navigate('/')}>Return to Dashboard</button>
           </div>
         </div>
       </Layout>
@@ -90,48 +104,67 @@ const MapView = () => {
 
   return (
     <Layout>
-      <h2>Map View</h2>
-      <div className="map-container">
-        <div className="map-info-box">
-          <h4>Route: {incident.location.address}</h4>
-          <p><strong>Distance:</strong> {route.distance_km} km</p>
-          <p><strong>Status:</strong> <span className="status-highlight">{incident.status}</span></p>
-        </div>
-        
-        <div className="map-actions-bar">
-          {renderActionButtons()}
-        </div>
-        
-        <div style={{ marginTop: '20px' }}>
-          {/* IMPORTANT: Ensure this API key is valid and has "Maps JavaScript API" enabled */}
+      <div className="pro-map-wrapper">
+        <aside className="pro-sidebar">
+          <header className="sidebar-header-pro">
+            <div className="header-top">
+              <h3>Live Navigation</h3>
+              <div className={`status-orb ${incident.status}`}></div>
+            </div>
+            <p className="incident-id-tag">Case ID: #{incident.id.toString().slice(-8)}</p>
+          </header>
+          
+          <div className="detail-section">
+            <label className="pro-label">Primary Destination</label>
+            <h2 className="pro-address">{incident.location.address}</h2>
+          </div>
+
+          <div className="pro-metrics-grid">
+            <div className="metric-box">
+              <label className="pro-label">Est. Distance</label>
+              <div className="metric-value">{route.distance_km} <span className="unit">km</span></div>
+            </div>
+            <div className="metric-box">
+              <label className="pro-label">Current Status</label>
+              <div className={`status-badge-text ${incident.status}`}>{incident.status}</div>
+            </div>
+          </div>
+
+          <footer className="sidebar-footer-pro">
+            {renderActionButtons()}
+          </footer>
+        </aside>
+
+        <main className="map-view-area-pro">
           <LoadScript googleMapsApiKey="AIzaSyCiDuhWjlO3yK6QeYgPX-JdHtkIs78p31Q">
             <GoogleMap
-              key={incident.id} // Forces map re-mount if incident changes
+              key={incident.id}
               mapContainerStyle={mapContainerStyle}
               center={mapDestination}
               zoom={14}
+              options={{
+                disableDefaultUI: false,
+                mapTypeControl: false,
+                streetViewControl: false
+              }}
             >
               {!directionsResponse && (
                 <DirectionsService
-                  options={{
-                    origin: mapOrigin,
-                    destination: mapDestination,
-                    travelMode: 'DRIVING'
-                  }}
+                  options={{ origin: mapOrigin, destination: mapDestination, travelMode: 'DRIVING' }}
                   callback={directionsCallback}
                 />
               )}
-
               {directionsResponse && (
-                <DirectionsRenderer
-                  options={{
-                    directions: directionsResponse
-                  }}
+                <DirectionsRenderer 
+                  options={{ 
+                    directions: directionsResponse,
+                    polylineOptions: { strokeColor: '#4f46e5', strokeWeight: 6 } 
+                  }} 
                 />
               )}
             </GoogleMap>
           </LoadScript>
-        </div>
+        </main>
       </div>
     </Layout>
   );
