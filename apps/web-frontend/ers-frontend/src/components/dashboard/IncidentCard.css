@@ -115,16 +115,20 @@
 .role-tag.ambulance { background-color: #5cb85c; }
 .role-tag.fire { background-color: #E4080A; }
 
+.score-badge {
+  /* Increase this value to make the score larger */
+  font-size: 1.7rem !important; 
+  font-weight: 800 !important;
+  color: #333;
+  line-height: 1;
+  margin-right: 10px;
+}
+
+/* Ensure the container aligns the larger text correctly */
 .card-actions {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-.score-badge {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #333;
 }
 
 .accept-button {
