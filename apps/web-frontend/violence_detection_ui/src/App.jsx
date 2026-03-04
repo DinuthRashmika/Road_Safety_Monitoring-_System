@@ -1,5 +1,5 @@
 import {BrowserRouter, Route, Routes, } from 'react-router-dom'
-import VideoSources from "./pages/VideoSources"
+import VideoSources from "./pages/DisplayVideoSources"
 import './index.css'
 import Detection from './pages/DetectionMonitering';
 

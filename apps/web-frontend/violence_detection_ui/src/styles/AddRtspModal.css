@@ -1,0 +1,437 @@
+/* ═══════════════════════════════════════════════
+   AddRtspModal.css
+   Matches existing light theme:
+     - White cards, #f4f7f6 background
+     - Red accent: #E4080A
+     - Dark text: #1c1c1d, grey: #6b7280
+     - Fonts: system font stack from index.css
+═══════════════════════════════════════════════ */
+
+/* ── Backdrop ── */
+.rtsp-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+    animation: rtsp-backdrop-in 0.2s ease;
+}
+
+@keyframes rtsp-backdrop-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ── Modal container ── */
+.rtsp-modal {
+    background: #ffffff;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+    animation: rtsp-modal-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes rtsp-modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(16px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+/* ── Header ── */
+.rtsp-modal-header {
+    padding: 20px 24px 0;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.rtsp-modal-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.rtsp-modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1c1c1d;
+}
+
+.rtsp-close-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #9ca3af;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+    transition: color 0.15s ease;
+}
+
+.rtsp-close-btn:hover { color: #1c1c1d; }
+
+/* ── Step indicator ── */
+.rtsp-steps {
+    display: flex;
+    align-items: center;
+    padding-bottom: 16px;
+    gap: 0;
+}
+
+.rtsp-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.step-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    /* defaults — overridden per state */
+    background: #e5e7eb;
+    color: #9ca3af;
+}
+
+.step-label {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #9ca3af;
+    transition: color 0.2s ease;
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: #e5e7eb;
+    margin: 0 8px;
+    transition: background 0.3s ease;
+}
+
+/* Active step */
+.step-active .step-dot {
+    background: #E4080A;
+    color: #fff;
+}
+.step-active .step-label { color: #E4080A; font-weight: 600; }
+
+/* Done step */
+.step-done .step-dot {
+    background: #d1fae5;
+    color: #065f46;
+}
+.step-done .step-dot::after { content: "✓"; }
+.step-done .step-label { color: #374151; }
+
+/* Idle step */
+.step-idle .step-dot  { background: #f3f4f6; color: #d1d5db; }
+.step-idle .step-label { color: #d1d5db; }
+
+/* ── Body ── */
+.rtsp-modal-body {
+    padding: 20px 24px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ── Form ── */
+.rtsp-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.rtsp-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.rtsp-field-grow { flex: 1; }
+
+.rtsp-field-port { width: 90px; flex-shrink: 0; }
+
+.rtsp-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.rtsp-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.rtsp-optional {
+    font-weight: 400;
+    color: #9ca3af;
+    font-size: 11px;
+}
+
+.rtsp-input {
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    color: #1c1c1d;
+    background: #fff;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+}
+
+.rtsp-input:focus {
+    outline: none;
+    border-color: #E4080A;
+    box-shadow: 0 0 0 3px rgba(228, 8, 10, 0.1);
+}
+
+.rtsp-input::placeholder { color: #d1d5db; }
+
+/* Password wrapper */
+.rtsp-pass-wrap {
+    position: relative;
+}
+
+.rtsp-pass-wrap .rtsp-input {
+    padding-right: 56px;
+}
+
+.rtsp-pass-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0;
+    font-family: inherit;
+}
+
+.rtsp-pass-toggle:hover { color: #E4080A; }
+
+/* Hint text */
+.rtsp-hint {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 2px;
+}
+
+/* URL Preview box */
+.rtsp-url-preview {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rtsp-url-preview-success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.rtsp-url-preview-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+}
+
+.rtsp-url-preview-value {
+    font-size: 12px;
+    font-family: 'SF Mono', 'Fira Mono', 'Courier New', monospace;
+    color: #E4080A;
+    word-break: break-all;
+    font-weight: 500;
+}
+
+/* Inline error */
+.rtsp-error-msg {
+    background: #fef2f2;
+    color: #dc2626;
+    border-left: 4px solid #dc2626;
+    border-radius: 0 6px 6px 0;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* ── Testing state ── */
+.rtsp-testing-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 20px;
+    gap: 12px;
+    text-align: center;
+}
+
+.rtsp-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #E4080A;
+    border-radius: 50%;
+    animation: rtsp-spin 0.75s linear infinite;
+}
+
+@keyframes rtsp-spin { to { transform: rotate(360deg); } }
+
+.rtsp-testing-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1c1c1d;
+    margin: 0;
+}
+
+.rtsp-testing-sub {
+    font-size: 12px;
+    color: #9ca3af;
+    margin: 0;
+}
+
+/* ── Result states ── */
+.rtsp-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    text-align: center;
+}
+
+.rtsp-result-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.rtsp-result-icon-fail {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.rtsp-result-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1c1c1d;
+    margin: 0;
+}
+
+.rtsp-result-msg {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+    max-width: 360px;
+}
+
+/* Stream info chips */
+.rtsp-stream-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.rtsp-stream-chip {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* Error tips */
+.rtsp-error-tips {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 12px 16px;
+    text-align: left;
+    width: 100%;
+    max-width: 380px;
+    box-sizing: border-box;
+}
+
+.rtsp-tips-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #dc2626;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rtsp-tips-list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rtsp-tips-list li {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+/* ── Footer ── */
+.rtsp-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 14px 14px;
+    flex-shrink: 0;
+}
+
+/* ── Scrollbar ── */
+.rtsp-modal::-webkit-scrollbar       { width: 5px; }
+.rtsp-modal::-webkit-scrollbar-track { background: #f3f4f6; }
+.rtsp-modal::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 3px; }
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+    .rtsp-modal { border-radius: 10px 10px 0 0; max-height: 95vh; }
+    .rtsp-backdrop { align-items: flex-end; padding: 0; }
+    .rtsp-row { flex-direction: column; }
+    .rtsp-field-port { width: 100%; }
+    .rtsp-steps { display: none; } /* hide steps on mobile, too cramped */
+}

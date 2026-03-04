@@ -11,6 +11,7 @@ from typing import List
 from violence_detection_app.app.api.routes.video_route import router as video_router
 from violence_detection_app.app.api.routes.lrcn_routes import router as detection_router
 from violence_detection_app.app.api.routes.lrcn_routes import ws_router
+from violence_detection_app.app.api.routes.rtsp_routes import router as camera_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,6 +29,7 @@ app = FastAPI(
 app.include_router(video_router)
 app.include_router(ws_router)
 app.include_router(detection_router)
+app.include_router(camera_router)
 
 origins = [
     "http://localhost:5173",

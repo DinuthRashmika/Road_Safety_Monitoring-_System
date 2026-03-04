@@ -10,6 +10,7 @@ MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB         = os.getenv("MONGODB_DB", "Research Project")
 MONGODB_ALERTS_COLLECTION = os.getenv("MONGODB_ALERTS_COLLECTION", "alerts")
 MONGODB_DETECTIONS_COLLECTION = os.getenv("MONGODB_DETECTIONS_COLLECTION", "detection_sessions")
+MONGODB_CAMERAS_COLLECTION= os.getenv("MONGODB_CAMERAS_COLLECTION", "sources")
 
 # Catch the localhost fallback before it causes confusion
 if not MONGODB_URI or "localhost" in MONGODB_URI:
