@@ -19,7 +19,7 @@ const MapView = () => {
   // Map sizing
   const mapContainerStyle = {
     width: '100%',
-    height: '400px',
+    height: '550px',
     borderRadius: '8px'
   };
 

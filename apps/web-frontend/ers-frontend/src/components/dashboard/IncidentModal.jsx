@@ -151,7 +151,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
       return h<24 ? `(${h} hours ago)` : '';
   };
 
-  if (loading) return <div className="modal-backdrop"><div className="modal-content">Loading...</div></div>;
   if (error) return <div className="modal-backdrop"><div className="modal-content">{error} <button onClick={onClose}>Close</button></div></div>;
   if (!incident) return null;
 
