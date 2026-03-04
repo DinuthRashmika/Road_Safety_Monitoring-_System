@@ -171,7 +171,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         <div className="modal-body">
           <div className="modal-left">
             <h4>Incident Information</h4>
-            <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Traffic Accident' : 'Violence'}</p>
+            <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Accident' : 'Violence'}</p>
             <p><strong>Score:</strong> <span className="score-badge">{incident.score}</span></p>
             
             <div className="time-display-group">

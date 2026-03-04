@@ -39,8 +39,8 @@ const IncidentCard = ({ incident, onUpdate }) => {
     return '>1d ago';
   };
 
-  let title = source === 'traffic' ? 'Traffic Accident' : 'Violence Incident';
-  if (accident?.fire_present) title = 'Multi-Vehicle Accident with Fire';
+  let title = source === 'traffic' ? 'Accident' : 'Violence Incident';
+  if (accident?.fire_present) title = 'Vehicle Accident with Fire';
 
   const getSeverityClass = (score) => {
     if (score > 90) return 'critical';
