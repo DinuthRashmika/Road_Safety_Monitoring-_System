@@ -164,38 +164,72 @@ class SessionService:
                 frame_b64 = self.encode_frame(annotated)
 
                 # ── 5. Fusion ─────────────────────────────────────────────
-                fusion_data = None
+                # fusion_data = None
+                # if lrcn_result.get("ready"):
+                #     try:
+                #         raw       = self.fusion.combine_results({"detections": last_yolo_detections}, lrcn_result)
+                #         obj_score = self.fusion.calculate_yolo_threat_score({"detections": last_yolo_detections})
+                #         act_score = self.fusion.calculate_lrcn_threat_score(lrcn_result)
+                #         yolo_c    = obj_score * self.fusion.object_detection_weight
+                #         lrcn_c    = act_score * self.fusion.action_recognition_weight
+                #         synergy   = max(raw["threat_score"] - (yolo_c + lrcn_c), 0.0)
+
+                #         fusion_data_for_alert = raw   # raw already has weight_level, threat_score, action_contribution etc.
+                #         fusion_data_for_ui = {        # separate dict for the frontend
+                #             "threat_score":      round(raw["threat_score"], 4),
+                #             "weight_level":      raw["weight_level"],
+                #             "lrcn_contribution": round(lrcn_c, 4),
+                #             "yolo_contribution": round(yolo_c, 4),
+                #             "synergy_bonus":     round(synergy, 4),
+                #         }
+                #     except Exception as fe:
+                #         print(f"Fusion error frame {frame_count}: {fe}")
+                # ── 5. Fusion ─────────────────────────────────────────────
+                fusion_data    = None
+                fusion_raw     = None   # ← full raw result for alert engine
                 if lrcn_result.get("ready"):
                     try:
-                        raw       = self.fusion.combine_results({"detections": last_yolo_detections}, lrcn_result)
-                        obj_score = self.fusion.calculate_yolo_threat_score({"detections": last_yolo_detections})
-                        act_score = self.fusion.calculate_lrcn_threat_score(lrcn_result)
-                        yolo_c    = obj_score * self.fusion.object_detection_weight
-                        lrcn_c    = act_score * self.fusion.action_recognition_weight
-                        synergy   = max(raw["threat_score"] - (yolo_c + lrcn_c), 0.0)
-
+                        fusion_raw = self.fusion.combine_results(
+                            {"detections": last_yolo_detections}, lrcn_result
+                        )
+                        # Separate UI dict with renamed keys frontend expects
                         fusion_data = {
-                            "threat_score":      round(raw["threat_score"], 4),
-                            "weight_level":      raw["weight_level"],
-                            "lrcn_contribution": round(lrcn_c, 4),
-                            "yolo_contribution": round(yolo_c, 4),
-                            "synergy_bonus":     round(synergy, 4),
+                            "threat_score":       round(fusion_raw["threat_score"], 4),
+                            "weight_level":       fusion_raw["weight_level"],
+                            "action_contribution": round(fusion_raw["action_contribution"], 4),
+                            "object_contribution": round(fusion_raw["object_contribution"], 4),
+                            "synergy_bonus":       round(fusion_raw["synergy_bonus"], 4),
                         }
                     except Exception as fe:
                         print(f"Fusion error frame {frame_count}: {fe}")
 
                 # ── 6. Alert engine — every frame ─────────────────────────
+                # alert_payload  = alert_engine.process_frame(
+                #     session_id    = session_id,
+                #     fusion_result = fusion_data_for_alert,
+                #     lrcn_result   = lrcn_result,
+                #     yolo_result   = {"detections": last_yolo_detections},
+                #     frame_number  = frame_count,
+                # )
+                # alert_progress = alert_engine.get_progress(session_id)
+
+                # ── 6. Alert engine — pass raw fusion, not UI dict ────────
                 alert_payload  = alert_engine.process_frame(
                     session_id    = session_id,
-                    fusion_result = fusion_data,
+                    fusion_result = fusion_raw,   # ← fixed: raw has correct keys
                     lrcn_result   = lrcn_result,
                     yolo_result   = {"detections": last_yolo_detections},
                     frame_number  = frame_count,
                 )
                 alert_progress = alert_engine.get_progress(session_id)
 
+                print("------------------------------------Final Alert Details------------------------------------")
+                print(f"-----Alert Payload: {alert_payload}")
+                print(f"-----Alert Progress: {alert_progress}")
+
                 alert_dispatch = None
                 if alert_payload:
+                    # ── 6.1. Sending to hub the alert payload as JSON
                     send_result    = await alert_engine.send_to_hub(alert_payload)
                     alert_dispatch = {"payload": alert_payload, "result": send_result}
 

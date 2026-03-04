@@ -217,13 +217,15 @@
 .dm-current-action { padding: 14px; }
 .dm-current-action.state-violent { border-left: 3px solid var(--accent-red); }
 .dm-current-action.state-normal  { border-left: 3px solid var(--accent-green); }
+.dm-current-action[data-color]   { border-left: 3px solid var(--action-color, var(--accent-green)); }
 
 .dm-action-name {
     font-family: var(--font-mono); font-size: 22px; font-weight: 600;
     letter-spacing: 0.04em; margin-bottom: 8px;
 }
-.state-violent .dm-action-name { color: var(--accent-red); }
-.state-normal  .dm-action-name { color: var(--accent-green); }
+/* action name color now driven by JS — remove static overrides */
+.state-violent .dm-action-name,
+.state-normal  .dm-action-name { color: inherit; }
 
 .dm-action-meta {
     display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
@@ -559,3 +561,154 @@
     .dm-alert-state-row { grid-template-columns: 1fr; }
     .dm-alert-state-item { border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+/* ═══════════════════════════════════════════════════
+   GLOBAL ARMING BAR — full width below topbar
+═══════════════════════════════════════════════════ */
+.dm-global-arm-bar {
+    display: grid;
+    grid-template-columns: 260px 1fr 48px;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 20px;
+    background: var(--bg-card-alt);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 49px; /* sits right below the topbar */
+    z-index: 90;
+}
+
+.dm-garm-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.dm-garm-idle { color: var(--text-dim); }
+.dm-garm-warm { color: var(--accent-yellow); }
+.dm-garm-hot  {
+    color: var(--accent-red) !important;
+    animation: pulse-badge 0.8s ease infinite;
+}
+.dm-garm-cooling { color: var(--accent-cyan) !important; }
+
+.dm-garm-track {
+    height: 5px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.dm-garm-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+.dm-garm-fill--warm { background: var(--accent-yellow); }
+.dm-garm-fill--hot  { background: var(--accent-red); }
+.dm-garm-fill--cool { background: var(--accent-cyan); }
+
+.dm-garm-pct {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-sec);
+    text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════
+   VISUAL COUNTDOWN BANNER
+   DETECTED → SENDING → SENT
+═══════════════════════════════════════════════════ */
+.dm-countdown-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-top: 1px solid;
+    border-bottom: 1px solid;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    animation: banner-slide-in 0.2s ease;
+}
+
+.dm-countdown-siren {
+    font-size: 18px;
+    animation: siren-pulse 0.5s ease infinite alternate;
+}
+
+.dm-countdown-level {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    margin-right: 4px;
+}
+
+.dm-countdown-arrow {
+    font-size: 16px;
+    opacity: 0.5;
+}
+
+.dm-countdown-stage {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.3s ease;
+}
+.stage-done    { opacity: 0.45; }
+.stage-active  {
+    opacity: 1;
+    animation: pulse-badge 0.6s ease infinite;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+.stage-pending { opacity: 0.25; }
+
+.dm-countdown-dot {
+    opacity: 0.3;
+    margin: 0 2px;
+}
+
+/* ═══════════════════════════════════════════════════
+   TOP BANNER — big colored bar after alert fires
+   '🚨 CRITICAL ALERT SENT TO COORDINATION HUB'
+═══════════════════════════════════════════════════ */
+.dm-top-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    border-top: 1px solid;
+    border-bottom: 1px solid;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    animation: banner-slide-in 0.28s ease;
+}
+
+.dm-top-banner-icon { font-size: 20px; }
+
+.dm-top-banner-text { flex: 1; }
+
+.dm-top-banner-close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 20px;
+    cursor: pointer;
+    opacity: 0.55;
+    line-height: 1;
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+.dm-top-banner-close:hover { opacity: 1; }
+
+/* Remove old arming bar from video card since it's now global */
+.dm-arm-bar-wrap { display: none; }

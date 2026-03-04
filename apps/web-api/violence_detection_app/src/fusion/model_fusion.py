@@ -1,220 +1,221 @@
-from typing import Dict
-from violence_detection_app.src.model_inference.object_detection import ObjectDetection
-from violence_detection_app.src.model_inference.action_recog import ActionRecognitionTorch
-from violence_detection_app.src.config import config
+"""
+model_fusion.py (REDESIGNED)
+────────────────────────────────
+Action-First Priority Fusion System
+
+Philosophy:
+  • Action Recognition = PRIMARY threat indicator (can trigger alone)
+  • Object Detection = AMPLIFIER (boosts existing threats)
+  • Synergy = CONTEXT-AWARE multipliers
+
+Threat Tiers:
+  1. CRITICAL (90%+): Immediate danger requiring instant response
+  2. HIGH     (70%+): Active violence requiring urgent action
+  3. MEDIUM   (50%+): Suspicious activity requiring monitoring
+  4. LOW      (30%+): Minor concern
+  5. NONE     (<30%): Safe
+"""
+
+from typing import Dict, Tuple
 
 
-# for each frame - for each lrcn result, for each yolo result per frame
 class ModelFusion:
+    """Action-first fusion with intelligent threat escalation"""
 
-    def __init__(self, object_detection_weight=None, action_recognition_weight=None):
-        self.object_detector = ObjectDetection()
-        self.action_detector = ActionRecognitionTorch()
+    def __init__(self):
+        # ═══════════════════════════════════════════════════════════════
+        #  ACTION WEIGHTS (PRIMARY THREAT INDICATORS)
+        # ═══════════════════════════════════════════════════════════════
+        # model_fusion.py — updated weights only (replace these sections)
 
-        self.object_weights = config.OBJECT_WEIGHTS
-        self.action_weights = config.ACTION_WEIGHTS
-        self.object_detection_weight = object_detection_weight or config.OBJECT_DETECTION_WEIGHT # YOLO contributes 40%
-        self.action_recognition_weight = action_recognition_weight or config.ACTION_RECOGNITION_WEIGHT  # LRCN contributes 60%
+        self.action_severity = {
+            "shooting":   1.00,  # CRITICAL alone (0.85×1.0 = 0.85 = CRITICAL)
+            "attacking":  0.65,  # MEDIUM alone  (0.85×0.65 = 0.5525)
+            "fighting":   0.65,  # MEDIUM alone  (0.85×0.65 = 0.5525)
+            "stabbing":   0.75,
+            "running":    0.30,  # NONE alone    (0.85×0.30 = 0.255)
+            "shouting":   0.40,
+            "walking":    0.15,
+            "standing":   0.10,
+            "sitting":    0.10,
+        }
 
-        print("----Model Results Fusion Starting----")
-    
-    def calculate_lrcn_threat_score(self, lrcn_result: Dict) -> Dict:
+        self.object_severity = {
+            "gun":    0.90,
+            "knife":  0.80,
+            "stick":  0.60,
+            "bat":    0.60,
+            "hammer": 0.55,
+        }
 
-        print(f"----LRCN weight calculation")
-        if not lrcn_result.get('ready', False):
-            return 0.0
-        
-        print(f"Action Weights: {config.ACTION_WEIGHTS}")
+        self.synergy_rules = {
+            # shooting + anything → already CRITICAL, synergy keeps it there
+            ("shooting", "gun"):    0.15,
+            ("shooting", "knife"):  0.15,
+            ("shooting", "stick"):  0.15,
 
-        if lrcn_result['ready'] and lrcn_result['is_violent']:
+            # attacking + knife → CRITICAL, gun/stick → HIGH
+            ("attacking", "knife"): 0.30,  # 0.5525 + object_boost + 0.30 → CRITICAL
+            ("attacking", "gun"):   0.15,  # → HIGH
+            ("attacking", "stick"): 0.12,  # → HIGH
 
-            action = lrcn_result.get('action', 'Unknown')
-            print(f"current action: {action}")
-            lrcn_confidence = lrcn_result.get('confidence', 0.0)
-            print(f"current confidence lrcn: {lrcn_confidence}")
+            # fighting + gun/knife → HIGH, stick stays MEDIUM (no rule)
+            ("fighting", "gun"):    0.15,  # → HIGH
+            ("fighting", "knife"):  0.15,  # → HIGH
 
-            # action weight
-            action_weight = self.action_weights.get(action, 1.0)
-            print(f"action weight for current action - {action} is {action_weight}")
+            # running + weapon → MEDIUM
+            ("running", "gun"):     0.10,
+            ("running", "knife"):   0.08,
+            ("running", "stick"):   0.06,
+        }
 
-            # add action weight
-            action_score = lrcn_confidence * action_weight
-
-            # clip betwenn 0,1
-            action_score = min(action_score, 1.0)
-            print(f"final action score: {action_score}")
-            print(f"----lrcn ended")
-
-        return action_score
-
-
-    def calculate_yolo_threat_score(self, yolo_result: Dict) -> Dict:
-        
-        print(f"----YOLO weight calculation")
-
-        yolo_detections = yolo_result.get('detections', [])
-        
-        if not yolo_detections:
-            return 0.0
-    
-        max_score = 0.0
-        
-        for det in yolo_detections:
-            object_name = det.get('object', '')
-            print(f"current obj name: {object_name}")
-            yolo_confidence = det.get('confidence', 0.0)
-            print(f"current confidence yolo: {yolo_confidence}")
-            
-            # object weight
-            object_weight = self.object_weights.get(object_name, 0.0)
-            print(f"object weight for current object: {object_weight}")
-            
-            # add object weight
-            object_score = yolo_confidence * object_weight
-            
-            # Keep highest
-            max_score = max(max_score, object_score)
-        
-        # Clip to [0, 1]
-        max_score = min(max_score, 1.0)
-        print(f"final object score: {max_score}")
-        print(f"----yolo ended")
-        
-        return max_score
+        print("✓ Action-First Fusion System initialized")
 
 
-    def classify_threat_score(self, threat_score):
+    # ═══════════════════════════════════════════════════════════════════
+    #  STEP 1: Calculate Base Action Threat
+    # ═══════════════════════════════════════════════════════════════════
+    def calculate_action_threat(self, lrcn_result: Dict) -> Tuple[float, str]:
+        if not lrcn_result.get("ready", False):
+            return 0.0, "LRCN buffer filling"
 
-        if threat_score >= 0.8:
-            weight_level = "CRITICAL"
-        elif threat_score >= 0.6:
-            weight_level = "HIGH"
-        elif threat_score >= 0.4:
-            weight_level = "MEDIUM"
-        elif threat_score >= 0.3:
-            weight_level = "VERY LOW"
+        action     = lrcn_result.get("action", "unknown").lower()
+        confidence = lrcn_result.get("confidence", 0.0)
+        severity   = self.action_severity.get(action, 0.5)
+        action_score = confidence * severity
+
+        if action_score >= 0.85:
+            reason = f"CRITICAL action: {action.upper()} detected with {confidence*100:.0f}% confidence"
+        elif action_score >= 0.70:
+            reason = f"HIGH severity action: {action.upper()} at {confidence*100:.0f}% confidence"
+        elif action_score >= 0.50:
+            reason = f"MEDIUM concern: {action.upper()} behavior detected"
+        elif action_score >= 0.30:
+            reason = f"LOW concern: {action.upper()} detected"
         else:
-            weight_level = "NONE"
+            reason = f"No threat: {action.upper()}"
 
-        return weight_level
-    
-    def synergy_bonus_calculation(self, threat_score, lrcn_result=dict, yolo_result=dict) -> float:
+        return action_score, reason
 
-        print(f"snergy lrcn result: {lrcn_result}")
-        print(f"snergy yolo result: {yolo_result}")
-        print(f"snergy threat score : {threat_score}")
 
-        for det in yolo_result.get('detections', []):
-            obj = det.get('object', '')
+    # ═══════════════════════════════════════════════════════════════════
+    #  STEP 2: Calculate Object Amplification
+    # ═══════════════════════════════════════════════════════════════════
+    def calculate_object_amplification(self, yolo_result: Dict, action_score: float) -> Tuple[float, str]:
+        detections = yolo_result.get("detections", [])
+        if not detections:
+            return action_score, "No weapons detected"
 
-            if lrcn_result.get('action', '') == 'shooting' and obj == 'gun':
-                threat_score += 0.8
-            if lrcn_result.get('action', '') == 'fighting' and obj == 'gun':
-                threat_score += 0.7
-            if lrcn_result.get('action', '') == 'fighting' and obj == 'stick':
-                threat_score += 0.6
-            if lrcn_result.get('action', '') == 'running' and obj == 'gun':
-                threat_score += 0.7
-            if lrcn_result.get('action', '') == 'running' and obj == 'stick':
-                threat_score += 0.4
-            if lrcn_result.get('action', '') == 'fighting' and obj == 'knife':
-                threat_score += 0.7
-            if lrcn_result.get('action', '') == 'running' and obj == 'knife':
-                threat_score += 0.6
-            if lrcn_result.get('action', '') == 'attacking' and obj == 'knife':
-                threat_score += 0.8
-            if lrcn_result.get('action', '') == 'fighting' and obj == 'stick':
-                threat_score += 0.4
-        
-        threat_score = min(threat_score, 1.0)
+        max_object_severity = 0.0
+        detected_object = None
 
-        return threat_score
-    
+        for det in detections:
+            obj_name = det.get("object", "").lower()
+            obj_conf = det.get("confidence", 0.0)
+            severity = self.object_severity.get(obj_name, 0.0)
+            weighted = obj_conf * severity
+            if weighted > max_object_severity:
+                max_object_severity = weighted
+                detected_object = (obj_name, obj_conf)
+
+        if max_object_severity == 0.0:
+            return action_score, "Objects detected but not weapons"
+
+        # Tighter boost tiers to prevent unintended CRITICAL
+        if action_score >= 0.70:
+            boost_factor = 0.10   # already HIGH — small boost
+        elif action_score >= 0.50:
+            boost_factor = 0.15   # MEDIUM — moderate boost (was 0.25, now tighter)
+        elif action_score >= 0.30:
+            boost_factor = 0.20   # LOW — enough to reach MEDIUM with weapon
+        else:
+            boost_factor = 0.05   # NONE — minimal
+
+        amplified_score = action_score + (max_object_severity * boost_factor)
+        obj_name, obj_conf = detected_object
+        reason = f"{obj_name.upper()} detected ({obj_conf*100:.0f}% conf) — boost ×{boost_factor}"
+
+        return amplified_score, reason
+
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  STEP 3: Apply Synergy Bonuses
+    # ═══════════════════════════════════════════════════════════════════
+    def calculate_synergy_bonus(self, lrcn_result: Dict, yolo_result: Dict, current_score: float) -> Tuple[float, str]:
+        action     = lrcn_result.get("action", "").lower()
+        detections = yolo_result.get("detections", [])
+        if not detections:
+            return current_score, ""
+
+        max_bonus    = 0.0
+        synergy_match = None
+
+        for det in detections:
+            obj_name = det.get("object", "").lower()
+            combo    = (action, obj_name)
+            if combo in self.synergy_rules:
+                bonus = self.synergy_rules[combo]
+                if bonus > max_bonus:
+                    max_bonus     = bonus
+                    synergy_match = (action, obj_name)
+
+        if max_bonus == 0.0:
+            return current_score, ""
+
+        final_score = min(current_score + max_bonus, 1.0)
+        a, o = synergy_match
+        reason = f"SYNERGY: {a.upper()}+{o.upper()} (+{max_bonus*100:.0f}%)"
+        return final_score, reason
+
+    def classify_threat_level(self, score: float) -> str:
+        if   score >= 0.85: return "CRITICAL"
+        elif score >= 0.70: return "HIGH"
+        elif score >= 0.50: return "MEDIUM"
+        elif score >= 0.30: return "LOW"
+        else:               return "NONE"
 
     def combine_results(self, yolo_result: Dict, lrcn_result: Dict) -> Dict:
+        action_score, action_reason = self.calculate_action_threat(lrcn_result)
 
-        print("----Cmbine both----")
+        amplified_score, object_reason = self.calculate_object_amplification(yolo_result, action_score)
+        object_contribution = amplified_score - action_score
 
-        # Calculate individual weighted scores
-        object_score = self.calculate_yolo_threat_score(yolo_result)
-        print(f"OBJECT SCORE: {object_score}")
-        action_score = self.calculate_lrcn_threat_score(lrcn_result)
-        print(f"ACTION SCORE: {action_score}")
-        
-        # Apply overall weights (YOLO 40%, LRCN 60%)
-        yolo_contribution = object_score * self.object_detection_weight #40
-        lrcn_contribution = action_score * self.action_recognition_weight #60
+        final_score, synergy_reason = self.calculate_synergy_bonus(lrcn_result, yolo_result, amplified_score)
+        synergy_bonus = final_score - amplified_score
 
-        # model total score
-        total_threat_score = yolo_contribution + lrcn_contribution
-        threat_score = min(total_threat_score, 100.0)
-        print(f"total threat score: {threat_score}")
+        threat_level = self.classify_threat_level(final_score)
 
-        # ----Bonus: 1. Synergy BOnuses
-        threat_score = self.synergy_bonus_calculation(threat_score, lrcn_result, yolo_result)
-        print(f"1. snergy threat score {threat_score}")
-
-        # ----Bonus: 2. Multiple people + violent action
-        # person_count = sum(1 for obj in yolo_result['objects'] if obj['class'] == 'person')
-        # if person_count >= 2 and lrcn_result.get('is_violent', False):
-        #     score += 10  # Bonus for group violence
-
-        # ----Bonus: 3. threat level
-        weight_level = self.classify_threat_score(threat_score)
-        print(f"3. threat level {weight_level}")
+        reasoning_parts = [action_reason]
+        if object_reason: reasoning_parts.append(object_reason)
+        if synergy_reason: reasoning_parts.append(synergy_reason)
 
         return {
-            'threat_score': threat_score, # 0.80
-            'weight_level': weight_level # combined score is HIGH
+            "threat_score":         round(final_score, 4),
+            "weight_level":         threat_level,
+            "action_contribution":  round(action_score, 4),
+            "object_contribution":  round(object_contribution, 4),
+            "synergy_bonus":        round(synergy_bonus, 4),
+            "reasoning":            " → ".join(reasoning_parts),
+            "breakdown": {
+                "base_action_score":   round(action_score, 4),
+                "after_objects":       round(amplified_score, 4),
+                "final_with_synergy":  round(final_score, 4),
+            }
         }
-            
 
+    def calculate_lrcn_threat_score(self, lrcn_result: Dict) -> float:
+        score, _ = self.calculate_action_threat(lrcn_result)
+        return score
 
-        
-# if __name__ == "__main__":
-    
-#     fusion = ModelFusion()
+    def calculate_yolo_threat_score(self, yolo_result: Dict) -> float:
+        detections = yolo_result.get("detections", [])
+        if not detections:
+            return 0.0
+        max_severity = 0.0
+        for det in detections:
+            obj_name = det.get("object", "").lower()
+            obj_conf = det.get("confidence", 0.0)
+            severity = self.object_severity.get(obj_name, 0.0)
+            max_severity = max(max_severity, obj_conf * severity)
+        return max_severity
 
-#     # Fake YOLO output
-#     yolo_result = {
-#         'detections': [
-#             {
-#                 'object': 'knife',
-#                 'confidence': 0.72,
-#                 'bbox': [100, 100, 200, 200],
-#                 'class_id': 43
-#             },
-#             {
-#                 'object': 'stick',
-#                 'confidence': 0.60,
-#                 'bbox': [50, 50, 120, 120],
-#                 'class_id': 44
-#             }
-#         ]
-#     }
-
-#     # Fake LRCN output
-#     lrcn_result = {
-#         'action': 'fighting',
-#         'confidence': 0.85,
-#         'ready': True,
-#         'all_probabilities': {},
-#         'is_violent': True
-#     }
-
-#     result = fusion.combine_results(yolo_result, lrcn_result)
-
-#     print("\n----FINAL RESULT")
-#     print(result)
-
-
-    
-
-
-
-
-
-
-
-    
-    

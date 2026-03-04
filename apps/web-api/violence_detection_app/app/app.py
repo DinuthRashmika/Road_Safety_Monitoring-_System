@@ -41,7 +41,7 @@ def root():
 @app.on_event("startup")
 async def show_routes():
     print("\n" + "="*60)
-    print("🔍 ALL REGISTERED ROUTES:")
+    print("ALL REGISTERED ROUTES:")
     print("="*60)
     for route in app.routes:
         if hasattr(route, 'path'):

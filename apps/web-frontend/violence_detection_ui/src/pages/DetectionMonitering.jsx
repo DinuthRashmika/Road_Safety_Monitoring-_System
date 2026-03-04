@@ -5,18 +5,19 @@ import './../styles/DetectionMonitering.css'
 
 const SENT_BANNER_DURATION = 6000;
 const ALERT_MODAL_DURATION = 12000;
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  TEST MODE
-//  ─────────────
-//  When TEST_MODE = true, the "Send Test Alert" button appears in the
-//  Alert Status panel. Clicking it fires a fake alert through the exact
-//  same UI path as a real alert — modal, banner, history entry — so you
-//  can verify everything works without a real HIGH threat event.
-//
-//  Set to false before going to production.
-// ─────────────────────────────────────────────────────────────────────────────
+const COUNTDOWN_STAGES = ["DETECTED", "SENDING", "SENT"];  // 1s each
 const TEST_MODE = true;
+
+// Threat level color/bg helpers (defined outside so CSS can use them too)
+const THREAT_COLORS = {
+    CRITICAL: "#ff2d2d", HIGH: "#ff6b00", MEDIUM: "#f5c400",
+    LOW: "#4ade80", NONE: "#6b7280"
+};
+const THREAT_BG = {
+    CRITICAL: "rgba(255,45,45,0.12)", HIGH: "rgba(255,107,0,0.12)",
+    MEDIUM: "rgba(245,196,0,0.12)",   LOW: "rgba(74,222,128,0.12)",
+    NONE: "rgba(107,114,128,0.10)"
+};
 
 function Detection() {
     const location = useLocation();
@@ -38,19 +39,25 @@ function Detection() {
     const [fusionResult, setFusionResult]               = useState(null);
 
     // ── Alert states ──
-    const [alertProgress, setAlertProgress] = useState(null);
-    const [activeAlert, setActiveAlert]     = useState(null);
-    const [alertModalMs, setAlertModalMs]   = useState(0);
-    const [sentBanner, setSentBanner]       = useState(null);
-    const [alertHistory, setAlertHistory]   = useState([]);
-    // Tracks whether the last hub send was real vs test
-    const [lastHubResult, setLastHubResult] = useState(null);
+    const [alertProgress, setAlertProgress]       = useState(null);
+    const [activeAlert, setActiveAlert]           = useState(null);
+    const [alertModalMs, setAlertModalMs]         = useState(0);
+    const [alertHistory, setAlertHistory]         = useState([]);
+    const [lastHubResult, setLastHubResult]       = useState(null);
 
-    const wsRef            = useRef(null);
-    const alertTimerRef    = useRef(null);
-    const alertIntervalRef = useRef(null);
-    const sentTimerRef     = useRef(null);
-    const testAlertCounter = useRef(0);
+    // ── NEW: Top banner (replaces old sentBanner) ──
+    const [topBanner, setTopBanner]               = useState(null); // { level, success, error }
+
+    // ── NEW: Visual countdown state for instant threats ──
+    // { level, stage: 0|1|2 } where 0=DETECTED, 1=SENDING, 2=SENT
+    const [alertCountdown, setAlertCountdown]     = useState(null);
+
+    const wsRef              = useRef(null);
+    const alertTimerRef      = useRef(null);
+    const alertIntervalRef   = useRef(null);
+    const topBannerTimerRef  = useRef(null);
+    const countdownTimerRef  = useRef(null);
+    const testAlertCounter   = useRef(0);
 
     useEffect(() => {
         if (!videoSource) { alert("No video source selected!"); navigate('/'); }
@@ -62,13 +69,47 @@ function Detection() {
             if (wsRef.current) wsRef.current.close();
             clearTimeout(alertTimerRef.current);
             clearInterval(alertIntervalRef.current);
-            clearTimeout(sentTimerRef.current);
+            clearTimeout(topBannerTimerRef.current);
+            clearTimeout(countdownTimerRef.current);
         };
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────
+    //  Top banner (big colored bar under topbar)
+    // ─────────────────────────────────────────────────────────────────
+    const showTopBanner = useCallback((level, success, error = null) => {
+        clearTimeout(topBannerTimerRef.current);
+        setTopBanner({ level, success, error });
+        topBannerTimerRef.current = setTimeout(
+            () => setTopBanner(null),
+            SENT_BANNER_DURATION
+        );
+    }, []);
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Visual countdown: DETECTED → SENDING → SENT (1s each)
+    //  Then opens the modal
+    // ─────────────────────────────────────────────────────────────────
+    const runCountdown = useCallback((level, onComplete) => {
+        setAlertCountdown({ level, stage: 0 }); // DETECTED
+
+        countdownTimerRef.current = setTimeout(() => {
+            setAlertCountdown({ level, stage: 1 }); // SENDING
+
+            countdownTimerRef.current = setTimeout(() => {
+                setAlertCountdown({ level, stage: 2 }); // SENT
+
+                countdownTimerRef.current = setTimeout(() => {
+                    setAlertCountdown(null);
+                    onComplete();
+                }, 1000);
+            }, 1000);
+        }, 1000);
+    }, []);
+
+    // ─────────────────────────────────────────────────────────────────
     //  Alert modal lifecycle
-    // ─────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────
     const openAlertModal = useCallback((dispatch) => {
         clearTimeout(alertTimerRef.current);
         clearInterval(alertIntervalRef.current);
@@ -94,33 +135,29 @@ function Detection() {
         setActiveAlert(null);
     };
 
-    const showSentBanner = useCallback((result) => {
-        clearTimeout(sentTimerRef.current);
-        setSentBanner(result);
-        setLastHubResult(result);
-        sentTimerRef.current = setTimeout(() => setSentBanner(null), SENT_BANNER_DURATION);
-    }, []);
-
-    // ─────────────────────────────────────────────────────────────────────
-    //  Dispatch helper — used by both real alerts and test alerts
-    // ─────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────
+    //  Dispatch helper — runs countdown then opens modal + banner
+    // ─────────────────────────────────────────────────────────────────
     const dispatchAlert = useCallback((dispatch) => {
-        openAlertModal(dispatch);
+        const level = dispatch.payload.threat_level;
         setAlertHistory(prev => [dispatch, ...prev].slice(0, 20));
-        showSentBanner(dispatch.result);
-    }, [openAlertModal, showSentBanner]);
+        setLastHubResult(dispatch.result);
 
-    // ─────────────────────────────────────────────────────────────────────
-    //  TEST MODE: fire a fake alert through the real UI path
-    //  This lets you verify the modal, banner, and history work
-    //  without needing an actual HIGH/CRITICAL threat event.
-    // ─────────────────────────────────────────────────────────────────────
+        // Always run the 3-stage countdown, then open modal + top banner
+        runCountdown(level, () => {
+            openAlertModal(dispatch);
+            showTopBanner(level, dispatch.result?.success, dispatch.result?.error);
+        });
+    }, [runCountdown, openAlertModal, showTopBanner]);
+
+    // ─────────────────────────────────────────────────────────────────
+    //  TEST MODE
+    // ─────────────────────────────────────────────────────────────────
     const fireTestAlert = useCallback(async () => {
         testAlertCounter.current += 1;
         const now   = new Date().toISOString();
         const level = testAlertCounter.current % 2 === 0 ? "HIGH" : "CRITICAL";
 
-        // Build a fake payload that mirrors the real alert_engine output
         const fakePayload = {
             alert_id:          `test_alert_${testAlertCounter.current}`,
             session_id:        videoProcessingInfo?.session_id || "test_session",
@@ -133,31 +170,21 @@ function Detection() {
             action:            "fighting",
             action_confidence: 0.86,
             objects_detected:  [{ object: "knife", confidence: 0.74 }],
-            lrcn_contribution: 0.52,
-            yolo_contribution: 0.28,
+            action_contribution: 0.52,
+            object_contribution: 0.28,
             synergy_bonus:     0.11,
-            human_summary:     `[TEST] At ${new Date(now).toLocaleTimeString()} (test mode), a simulated ${level} threat was detected. This is a test alert to verify the alert pipeline is working correctly.`,
+            human_summary:     `[TEST] At ${new Date(now).toLocaleTimeString()}, a simulated ${level} threat was detected. This is a test alert to verify the alert pipeline.`,
             frame_number:      999,
             alert_number:      testAlertCounter.current,
         };
 
-        // Actually try to POST to the hub — same code path as real alerts
-        // This tells you immediately if your hub URL + auth key are correct.
-        let result;
-        try {
-            const { AlertConfig } = await import('./alert_engine_config'); // optional — see below
-            result = { success: false, status_code: null, error: "Hub not configured (test mode)" };
-        } catch {
-            // If no config import — simulate a successful send for UI testing
-            result = { success: true, status_code: 200, error: null };
-        }
-
+        const result = { success: true, status_code: 200, error: null };
         dispatchAlert({ payload: fakePayload, result, isTest: true });
     }, [videoProcessingInfo, dispatchAlert]);
 
-    // ─────────────────────────────────────────────────────────────────────
-    //  WebSocket processing
-    // ─────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────
+    //  WebSocket
+    // ─────────────────────────────────────────────────────────────────
     const startProcessing = async () => {
         setLoading(true);
         setCurrentAction(null);
@@ -168,6 +195,8 @@ function Detection() {
         setActiveAlert(null);
         setAlertHistory([]);
         setLastHubResult(null);
+        setTopBanner(null);
+        setAlertCountdown(null);
         setProcessingStatus("Starting...");
 
         try {
@@ -237,12 +266,10 @@ function Detection() {
         if (data.fusion)         setFusionResult(data.fusion);
         if (data.alert_progress) setAlertProgress(data.alert_progress);
 
-        // Real alert fired from backend
         if (data.alert_dispatch) {
             dispatchAlert(data.alert_dispatch);
         }
 
-        // Unique action log
         if (merged.ready && merged.is_violent) {
             const ts = new Date(merged.timestamp).toLocaleTimeString();
             setDetectedActionsLog(prev =>
@@ -252,7 +279,6 @@ function Detection() {
             );
         }
 
-        // Unique object log
         if (merged.yolo_detections.length > 0) {
             const ts = new Date(merged.timestamp).toLocaleTimeString();
             merged.yolo_detections.forEach(det => {
@@ -287,44 +313,54 @@ function Detection() {
         }
     };
 
-    // ─────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────
     //  Helpers
-    // ─────────────────────────────────────────────────────────────────────
-    const getThreatColor = (l) => ({
-        CRITICAL: "#ff2d2d", HIGH: "#ff6b00", MEDIUM: "#f5c400",
-        "VERY LOW": "#4ade80", NONE: "#6b7280"
-    }[l] || "#6b7280");
+    // ─────────────────────────────────────────────────────────────────
+    const getThreatColor = (l) => THREAT_COLORS[l] || "#6b7280";
+    const getThreatBg    = (l) => THREAT_BG[l]     || "rgba(107,114,128,0.10)";
 
-    const getThreatBg = (l) => ({
-        CRITICAL: "rgba(255,45,45,0.12)", HIGH: "rgba(255,107,0,0.12)",
-        MEDIUM: "rgba(245,196,0,0.12)", "VERY LOW": "rgba(74,222,128,0.12)",
-        NONE: "rgba(107,114,128,0.10)"
-    }[l] || "rgba(107,114,128,0.10)");
+    const getActionColor = (action, fusionLevel) => {
+    // Threat level wins if fusion data exists
+        if (fusionLevel && fusionLevel !== "NONE") return getThreatColor(fusionLevel);
+
+        if (!action) 
+            return "#6b7280";
+        const a = action.toLowerCase();
+        if (a === "shooting")
+            return "#ff2d2d"; // red
+        if (a === "attacking" || a === "fighting")
+            return "#39d98a"; // green
+        if (a === "running")                     
+            return "#6b7280"; // grey
+        return "#6b7280";
+    };
 
     const fmtPct  = (v) => `${(v * 100).toFixed(0)}%`;
     const fmtTime = (iso) => new Date(iso).toLocaleTimeString();
 
     const getArmLabel = (ap) => {
         if (!ap) return "MONITORING";
-        if (ap.is_cooling) return `COOLDOWN`;
+        if (ap.is_cooling) return `COOLDOWN ${ap.cooldown_remaining}s`;
         if (ap.streak_secs > 0) return `ARMING ${ap.streak_secs}s / ${ap.required_secs}s`;
         return "MONITORING";
     };
 
-    // Alert status panel — what to show when no alerts have fired yet
     const alertStatusSummary = () => {
         const count = alertProgress?.alert_count || 0;
         if (count === 0) return { label: "NO ALERTS FIRED", color: "var(--text-dim)", bg: "transparent" };
-        const last  = alertHistory[0];
-        const level = last?.payload?.threat_level || "HIGH";
+        const level = alertHistory[0]?.payload?.threat_level || "HIGH";
         return { label: `${count} ALERT${count > 1 ? "S" : ""} FIRED`, color: getThreatColor(level), bg: getThreatBg(level) };
     };
-
     const alertSummary = alertStatusSummary();
 
-    // ─────────────────────────────────────────────────────────────────────
+    // Countdown stage label + color
+    const countdownStageLabel = alertCountdown
+        ? COUNTDOWN_STAGES[alertCountdown.stage]
+        : null;
+
+    // ─────────────────────────────────────────────────────────────────
     //  Render
-    // ─────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────
     return (
         <Layout>
             <div className="dm-root">
@@ -341,9 +377,7 @@ function Detection() {
                                 ⚠ {alertProgress.alert_count} ALERT{alertProgress.alert_count > 1 ? "S" : ""} FIRED
                             </span>
                         )}
-                        {TEST_MODE && (
-                            <span className="dm-test-mode-badge">TEST MODE</span>
-                        )}
+                        {TEST_MODE && <span className="dm-test-mode-badge">TEST MODE</span>}
                     </div>
                     <div className="dm-topbar-right">
                         <span className="dm-src">{videoSource}</span>
@@ -359,16 +393,109 @@ function Detection() {
                     </div>
                 </div>
 
-                {/* ── Sent banner ── */}
-                {sentBanner && (
-                    <div className={`dm-sent-banner ${sentBanner.success ? "banner-ok" : "banner-fail"}`}>
-                        <span className="dm-sent-icon">{sentBanner.success ? "✓" : "✗"}</span>
-                        <div className="dm-sent-text">
-                            {sentBanner.success
-                                ? "Alert successfully sent to Coordination Hub"
-                                : `Failed to reach Coordination Hub — ${sentBanner.error}`}
-                        </div>
-                        <button className="dm-sent-close" onClick={() => setSentBanner(null)}>×</button>
+                {/* ══════════════════════════════════════════════════
+                    FULL-WIDTH ARMING BAR — below topbar, above grid
+                ══════════════════════════════════════════════════ */}
+                <div className="dm-global-arm-bar">
+                    {alertProgress ? (
+                        alertProgress.is_cooling ? (
+                            <>
+                                <span className="dm-garm-label dm-garm-cooling">
+                                    ❄ COOLDOWN — next alert in {alertProgress.cooldown_remaining}s
+                                </span>
+                                <div className="dm-garm-track">
+                                    <div className="dm-garm-fill dm-garm-fill--cool"
+                                        style={{ width: `${alertProgress.cooldown_pct}%` }} />
+                                </div>
+                                <span className="dm-garm-pct">{alertProgress.cooldown_pct}%</span>
+                            </>
+                        ) : alertProgress.streak_secs > 0 ? (
+                            <>
+                                <span className={`dm-garm-label ${alertProgress.progress_pct > 60 ? "dm-garm-hot" : "dm-garm-warm"}`}>
+                                    ⚡ ARMING — {alertProgress.streak_secs}s / {alertProgress.required_secs}s sustained
+                                </span>
+                                <div className="dm-garm-track">
+                                    <div
+                                        className={`dm-garm-fill ${alertProgress.progress_pct > 60 ? "dm-garm-fill--hot" : "dm-garm-fill--warm"}`}
+                                        style={{ width: `${alertProgress.progress_pct}%` }}
+                                    />
+                                </div>
+                                <span className="dm-garm-pct">{alertProgress.progress_pct}%</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="dm-garm-label dm-garm-idle">● MONITORING</span>
+                                <div className="dm-garm-track">
+                                    <div className="dm-garm-fill" style={{ width: "0%" }} />
+                                </div>
+                                <span className="dm-garm-pct">—</span>
+                            </>
+                        )
+                    ) : (
+                        <>
+                            <span className="dm-garm-label dm-garm-idle">● MONITORING</span>
+                            <div className="dm-garm-track"><div className="dm-garm-fill" style={{ width: "0%" }} /></div>
+                            <span className="dm-garm-pct">—</span>
+                        </>
+                    )}
+                </div>
+
+                {/* ══════════════════════════════════════════════════
+                    VISUAL COUNTDOWN BANNER
+                    Shows: DETECTED → SENDING → SENT (1s each)
+                    Appears above main grid, below arm bar
+                ══════════════════════════════════════════════════ */}
+                {alertCountdown && (
+                    <div
+                        className="dm-countdown-banner"
+                        style={{
+                            background:   getThreatBg(alertCountdown.level),
+                            borderColor:  getThreatColor(alertCountdown.level),
+                            color:        getThreatColor(alertCountdown.level),
+                        }}
+                    >
+                        <span className="dm-countdown-siren">🚨</span>
+                        <span className="dm-countdown-level">{alertCountdown.level}</span>
+                        <span className="dm-countdown-arrow">›</span>
+
+                        {COUNTDOWN_STAGES.map((stage, i) => (
+                            <span
+                                key={stage}
+                                className={`dm-countdown-stage ${
+                                    i < alertCountdown.stage  ? "stage-done" :
+                                    i === alertCountdown.stage ? "stage-active" : "stage-pending"
+                                }`}
+                            >
+                                {i < alertCountdown.stage ? "✓" : ""} {stage}
+                                {i < COUNTDOWN_STAGES.length - 1 && (
+                                    <span className="dm-countdown-dot">·</span>
+                                )}
+                            </span>
+                        ))}
+                    </div>
+                )}
+
+                {/* ══════════════════════════════════════════════════
+                    TOP BANNER — big colored bar after alert fires
+                    'CRITICAL ALERT SENT' or '✗ FAILED'
+                ══════════════════════════════════════════════════ */}
+                {topBanner && (
+                    <div
+                        className="dm-top-banner"
+                        style={{
+                            background:  topBanner.success ? getThreatBg(topBanner.level)   : "rgba(255,59,59,0.12)",
+                            borderColor: topBanner.success ? getThreatColor(topBanner.level) : "#ff3b3b",
+                            color:       topBanner.success ? getThreatColor(topBanner.level) : "#ff3b3b",
+                        }}
+                    >
+                        <span className="dm-top-banner-icon">{topBanner.success ? "🚨" : "✗"}</span>
+                        <span className="dm-top-banner-text">
+                            {topBanner.success
+                                ? `${topBanner.level} ALERT SENT TO COORDINATION HUB`
+                                : `ALERT DISPATCH FAILED — ${topBanner.error}`
+                            }
+                        </span>
+                        <button className="dm-top-banner-close" onClick={() => setTopBanner(null)}>×</button>
                     </div>
                 )}
 
@@ -378,7 +505,7 @@ function Detection() {
                     {/* ══ COL 1: Video ══ */}
                     <div className="dm-card dm-video-card">
                         <div className="dm-card-header">
-                            <span className="dm-card-title">📹 Video Stream</span>
+                            <span className="dm-card-title">Video Stream</span>
                             <span className="dm-card-sub">{isCamera ? "Camera" : "File"}</span>
                         </div>
 
@@ -395,37 +522,6 @@ function Detection() {
                             }
                         </div>
 
-                        {/* Arming bar */}
-                        {alertProgress && (
-                            <div className="dm-arm-bar-wrap">
-                                {alertProgress.is_cooling ? (
-                                    <div className="dm-arm-row">
-                                        <span className="dm-arm-label dm-arm-cooldown">
-                                            COOLDOWN {alertProgress.cooldown_remaining}s
-                                        </span>
-                                        <div className="dm-arm-track">
-                                            <div className="dm-arm-fill dm-arm-fill--cool"
-                                                style={{ width: `${alertProgress.cooldown_pct}%` }} />
-                                        </div>
-                                        <span className="dm-arm-pct">{alertProgress.cooldown_pct}%</span>
-                                    </div>
-                                ) : (
-                                    <div className="dm-arm-row">
-                                        <span className={`dm-arm-label ${alertProgress.progress_pct > 50 ? "dm-arm-hot" : ""}`}>
-                                            {getArmLabel(alertProgress)}
-                                        </span>
-                                        <div className="dm-arm-track">
-                                            <div
-                                                className={`dm-arm-fill ${alertProgress.progress_pct > 50 ? "dm-arm-fill--hot" : "dm-arm-fill--warm"}`}
-                                                style={{ width: `${alertProgress.progress_pct}%` }}
-                                            />
-                                        </div>
-                                        <span className="dm-arm-pct">{alertProgress.progress_pct}%</span>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         <div className="dm-status-strip">
                             <span>{processingStatus || "Idle"}</span>
                             {videoInfo && <span>{videoInfo.width}×{videoInfo.height} @ {videoInfo.fps}fps</span>}
@@ -434,20 +530,26 @@ function Detection() {
 
                     {/* ══ COL 2: Current Action + Objects ══ */}
                     <div className="dm-col">
-
-                        {/* Current Action */}
                         <div className="dm-card">
                             <div className="dm-card-header">
                                 <span className="dm-card-title">⚡ Current Action</span>
                             </div>
                             {currentAction && currentAction.ready ? (
-                                <div className={`dm-current-action ${currentAction.is_violent ? "state-violent" : "state-normal"}`}>
-                                    <div className="dm-action-name">{currentAction.action.toUpperCase()}</div>
+                                <div
+                                    className={`dm-current-action ${currentAction.is_violent ? "state-violent" : "state-normal"}`}
+                                    style={{ borderLeftColor: getActionColor(currentAction.action, fusionResult?.weight_level) }}
+                                >
+                                    <div
+                                        className="dm-action-name"
+                                        style={{ color: getActionColor(currentAction.action, fusionResult?.weight_level) }}
+                                    >
+                                        {currentAction.action.toUpperCase()}
+                                    </div>
                                     <div className="dm-action-meta">
                                         <span>Frame {currentAction.frame_number}</span>
-                                        <span className={`dm-violent-tag ${currentAction.is_violent ? "tag-yes" : "tag-no"}`}>
+                                        {/* <span className={`dm-violent-tag ${currentAction.is_violent ? "tag-yes" : "tag-no"}`}>
                                             {currentAction.is_violent ? "VIOLENT" : "NORMAL"}
-                                        </span>
+                                        </span> */}
                                         <span>{fmtPct(currentAction.confidence)} conf</span>
                                     </div>
                                     <div className="dm-probs">
@@ -473,10 +575,9 @@ function Detection() {
                             )}
                         </div>
 
-                        {/* Current Objects */}
                         <div className="dm-card">
                             <div className="dm-card-header">
-                                <span className="dm-card-title">🔍 Current Objects</span>
+                                <span className="dm-card-title">Current Objects</span>
                                 <span className="dm-card-sub">
                                     {currentAction?.total_objects
                                         ? `${currentAction.total_objects} detected`
@@ -500,10 +601,9 @@ function Detection() {
                         </div>
                     </div>
 
-                    {/* ══ COL 3: Log + Threat + Alert Status (always visible) ══ */}
+                    {/* ══ COL 3: Log + Threat + Alert Status ══ */}
                     <div className="dm-col">
 
-                        {/* Detection Log */}
                         <div className="dm-card dm-log-card">
                             <div className="dm-card-header">
                                 <span className="dm-card-title">📋 Detection Log</span>
@@ -543,7 +643,6 @@ function Detection() {
                             </div>
                         </div>
 
-                        {/* Threat Assessment */}
                         <div className="dm-card dm-threat-card"
                             style={{
                                 background:  fusionResult ? getThreatBg(fusionResult.weight_level)   : undefined,
@@ -571,15 +670,15 @@ function Detection() {
                                             background: getThreatColor(fusionResult.weight_level),
                                         }} />
                                     </div>
-                                    {fusionResult.lrcn_contribution !== undefined && (
+                                    {fusionResult.action_contribution !== undefined && (
                                         <div className="dm-threat-breakdown">
                                             <div className="dm-breakdown-row">
                                                 <span>Action (LRCN)</span>
-                                                <span>{fmtPct(fusionResult.lrcn_contribution)}</span>
+                                                <span>{fmtPct(fusionResult.action_contribution)}</span>
                                             </div>
                                             <div className="dm-breakdown-row">
                                                 <span>Objects (YOLO)</span>
-                                                <span>{fmtPct(fusionResult.yolo_contribution)}</span>
+                                                <span>{fmtPct(fusionResult.object_contribution)}</span>
                                             </div>
                                             {fusionResult.synergy_bonus > 0 && (
                                                 <div className="dm-breakdown-row dm-synergy">
@@ -598,13 +697,6 @@ function Detection() {
                             )}
                         </div>
 
-                        {/* ══ ALERT STATUS — always visible ══════════════════
-                            Shows:
-                            • Current arming state (streak / cooldown)
-                            • Hub last-send result
-                            • Test mode button (when TEST_MODE=true)
-                            • Full alert history (or empty state)
-                        ═══════════════════════════════════════════════════ */}
                         <div className="dm-card dm-alert-status-card"
                             style={{
                                 borderColor: alertHistory.length > 0
@@ -614,19 +706,19 @@ function Detection() {
                         >
                             <div className="dm-card-header">
                                 <span className="dm-card-title">🚨 Alert Status</span>
-                                <span className="dm-card-sub"
-                                    style={{ color: alertSummary.color }}>
+                                <span className="dm-card-sub" style={{ color: alertSummary.color }}>
                                     {alertSummary.label}
                                 </span>
                             </div>
 
                             <div className="dm-alert-status-body">
-
-                                {/* ── Row 1: Arming state ── */}
                                 <div className="dm-alert-state-row">
                                     <div className="dm-alert-state-item">
                                         <span className="dm-alert-state-label">ENGINE</span>
-                                        <span className={`dm-alert-state-value ${alertProgress?.is_cooling ? "val-cyan" : alertProgress?.progress_pct > 0 ? "val-orange" : "val-green"}`}>
+                                        <span className={`dm-alert-state-value ${
+                                            alertProgress?.is_cooling      ? "val-cyan"   :
+                                            alertProgress?.progress_pct > 0 ? "val-orange" : "val-green"
+                                        }`}>
                                             {alertProgress?.is_cooling
                                                 ? `COOLDOWN ${alertProgress.cooldown_remaining}s`
                                                 : alertProgress?.progress_pct > 0
@@ -642,24 +734,21 @@ function Detection() {
                                     </div>
                                     <div className="dm-alert-state-item">
                                         <span className="dm-alert-state-label">HUB STATUS</span>
-                                        <span className={`dm-alert-state-value ${lastHubResult === null ? "val-dim" : lastHubResult.success ? "val-green" : "val-red"}`}>
-                                            {lastHubResult === null
-                                                ? "—"
-                                                : lastHubResult.success
-                                                    ? "✓ SENT"
-                                                    : "✗ FAILED"}
+                                        <span className={`dm-alert-state-value ${
+                                            lastHubResult === null ? "val-dim" :
+                                            lastHubResult.success  ? "val-green" : "val-red"
+                                        }`}>
+                                            {lastHubResult === null ? "—" : lastHubResult.success ? "✓ SENT" : "✗ FAILED"}
                                         </span>
                                     </div>
                                 </div>
 
-                                {/* ── Row 2: Test mode button ── */}
                                 {TEST_MODE && (
                                     <div className="dm-test-row">
                                         <div className="dm-test-info">
                                             <span className="dm-test-label">🧪 Test Mode Active</span>
                                             <span className="dm-test-desc">
-                                                Fires a simulated alert through the full UI pipeline — modal, banner, history, and hub POST.
-                                                Use this to verify everything works before a real threat event.
+                                                Fires a simulated alert through the full UI pipeline including countdown, modal, banner, and history.
                                             </span>
                                         </div>
                                         <button className="dm-test-btn" onClick={fireTestAlert}>
@@ -668,7 +757,6 @@ function Detection() {
                                     </div>
                                 )}
 
-                                {/* ── Alert history ── */}
                                 <div className="dm-alert-hist-section">
                                     <div className="dm-alert-hist-header">
                                         <span className="dm-log-group-title">Alert History</span>
@@ -699,7 +787,6 @@ function Detection() {
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
 
@@ -710,7 +797,6 @@ function Detection() {
                             style={{ borderColor: getThreatColor(activeAlert.payload.threat_level) }}
                             onClick={e => e.stopPropagation()}
                         >
-                            {/* Header */}
                             <div className="dm-alert-modal-header"
                                 style={{ background: getThreatBg(activeAlert.payload.threat_level) }}>
                                 <div className="dm-alert-modal-title-row">
@@ -734,9 +820,9 @@ function Detection() {
                                 </div>
                             </div>
 
-                            {/* Body */}
                             <div className="dm-alert-modal-body">
-                                <div className="dm-alert-summary">
+                                <div className="dm-alert-summary"
+                                    style={{ borderLeftColor: getThreatColor(activeAlert.payload.threat_level) }}>
                                     {activeAlert.payload.human_summary}
                                 </div>
 
@@ -794,17 +880,17 @@ function Detection() {
                                         <span>Action (LRCN)</span>
                                         <div className="dm-contrib-track">
                                             <div className="dm-contrib-fill dm-contrib-lrcn"
-                                                style={{ width: `${activeAlert.payload.lrcn_contribution * 100}%` }} />
+                                                style={{ width: `${activeAlert.payload.action_contribution * 100}%` }} />
                                         </div>
-                                        <span>{fmtPct(activeAlert.payload.lrcn_contribution)}</span>
+                                        <span>{fmtPct(activeAlert.payload.action_contribution)}</span>
                                     </div>
                                     <div className="dm-alert-contrib-row">
                                         <span>Objects (YOLO)</span>
                                         <div className="dm-contrib-track">
                                             <div className="dm-contrib-fill dm-contrib-yolo"
-                                                style={{ width: `${activeAlert.payload.yolo_contribution * 100}%` }} />
+                                                style={{ width: `${activeAlert.payload.object_contribution * 100}%` }} />
                                         </div>
-                                        <span>{fmtPct(activeAlert.payload.yolo_contribution)}</span>
+                                        <span>{fmtPct(activeAlert.payload.object_contribution)}</span>
                                     </div>
                                     {activeAlert.payload.synergy_bonus > 0 && (
                                         <div className="dm-alert-contrib-row dm-contrib-synergy-row">

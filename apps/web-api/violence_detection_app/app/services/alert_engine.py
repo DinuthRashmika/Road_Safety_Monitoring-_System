@@ -1,25 +1,18 @@
 """
-alert_engine.py
-───────────────
-Watches the rolling fusion results for a session and fires an alert
-when the threat has been sustained above the threshold long enough.
+alert_engine.py (v3 - BALANCED)
+────────────────────────────────
+Sustain timings matched to new fusion design:
 
-Alert logic
-  • Arm:   threat level is HIGH or CRITICAL for >= sustained_seconds wall-clock seconds
-  • Fire:  sends the full alert payload to your REST coordination hub via HTTP POST
-  • Cool:  after firing, ignores the same session for cooldown_seconds
-           (prevents spam if the scene stays violent)
+  CRITICAL (shooting/attacking+knife): 0s  → instant
+  HIGH (attacking+gun/stick, fighting+gun/knife): 0s if weapon, else 10s
+  MEDIUM (attacking alone, fighting alone/+stick, running+gun/knife): 30s
+  LOW: never alerts (engine filters)
+  NONE: never alerts
 
-Quick-start configuration
-─────────────────────────
-Edit AlertConfig below:
-
-    hub_url              = "https://your-hub.example.com/api/alerts"
-    hub_api_key          = "Bearer YOUR_TOKEN"   # or "" to skip auth header
-    sustained_seconds    = 3.0   # seconds of HIGH/CRITICAL before firing
-    cooldown_seconds     = 30.0  # seconds before the same session can fire again
-    camera_label         = "Camera 01"
-    location_label       = "Entrance — Zone A"
+Temporal escalation:
+  MEDIUM sustained ~2.5 min → crosses into HIGH
+  HIGH sustained ~3 min     → crosses into CRITICAL
+  (fusion handles the math — engine just tracks time and passes it in)
 """
 
 import time
@@ -29,65 +22,37 @@ from typing import Dict, Optional
 from dataclasses import dataclass, field
 
 
-# ─────────────────────────────────────────────
-#  ★  CONFIGURATION — edit this block  ★
-# ─────────────────────────────────────────────
 @dataclass
 class AlertConfig:
-
-    # ── REST endpoint ──────────────────────────────────────────────────────
-    # Full URL of your coordination hub's alert endpoint.
     hub_url: str = "http://localhost:9000/api/alerts"
-
-    # Authorization header value sent with every request.
-    # Examples:
-    #   "Bearer eyJhbGci..."   →  Authorization: Bearer <token>
-    #   "ApiKey abc123"        →  Authorization: ApiKey abc123
-    #   ""                     →  no Authorization header (skip auth)
     hub_api_key: str = ""
-
-    # Any extra HTTP headers your hub needs (e.g. {"X-Source": "cctv-01"})
     hub_extra_headers: Dict[str, str] = field(default_factory=dict)
-
-    # HTTP timeout in seconds when posting to hub
     send_timeout: float = 6.0
 
-    # ── Trigger thresholds ─────────────────────────────────────────────────
-    # Seconds of *continuous* high threat before an alert fires.
-    # The timer resets to zero any time threat drops below trigger_levels.
-    sustained_seconds: float = 3.0
+    # Sustain before first alert fires
+    sustained_critical: float = 0.0    # instant
+    sustained_high: float     = 0.0    # instant if weapon, 10s if no weapon
+    sustained_medium: float   = 30.0   # 30s before MEDIUM alert fires
+    sustained_low: float      = 999.0  # effectively never
 
-    # Threat levels that count toward the sustained timer.
-    # HIGH and CRITICAL (per your requirement).
-    trigger_levels: tuple = ("HIGH", "CRITICAL")
+    # Cooldowns after alert fires
+    cooldown_critical: float = 15.0
+    cooldown_high: float     = 25.0
+    cooldown_medium: float   = 45.0
+    cooldown_low: float      = 60.0
 
-    # Seconds to wait after an alert fires before re-arming for the same session.
-    cooldown_seconds: float = 30.0
-
-    # ── Scene metadata ────────────────────────────────────────────────────
-    camera_label: str = "Main Camera"
+    camera_label: str   = "Main Camera"
     location_label: str = "Zone A"
 
 
-# ─────────────────────────────────────────────
-#  Per-session runtime state (internal)
-# ─────────────────────────────────────────────
 @dataclass
 class AlertState:
-    # Wall-clock timestamp (time.monotonic) when the current HIGH/CRITICAL
-    # streak started. None = not currently in a threatening streak.
-    streak_start: Optional[float] = None
-
-    # Wall-clock timestamp when the last alert was sent (for cooldown check).
-    last_fire_time: Optional[float] = None
-
-    # How many alerts this session has fired total.
-    alert_count: int = 0
+    streak_start: Optional[float]     = None
+    last_fire_time: Optional[float]   = None
+    last_alert_level: Optional[str]   = None
+    alert_count: int                  = 0
 
 
-# ─────────────────────────────────────────────
-#  Human-readable summary
-# ─────────────────────────────────────────────
 def build_human_readable_summary(
     fusion_result: Dict,
     lrcn_result: Dict,
@@ -95,17 +60,9 @@ def build_human_readable_summary(
     config: AlertConfig,
     sustained_secs: float,
 ) -> str:
-    """
-    Builds a natural language description for the alert, e.g.:
-
-    "At 03:30 AM (late night — higher risk window), Main Camera at Zone A detected
-     a person RUNNING for 4.2 seconds with a knife present.
-     Confidence — action 86%, knife 74%.
-     Threat score: 91% (CRITICAL). Immediate response required."
-    """
-    now      = datetime.now()
-    time_str = now.strftime("%I:%M %p")
-    hour     = now.hour
+    now       = datetime.now()
+    time_str  = now.strftime("%I:%M %p")
+    hour      = now.hour
 
     if   0 <= hour < 6:   time_ctx = "late night — higher risk window"
     elif 6 <= hour < 9:   time_ctx = "early morning"
@@ -113,73 +70,85 @@ def build_human_readable_summary(
     elif 17 <= hour < 21: time_ctx = "evening"
     else:                 time_ctx = "night"
 
-    action       = lrcn_result.get("action", "unknown action").upper()
+    action       = lrcn_result.get("action", "unknown").upper()
     action_conf  = lrcn_result.get("confidence", 0.0)
     threat_level = fusion_result.get("weight_level", "UNKNOWN")
+    base_level   = fusion_result.get("base_level", threat_level)
     threat_score = fusion_result.get("threat_score", 0.0)
 
     detections   = yolo_result.get("detections", [])
-    object_names = [d.get("object", "object").lower() for d in detections]
+    object_names = [d.get("object", "").lower() for d in detections]
     object_confs = [d.get("confidence", 0.0) for d in detections]
 
-    duration_str = f"for {sustained_secs:.1f} seconds" if sustained_secs >= 1 else "continuously"
+    if sustained_secs < 0.5:
+        duration_str = "immediately"
+    elif sustained_secs < 60:
+        duration_str = f"for {sustained_secs:.0f} seconds"
+    else:
+        duration_str = f"for {sustained_secs/60:.1f} minutes"
 
-    # S1 — what / where / how long
+    # Escalation note
+    escalation_note = ""
+    if base_level != threat_level:
+        escalation_note = f" (escalated from {base_level} after sustained activity)"
+
     if object_names:
         obj_str = " and ".join(f"a {o}" for o in object_names)
-        s1 = (
-            f"At {time_str} ({time_ctx}), {config.camera_label} at "
-            f"{config.location_label} detected a person {action} {duration_str} "
-            f"with {obj_str} present."
-        )
+        s1 = (f"At {time_str} ({time_ctx}), {config.camera_label} at {config.location_label} "
+              f"detected a person {action} {duration_str} with {obj_str} present{escalation_note}.")
     else:
-        s1 = (
-            f"At {time_str} ({time_ctx}), {config.camera_label} at "
-            f"{config.location_label} detected a person performing a {action} "
-            f"action {duration_str}."
-        )
+        s1 = (f"At {time_str} ({time_ctx}), {config.camera_label} at {config.location_label} "
+              f"detected a person performing {action} {duration_str}{escalation_note}.")
 
-    # S2 — confidence breakdown
     conf_parts = [f"action {action_conf*100:.0f}%"]
     for name, conf in zip(object_names, object_confs):
         conf_parts.append(f"{name} {conf*100:.0f}%")
     s2 = "Confidence — " + ", ".join(conf_parts) + "."
 
-    # S3 — verdict
-    if threat_level == "CRITICAL":
-        rec = "Immediate response required."
-    else:  # HIGH
-        rec = "Urgent response recommended."
-
-    s3 = f"Threat score: {threat_score*100:.0f}% ({threat_level}). {rec}"
+    verdicts = {
+        "CRITICAL": "IMMEDIATE RESPONSE REQUIRED — potential life-threatening situation",
+        "HIGH":     "URGENT RESPONSE RECOMMENDED — active violence detected",
+        "MEDIUM":   "MONITORING REQUIRED — suspicious activity detected",
+        "LOW":      "AWARENESS REQUIRED — low-level concern",
+    }
+    s3 = f"Threat score: {threat_score*100:.0f}% ({threat_level}). {verdicts.get(threat_level, '')}"
 
     return f"{s1} {s2} {s3}"
 
 
-# ─────────────────────────────────────────────
-#  Alert Engine
-# ─────────────────────────────────────────────
 class AlertEngine:
-    """
-    One shared instance across all sessions.
-    Call process_frame() every frame from session_service.process_video_stream().
-    """
 
     def __init__(self, config: AlertConfig = None):
-        self.config = config or AlertConfig()
+        self.config  = config or AlertConfig()
         self._states: Dict[str, AlertState] = {}
 
-    # ── Lifecycle ────────────────────────────
     def _get_state(self, session_id: str) -> AlertState:
         if session_id not in self._states:
             self._states[session_id] = AlertState()
         return self._states[session_id]
 
     def remove_session(self, session_id: str):
-        """Call when a session is stopped to free memory."""
         self._states.pop(session_id, None)
 
-    # ── Core frame processing ────────────────
+    def get_required_sustain_time(self, threat_level: str, has_weapon: bool) -> float:
+        if threat_level == "CRITICAL":
+            return self.config.sustained_critical        # Always instant
+        elif threat_level == "HIGH":
+            return self.config.sustained_critical if has_weapon else 10.0
+        elif threat_level == "MEDIUM":
+            return self.config.sustained_medium          # 30s
+        elif threat_level == "LOW":
+            return self.config.sustained_low             # Never
+        return 999.0
+
+    def get_cooldown_time(self, threat_level: str) -> float:
+        return {
+            "CRITICAL": self.config.cooldown_critical,
+            "HIGH":     self.config.cooldown_high,
+            "MEDIUM":   self.config.cooldown_medium,
+            "LOW":      self.config.cooldown_low,
+        }.get(threat_level, 30.0)
+
     def process_frame(
         self,
         session_id: str,
@@ -188,132 +157,146 @@ class AlertEngine:
         yolo_result: Dict,
         frame_number: int,
     ) -> Optional[Dict]:
-        """
-        Call every frame (even while LRCN buffer is filling).
-
-        Returns:
-            alert payload dict  — only on the frame that triggers the alert
-            None                — all other frames
-        """
         state = self._get_state(session_id)
         now   = time.monotonic()
 
-        # ── Cooldown: skip until enough time since last fire ──────────────
+        # Cooldown check
         if state.last_fire_time is not None:
-            if (now - state.last_fire_time) < self.config.cooldown_seconds:
+            cooldown = self.get_cooldown_time(state.last_alert_level or "MEDIUM")
+            if (now - state.last_fire_time) < cooldown:
                 state.streak_start = None
                 return None
 
-        # ── No fusion result yet (LRCN buffer filling) ────────────────────
         if not fusion_result:
             state.streak_start = None
             return None
 
         threat_level = fusion_result.get("weight_level", "NONE")
 
-        # ── Maintain the HIGH/CRITICAL time streak ────────────────────────
-        if threat_level in self.config.trigger_levels:
-            if state.streak_start is None:
-                state.streak_start = now          # streak just started
-            streak_secs = now - state.streak_start
+        # Only track CRITICAL, HIGH, MEDIUM
+        if threat_level not in ["CRITICAL", "HIGH", "MEDIUM"]:
+            state.streak_start = None
+            return None
+
+        has_weapon       = len(yolo_result.get("detections", [])) > 0
+        required_sustain = self.get_required_sustain_time(threat_level, has_weapon)
+
+        # Maintain streak
+        if state.streak_start is None:
+            state.streak_start = now
+            streak_secs = 0.0
         else:
-            state.streak_start = None             # streak broken — reset
+            streak_secs = now - state.streak_start
+
+        # Not sustained long enough yet
+        if streak_secs < required_sustain:
             return None
 
-        # ── Not sustained long enough yet ─────────────────────────────────
-        if streak_secs < self.config.sustained_seconds:
-            return None
-
-        # ── FIRE ──────────────────────────────────────────────────────────
-        state.streak_start   = None               # reset after firing
-        state.last_fire_time = now
-        state.alert_count   += 1
-        fired_at = datetime.now()
+        # FIRE
+        state.streak_start    = None
+        state.last_fire_time  = now
+        state.last_alert_level = threat_level
+        state.alert_count     += 1
+        fired_at               = datetime.now()
 
         human_summary = build_human_readable_summary(
-            fusion_result, lrcn_result, yolo_result,
-            self.config, streak_secs
+            fusion_result, lrcn_result, yolo_result, self.config, streak_secs
         )
 
-        payload = {
-            "alert_id":          f"{session_id}_alert_{state.alert_count}",
-            "session_id":        session_id,
-            "timestamp":         fired_at.isoformat(),
-            "camera":            self.config.camera_label,
-            "location":          self.config.location_label,
-            "threat_level":      threat_level,
-            "threat_score":      fusion_result.get("threat_score", 0.0),
-            "sustained_seconds": round(streak_secs, 2),
-            "action":            lrcn_result.get("action", "unknown"),
-            "action_confidence": lrcn_result.get("confidence", 0.0),
-            "objects_detected": [
+        return {
+            "alert_id":            f"{session_id}_alert_{state.alert_count}",
+            "session_id":          session_id,
+            "timestamp":           fired_at.isoformat(),
+            "camera":              self.config.camera_label,
+            "location":            self.config.location_label,
+            "threat_level":        threat_level,
+            "base_level":          fusion_result.get("base_level", threat_level),
+            "threat_score":        fusion_result.get("threat_score", 0.0),
+            "sustained_seconds":   round(streak_secs, 2),
+            "action":              lrcn_result.get("action", "unknown"),
+            "action_confidence":   lrcn_result.get("confidence", 0.0),
+            "objects_detected":    [
                 {"object": d.get("object"), "confidence": d.get("confidence")}
                 for d in yolo_result.get("detections", [])
             ],
-            "lrcn_contribution": fusion_result.get("lrcn_contribution", 0.0),
-            "yolo_contribution": fusion_result.get("yolo_contribution", 0.0),
-            "synergy_bonus":     fusion_result.get("synergy_bonus", 0.0),
-            "human_summary":     human_summary,
-            "frame_number":      frame_number,
-            "alert_number":      state.alert_count,
+            "action_contribution": fusion_result.get("action_contribution", 0.0),
+            "object_contribution": fusion_result.get("object_contribution", 0.0),
+            "synergy_bonus":       fusion_result.get("synergy_bonus", 0.0),
+            "temporal_bonus":      fusion_result.get("temporal_bonus", 0.0),
+            "reasoning":           fusion_result.get("reasoning", ""),
+            "human_summary":       human_summary,
+            "frame_number":        frame_number,
+            "alert_number":        state.alert_count,
+            "has_weapon":          has_weapon,
+            "required_sustain_s":  required_sustain,
         }
 
-        return payload
+    def process_frame_with_temporal(
+        self,
+        session_id: str,
+        fusion_module,           # ModelFusion instance
+        lrcn_result: Dict,
+        yolo_result: Dict,
+        frame_number: int,
+    ) -> Optional[Dict]:
+        """
+        Enhanced version: passes current streak_secs into fusion
+        so temporal escalation is calculated with live sustain time.
+        Use this instead of process_frame when using v3 fusion.
+        """
+        state = self._get_state(session_id)
+        now   = time.monotonic()
 
-    # ── Send to REST hub ──────────────────────
+        # Cooldown check
+        if state.last_fire_time is not None:
+            cooldown = self.get_cooldown_time(state.last_alert_level or "MEDIUM")
+            if (now - state.last_fire_time) < cooldown:
+                state.streak_start = None
+                return None
+
+        # Calculate current streak before fusion
+        if state.streak_start is not None:
+            current_streak = now - state.streak_start
+        else:
+            current_streak = 0.0
+
+        # Run fusion WITH current sustained time
+        fusion_result = fusion_module.combine_results(
+            yolo_result, lrcn_result,
+            sustained_seconds=current_streak    # ← temporal escalation input
+        )
+
+        return self.process_frame(
+            session_id, fusion_result, lrcn_result, yolo_result, frame_number
+        )
+
     async def send_to_hub(self, payload: Dict) -> Dict:
-        """
-        POST the alert payload to the coordination hub.
-
-        Returns:
-            { "success": bool, "status_code": int|None, "error": str|None }
-        """
         headers = {"Content-Type": "application/json"}
-
         if self.config.hub_api_key:
             headers["Authorization"] = self.config.hub_api_key
-
         headers.update(self.config.hub_extra_headers)
 
         try:
             async with httpx.AsyncClient(timeout=self.config.send_timeout) as client:
-                response = await client.post(
-                    self.config.hub_url,
-                    json=payload,
-                    headers=headers,
-                )
+                response = await client.post(self.config.hub_url, json=payload, headers=headers)
                 if response.status_code in (200, 201, 202):
                     return {"success": True,  "status_code": response.status_code, "error": None}
-                else:
-                    return {
-                        "success": False,
-                        "status_code": response.status_code,
-                        "error": f"Hub returned HTTP {response.status_code}",
-                    }
-
+                return {"success": False, "status_code": response.status_code,
+                        "error": f"Hub returned HTTP {response.status_code}"}
         except httpx.ConnectError:
-            return {"success": False, "status_code": None,
-                    "error": "Coordination hub unreachable — check hub_url in AlertConfig"}
+            return {"success": False, "status_code": None, "error": "Coordination hub unreachable"}
         except httpx.TimeoutException:
-            return {"success": False, "status_code": None,
-                    "error": f"Request timed out after {self.config.send_timeout}s"}
+            return {"success": False, "status_code": None, "error": f"Timed out after {self.config.send_timeout}s"}
         except Exception as e:
             return {"success": False, "status_code": None, "error": str(e)}
 
-    # ── Progress for frontend ─────────────────
     def get_progress(self, session_id: str) -> Dict:
-        """
-        Returns the current arming/cooldown state for the UI arming bar.
-        All time values are in seconds.
-        """
-        state    = self._get_state(session_id)
-        now      = time.monotonic()
-        required = self.config.sustained_seconds
-        cooldown = self.config.cooldown_seconds
+        state = self._get_state(session_id)
+        now   = time.monotonic()
 
-        # In cooldown?
         if state.last_fire_time is not None:
-            cd_elapsed   = now - state.last_fire_time
+            cooldown    = self.get_cooldown_time(state.last_alert_level or "MEDIUM")
+            cd_elapsed  = now - state.last_fire_time
             cd_remaining = max(cooldown - cd_elapsed, 0.0)
             if cd_remaining > 0:
                 return {
@@ -322,32 +305,24 @@ class AlertEngine:
                     "cooldown_total":     cooldown,
                     "cooldown_pct":       round((cd_remaining / cooldown) * 100),
                     "streak_secs":        0.0,
-                    "required_secs":      required,
+                    "required_secs":      0.0,
                     "progress_pct":       0,
                     "alert_count":        state.alert_count,
                 }
 
-        # Building a streak?
-        if state.streak_start is not None:
-            streak_secs  = now - state.streak_start
-            progress_pct = min(round((streak_secs / required) * 100), 100)
-        else:
-            streak_secs  = 0.0
-            progress_pct = 0
+        streak_secs  = (now - state.streak_start) if state.streak_start else 0.0
+        progress_pct = min(round((streak_secs / 30.0) * 100), 100)
 
         return {
             "is_cooling":         False,
             "cooldown_remaining": 0.0,
-            "cooldown_total":     cooldown,
+            "cooldown_total":     0.0,
             "cooldown_pct":       0,
             "streak_secs":        round(streak_secs, 1),
-            "required_secs":      required,
+            "required_secs":      30.0,
             "progress_pct":       progress_pct,
             "alert_count":        state.alert_count,
         }
 
 
-# ─────────────────────────────────────────────
-#  Global instance — imported by session_service
-# ─────────────────────────────────────────────
 alert_engine = AlertEngine(AlertConfig())
