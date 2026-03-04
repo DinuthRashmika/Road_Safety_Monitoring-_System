@@ -146,6 +146,7 @@ async def fetch_camera_data(cameras_collection, location: str, camera_id: str = 
 async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
     """Use YOLO to detect if image contains an accident with retry logic"""
     if not image_path:
+        logger.warning("No image path provided")
         return False, 0.0
 
     model = get_accident_model()
@@ -157,9 +158,8 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
         try:
             img = None
             if image_path.startswith(('http://', 'https://')):
-                # <-- MODIFIED: Convert Google Drive links to direct download URLs
                 actual_url = _get_direct_drive_url(image_path)
-                logger.info(f"Downloading image (attempt {attempt + 1}/{max_retries + 1})...")
+                logger.info(f"Downloading image for accident detection (attempt {attempt + 1}/{max_retries + 1})...")
                 
                 req = urllib.request.Request(
                     actual_url,  
@@ -172,6 +172,7 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
                     image_data = response.read()
                     
                     if len(image_data) < 100:
+                        logger.warning(f"Image data too small ({len(image_data)} bytes)")
                         if attempt < max_retries:
                             await asyncio.sleep(1 * (attempt + 1))
                             continue
@@ -182,29 +183,49 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
             elif os.path.exists(image_path):
                 img = cv2.imread(image_path)
             else:
+                logger.warning(f"Image path not accessible: {image_path}")
                 return False, 0.0
 
             if img is None:
+                logger.warning(f"Failed to decode image (attempt {attempt + 1})")
                 if attempt < max_retries:
                     await asyncio.sleep(1 * (attempt + 1))
                     continue
                 return False, 0.0
 
+            # Run accident detection
+            logger.info("Running accident detection model on image...")
             results = model(img, conf=0.1)
 
+            # Check results
             if len(results) > 0 and len(results[0].boxes) > 0:
                 confidences = results[0].boxes.conf.cpu().numpy()
                 max_conf = float(max(confidences)) if len(confidences) > 0 else 0
                 num_detections = len(results[0].boxes)
                 
+                # Log what was detected
+                if hasattr(model, 'names'):
+                    class_names = model.names
+                    for i, box in enumerate(results[0].boxes):
+                        class_id = int(box.cls.cpu().numpy()[0])
+                        class_name = class_names.get(class_id, f"class_{class_id}")
+                        conf = float(box.conf.cpu().numpy()[0])
+                        logger.info(f"  Detected: {class_name} with confidence {conf:.2f}")
+                
+                logger.info(f"Accident detection result: {num_detections} objects, max conf: {max_conf:.2f}")
+                
                 if max_conf > 0.1 and num_detections > 0:
+                    logger.info(f"✅ Accident confirmed with confidence {max_conf:.2f}")
                     return True, max_conf
                 else:
+                    logger.info(f"❌ Detections below threshold (0.1) - not an accident")
                     return False, max_conf
             else:
+                logger.info("❌ No objects detected in the image - not an accident")
                 return False, 0.0
 
         except Exception as e:
+            logger.error(f"Error during accident detection: {e}")
             if attempt < max_retries:
                 await asyncio.sleep(1 * (attempt + 1))
                 continue
@@ -254,19 +275,28 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         violation_conf = violation.get("violationConfidence", 0)
         
         if not image_path:
+            logger.info(f"No image path for violation {violation_id}")
             return False
         
+        # CRITICAL: Check if it's an actual accident using YOLO
+        logger.info(f"Checking if image is an accident: {image_path[:100]}...")
         is_accident, accident_conf = await is_actual_accident(image_path)
         
         if not is_accident:
-            return False
+            logger.info(f"⏭️ Not an accident (conf: {accident_conf:.2f}) - skipping violation {violation_id}")
+            return False  # This prevents non-accidents from being ingested
         
+        logger.info(f"✅ Accident detected! Confidence: {accident_conf:.2f}")
+        
+        # Check for duplicates
         existing = await check_duplicate_incident(
             incidents_collection.database, 
             location
         )
         
         if existing:
+            logger.info(f"🔄 Duplicate found - merging with incident {existing['_id']}")
+            
             explain = existing.get("explain", [])
             new_note = f"Duplicate confirmed by secondary source (violation: {violation_id})"
             
@@ -283,6 +313,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             
             return True
         
+        # Fetch camera data
         camera_data = await fetch_camera_data(cameras_collection, location, camera_id)
         
         lat = 6.9271
@@ -384,6 +415,8 @@ async def poll_shenal_database():
                 logger.info(f"📦 Found {len(violations)} new violations")
                 
                 for violation in violations:
+                    logger.info(f"Processing violation {violation.get('_id')} - Type: {violation.get('violationType')}")
+                    
                     success = await process_violation(
                         violation, 
                         cameras_collection, 
