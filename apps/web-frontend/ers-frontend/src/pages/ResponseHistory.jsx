@@ -1,77 +1,99 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/layout/Layout';
 import api from '../api/axiosConfig';
-import './ResponseHistory.css'; 
-import { useAuth } from '../hooks/useAuth'; 
+import IncidentModal from '../components/dashboard/IncidentModal';
+import './ResponseHistory.css';
 
 const ResponseHistory = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth(); 
-
-  const fetchHistory = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/api/incidents/queue', { 
-        params: { status: 'resolved' } 
-      });
-      setHistory(res.data);
-    } catch (err) {
-      console.error("Failed to fetch history", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState(null);
+  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
 
   useEffect(() => {
     fetchHistory();
   }, []);
 
-  const handleDelete = async (incidentId) => {
-    if (!window.confirm("Are you sure you want to permanently delete this incident?")) {
-      return;
-    }
-
+  const fetchHistory = async () => {
     try {
-      await api.delete(`/api/incidents/${incidentId}`);
-      fetchHistory();
+      setLoading(true);
+      const res = await api.get('/api/incidents/queue', {
+        params: { status: 'resolved' }
+      });
+      setHistory(res.data);
     } catch (err) {
-      alert("Failed to delete incident. You must be an Admin to do this.");
-      console.error("Failed to delete", err);
+      console.error('Failed to fetch history', err);
+      setError('Failed to load response history.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ', ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
     <Layout>
-      <h2>Response History</h2>
-      {loading ? (
-        <p>Loading history...</p>
-      ) : (
-        <div className="history-list">
-          {history.length === 0 && <p>No resolved incidents found.</p>}
-          
-          {history.map(item => (
-            <div key={item.id} className="history-item">
-              <div className="history-item-info">
-                <h4>{item.source === 'traffic' ? 'Traffic Accident' : 'Violence Incident'}</h4>
-                <p>#{item.id}</p>
-                <p>{item.location?.address || 'No address'}</p>
-              </div>
-              
-              <div className="history-item-actions">
-                <span className="status-resolved">Resolved</span>
-                {user && user.role === 'admin' && (
-                  <button 
-                    className="delete-button" 
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="history-header">
+        <h2>Response History</h2>
+        <p>Review resolved incidents and response performance</p>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      <div className="history-container">
+        {loading ? (
+          <div className="loading-state">Loading history...</div>
+        ) : history.length === 0 ? (
+          <div className="empty-state">
+            <span className="empty-icon">📋</span>
+            <p>No resolved incidents found</p>
+          </div>
+        ) : (
+          <table className="history-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Location</th>
+                <th>Resolved At</th>
+                <th>Score</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((incident) => (
+                <tr key={incident.id}>
+                  <td className="incident-id">#{incident.id.slice(-6).toUpperCase()}</td>
+                  <td className="incident-location">{incident.location.address}</td>
+                  <td className="incident-time">{formatDate(incident.reported_at)}</td>
+                  <td>
+                    <span className={`score-badge ${incident.score >= 85 ? 'critical' : incident.score >= 70 ? 'high' : incident.score >= 50 ? 'medium' : 'low'}`}>
+                      {incident.score}
+                    </span>
+                  </td>
+                  <td>
+                    <button 
+                      className="view-details-btn" 
+                      onClick={() => setSelectedIncidentId(incident.id)}
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {selectedIncidentId && (
+        <IncidentModal 
+          incidentId={selectedIncidentId} 
+          onClose={() => setSelectedIncidentId(null)}
+          onUpdate={fetchHistory}
+        />
       )}
     </Layout>
   );
