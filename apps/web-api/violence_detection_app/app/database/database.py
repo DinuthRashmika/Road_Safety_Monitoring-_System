@@ -7,19 +7,19 @@ env_path = Path(__file__).resolve().parents[2] / ".env"
 load_dotenv(dotenv_path=env_path)
 
 MONGODB_URI = os.getenv("MONGODB_URI")
+MONGODB_DB         = os.getenv("MONGODB_DB", "Research Project")
+MONGODB_ALERTS_COLLECTION = os.getenv("MONGODB_ALERTS_COLLECTION", "alerts")
+MONGODB_DETECTIONS_COLLECTION = os.getenv("MONGODB_DETECTIONS_COLLECTION", "detection_sessions")
 
 # Catch the localhost fallback before it causes confusion
 if not MONGODB_URI or "localhost" in MONGODB_URI:
     print(f"[DB] WARNING: MONGODB_URI not loaded! Path tried: {env_path}")
 else:
     print(f"[DB] ✓ URI loaded: {MONGODB_URI[:40]}...")
-    
-MONGODB_DB         = os.getenv("MONGODB_DB", "Research Project")
-MONGODB_COLLECTION = os.getenv("MONGODB_COLLECTION", "alerts")
+
 
 # Single client reused across the app lifetime
 _client: AsyncIOMotorClient | None = None
-
 
 def get_client() -> AsyncIOMotorClient:
     global _client
@@ -28,10 +28,14 @@ def get_client() -> AsyncIOMotorClient:
     return _client
 
 
+# Fetch Collections
 def get_alerts_collection():
-    return get_client()[MONGODB_DB][MONGODB_COLLECTION]
+    return get_client()[MONGODB_DB][MONGODB_ALERTS_COLLECTION]
 
+def get_sessions_collection():
+    return get_client()[MONGODB_DB][MONGODB_DETECTIONS_COLLECTION]
 
+# Save Alert docs
 async def save_alert(payload: dict) -> str | None:
     """
     Save an alert payload to MongoDB.
@@ -72,7 +76,26 @@ async def save_alert(payload: dict) -> str | None:
         print(f"[DB] Failed to save alert: {e}")
         return None
 
-# On app shutdown, close the MongoDB connection
+# Save detections
+async def save_session(summary) -> str | None:
+    """
+    Save a SessionSummaryDocument to MongoDB.
+    Accepts either a Pydantic model or a plain dict.
+    """
+    try:
+        collection = get_sessions_collection()
+        doc = summary.model_dump() if hasattr(summary, "model_dump") else summary
+        result = await collection.insert_one(doc)
+        print(f"[DB] Session saved → _id: {result.inserted_id}")
+        return str(result.inserted_id)
+    except Exception as e:
+        print(f"[DB] Failed to save session: {e}")
+        return None
+
+
+
+
+# Close the MongoDB connection
 async def close_connection():
     global _client
     if _client:

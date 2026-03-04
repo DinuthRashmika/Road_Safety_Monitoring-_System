@@ -63,7 +63,7 @@ async def startup_event():
         from violence_detection_app.app.database.database import get_client
         client = get_client()
         await client.admin.command("ping")
-        print(f"[DB] MongoDB Atlas connected successfully! Database : {os.getenv('MONGODB_DB')} and Collection: {os.getenv('MONGODB_COLLECTION')}")
+        print(f"[DB] MongoDB Atlas connected successfully! Database : {os.getenv('MONGODB_DB')} and Collection: {os.getenv('MONGODB_ALERTS_COLLECTION')}")
     except Exception as e:
         print(f"[DB] MongoDB connection FAILED: {e}")
 
