@@ -20,6 +20,8 @@ import httpx
 from datetime import datetime
 from typing import Dict, Optional
 from dataclasses import dataclass, field
+from violence_detection_app.app.database.database import save_alert
+import asyncio
 
 
 @dataclass
@@ -203,7 +205,7 @@ class AlertEngine:
             fusion_result, lrcn_result, yolo_result, self.config, streak_secs
         )
 
-        return {
+        payload = {
             "alert_id":            f"{session_id}_alert_{state.alert_count}",
             "session_id":          session_id,
             "timestamp":           fired_at.isoformat(),
@@ -230,6 +232,15 @@ class AlertEngine:
             "has_weapon":          has_weapon,
             "required_sustain_s":  required_sustain,
         }
+
+        # ── Save to MongoDB (fire-and-forget, won't block detection loop) ──
+        print("Saved to mongodb")
+        try:
+            asyncio.ensure_future(save_alert(payload))
+        except Exception as e:
+            print(f"[DB] Could not schedule save: {e}")
+
+        return payload
 
     def process_frame_with_temporal(
         self,
