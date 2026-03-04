@@ -13,3 +13,4 @@ httpx
 pymongo
 motor
 python-dotenv
+cryptography
