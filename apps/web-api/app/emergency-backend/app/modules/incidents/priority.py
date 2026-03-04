@@ -67,14 +67,6 @@ VEHICLE_VULNERABILITY = {
     "unknown": 0.5
 }
 
-# Severity grade multipliers
-SEVERITY_MULTIPLIERS = {
-    "low": 0.8,
-    "medium": 1.0,
-    "high": 1.3,
-    "critical": 1.5
-}
-
 # Camera risk class scores
 CAMERA_RISK_SCORES = {
     "low": 0.3,
@@ -136,14 +128,13 @@ def calculate_vulnerability_index(inc: Incident) -> float:
     Calculate Vulnerability Index (Vu) based on:
     - Vehicle type (primary factor)
     - Number of vehicles involved
-    - Severity grade (as a multiplier)
     """
     # Base vulnerability from vehicle type
     vehicle_type = "unknown"
     vehicle_count = 1
     
     if inc.accident:
-        # Try to get vehicle type - FIXED: Check if accident has vehicle_type attribute
+        # Try to get vehicle type
         if hasattr(inc.accident, 'vehicle_type') and inc.accident.vehicle_type:
             vehicle_type = detect_vehicle_type(inc.accident.vehicle_type)
         vehicle_count = max(1, inc.accident.vehicles_involved)
@@ -155,15 +146,12 @@ def calculate_vulnerability_index(inc: Incident) -> float:
     # Get base vulnerability score
     base_vu = VEHICLE_VULNERABILITY.get(vehicle_type, 0.5)
     
-    # Apply severity grade multiplier
-    severity_multiplier = SEVERITY_MULTIPLIERS.get(inc.severity_grade, 1.0)
-    
     # Apply vehicle count factor (more vehicles/people = higher vulnerability)
     # But with diminishing returns
     vehicle_factor = 1.0 + (min(vehicle_count, 5) * 0.1)
     
     # Calculate final Vu
-    Vu = base_vu * severity_multiplier * vehicle_factor
+    Vu = base_vu * vehicle_factor
     
     # Clamp between 0.2 and 1.0
     return max(0.2, min(1.0, Vu))
@@ -289,11 +277,20 @@ def get_holiday_surge(dt: datetime = None) -> float:
     return 0.4
 
 # ============================================
-# PARAMETER 5: SEVERITY GRADE (Sg)
+# PARAMETER 5: SEVERITY GRADE (Sg) - NEW AS FULL PARAMETER
 # ============================================
-def get_severity_multiplier(severity_grade: str) -> float:
-    """Convert severity grade to multiplier"""
-    return SEVERITY_MULTIPLIERS.get(severity_grade, 1.0)
+def get_severity_score(severity_grade: str) -> float:
+    """
+    Convert severity grade to numerical score (0.3, 0.6, 0.9)
+    Now used as a direct parameter, not a multiplier
+    """
+    severity_map = {
+        "low": 0.3,
+        "medium": 0.6,
+        "high": 0.9,
+        "critical": 1.0
+    }
+    return severity_map.get(severity_grade, 0.6)  # Default to medium
 
 # ============================================
 # PARAMETER 6: DISTANCE URGENCY (Du)
@@ -360,12 +357,12 @@ def clamp01(x: float) -> float:
 # ============================================
 def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
     """
-    MFIPA+ Algorithm with 6 Parameters:
+    MFIPA+ Algorithm with 6 Parameters (all as direct scores):
     1. Vehicle Vulnerability (Vu) - 25%
     2. Location Risk (Lr) - 20%
     3. Time-of-Day Risk (Tr) - 15%
     4. Holiday Surge (Hs) - 10%
-    5. Severity Grade (Sg) - 15% (as multiplier)
+    5. Severity Grade (Sg) - 15% (as direct score, not multiplier)
     6. Distance Urgency (Du) - 15%
     """
     # Parse incident time
@@ -376,12 +373,12 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
         except ValueError:
             pass
 
-    # Calculate all 6 parameters
+    # Calculate all 6 parameters (all as direct scores)
     Vu = calculate_vulnerability_index(inc)           # 25% weight
     Lr = map_risk(inc.camera_risk_class)              # 20% weight
     Tr = get_temporal_impact(dt)                       # 15% weight
     Hs = get_holiday_surge(dt)                         # 10% weight
-    Sg = get_severity_multiplier(inc.severity_grade)   # 15% weight (as multiplier)
+    Sg = get_severity_score(inc.severity_grade)        # 15% weight (direct score)
     Du = calculate_distance_urgency(inc, responder_location)  # 15% weight
     
     explain: list[str] = []
@@ -402,26 +399,28 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
             if hasattr(inc.accident, 'vehicle_type') and inc.accident.vehicle_type:
                 vehicle_type = inc.accident.vehicle_type
             
-            # MFIPA+ Formula with 6 parameters
-            raw_score = 100 * (
-                0.25 * Vu +    # Vehicle Vulnerability
-                0.20 * Lr +    # Location Risk
-                0.15 * Tr +    # Time Risk
-                0.10 * Hs +    # Holiday Surge
-                0.15 * Du      # Distance Urgency
-            ) * Sg  # Severity grade as final multiplier
+            # MFIPA+ Formula with 6 parameters (all added, no multiplier)
+            weighted_sum = (
+                0.25 * Vu +    # Vehicle Vulnerability - 25%
+                0.20 * Lr +    # Location Risk - 20%
+                0.15 * Tr +    # Time Risk - 15%
+                0.10 * Hs +    # Holiday Surge - 10%
+                0.15 * Sg +    # Severity Grade - 15% (direct)
+                0.15 * Du      # Distance Urgency - 15%
+            )
             
+            raw_score = 100 * weighted_sum
             inc.score = min(100, round(raw_score))
             
             explain.append(f"📊 MFIPA+ Calculation (6 Parameters):")
-            explain.append(f"  1. Vehicle Vulnerability (Vu): {Vu:.2f} (Vehicle: {vehicle_type}) [25%]")
-            explain.append(f"  2. Location Risk (Lr): {Lr:.2f} [20%]")
-            explain.append(f"  3. Time Risk (Tr): {Tr:.2f} [15%]")
-            explain.append(f"  4. Holiday Surge (Hs): {Hs:.2f} [10%]")
-            explain.append(f"  5. Distance Urgency (Du): {Du:.2f} [15%]")
-            explain.append(f"  6. Severity Multiplier (Sg): {Sg:.2f} [15% effect]")
-            explain.append(f"  Raw: (25%×{Vu:.2f} + 20%×{Lr:.2f} + 15%×{Tr:.2f} + 10%×{Hs:.2f} + 15%×{Du:.2f}) = {(0.25*Vu + 0.2*Lr + 0.15*Tr + 0.1*Hs + 0.15*Du):.3f}")
-            explain.append(f"  Final Score: {inc.score} (×{Sg:.2f} severity multiplier)")
+            explain.append(f"  1. Vehicle Vulnerability (Vu): {Vu:.2f} (Vehicle: {vehicle_type}) [25%] = {Vu*0.25:.3f}")
+            explain.append(f"  2. Location Risk (Lr): {Lr:.2f} [20%] = {Lr*0.20:.3f}")
+            explain.append(f"  3. Time Risk (Tr): {Tr:.2f} [15%] = {Tr*0.15:.3f}")
+            explain.append(f"  4. Holiday Surge (Hs): {Hs:.2f} [10%] = {Hs*0.10:.3f}")
+            explain.append(f"  5. Severity Grade (Sg): {Sg:.2f} [15%] = {Sg*0.15:.3f}")
+            explain.append(f"  6. Distance Urgency (Du): {Du:.2f} [15%] = {Du*0.15:.3f}")
+            explain.append(f"  Weighted Sum: {weighted_sum:.3f}")
+            explain.append(f"  Final Score: {inc.score}")
             
             # Determine required roles based on score and vehicle type
             inc.required_roles = ["ambulance", "police"]
@@ -443,25 +442,27 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
         P = clamp01((inc.violence.participants_count - 1) / 4.0)
         
         # Combine with our parameters
-        raw_score = 100 * (
-            0.30 * W +           # Weapon presence
-            0.20 * P +           # Crowd density
-            0.15 * Tr +          # Time risk
-            0.10 * Lr +          # Location risk
-            0.10 * Hs +          # Holiday surge
-            0.15 * Du            # Distance urgency
-        ) * Sg                   # Severity multiplier
+        weighted_sum = (
+            0.30 * W +    # Weapon presence - 30%
+            0.20 * P +    # Crowd density - 20%
+            0.15 * Tr +   # Time risk - 15%
+            0.10 * Lr +   # Location risk - 10%
+            0.10 * Hs +   # Holiday surge - 10%
+            0.15 * Du     # Distance urgency - 15%
+        )
         
+        raw_score = 100 * weighted_sum
         inc.score = min(100, round(raw_score))
         
         explain.append(f"👥 Violence Incident Scoring:")
-        explain.append(f"  Weapon Confidence: {W:.2f} [30%]")
-        explain.append(f"  Participants: {P:.2f} [20%]")
-        explain.append(f"  Time Risk: {Tr:.2f} [15%]")
-        explain.append(f"  Location Risk: {Lr:.2f} [10%]")
-        explain.append(f"  Holiday Surge: {Hs:.2f} [10%]")
-        explain.append(f"  Distance Urgency: {Du:.2f} [15%]")
-        explain.append(f"  Severity Multiplier: {Sg:.2f}")
+        explain.append(f"  Weapon Confidence: {W:.2f} [30%] = {W*0.30:.3f}")
+        explain.append(f"  Participants: {P:.2f} [20%] = {P*0.20:.3f}")
+        explain.append(f"  Time Risk: {Tr:.2f} [15%] = {Tr*0.15:.3f}")
+        explain.append(f"  Location Risk: {Lr:.2f} [10%] = {Lr*0.10:.3f}")
+        explain.append(f"  Holiday Surge: {Hs:.2f} [10%] = {Hs*0.10:.3f}")
+        explain.append(f"  Distance Urgency: {Du:.2f} [15%] = {Du*0.15:.3f}")
+        explain.append(f"  Severity Grade: {Sg:.2f} (included in base)")
+        explain.append(f"  Weighted Sum: {weighted_sum:.3f}")
         explain.append(f"  Final Score: {inc.score}")
 
         if fire_detected:
