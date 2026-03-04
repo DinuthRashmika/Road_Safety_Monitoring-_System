@@ -5,7 +5,7 @@
   margin-bottom: 16px;
   border-left: 5px solid #ccc;
   transition: box-shadow 0.3s ease;
-  position: relative; /* For popup positioning */
+  position: relative; 
 }
 
 .incident-card:hover {
@@ -38,7 +38,6 @@
   color: #777;
 }
 
-/* NEW STYLES FOR ADMIN ALERT */
 .pending-alert-icon {
   background-color: #E4080A;
   color: white;
@@ -118,7 +117,7 @@
 .score-badge {
   /* Increase this value to make the score larger */
   font-size: 1.7rem !important; 
-  font-weight: 800 !important;
+  font-weight: 700 !important;
   color: #333;
   line-height: 1;
   margin-right: 10px;
