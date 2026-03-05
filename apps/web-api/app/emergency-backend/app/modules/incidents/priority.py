@@ -234,46 +234,118 @@ def get_temporal_impact(dt: datetime = None) -> float:
         return 0.3
 
 # ============================================
-# PARAMETER 4: HOLIDAY SURGE (Hs)
+# PARAMETER 4: HOLIDAY SURGE (Hs) - UPDATED WITH 2026 SRI LANKAN HOLIDAYS
 # ============================================
 def get_holiday_surge(dt: datetime = None) -> float:
     """
-    Enhanced Holiday Surge (Hs) with Sri Lankan festival calendar
+    Enhanced Holiday Surge (Hs) with official Sri Lankan 2026 holiday calendar
     Returns score between 0.3 and 1.0
+    
+    Based on official Public, Bank, Mercantile and Full Moon Poya Holidays 2026
     """
     if dt is None:
         dt = datetime.now()
     
     month = dt.month
     day = dt.day
+    weekday = dt.weekday()  # 0=Monday, 6=Sunday
     
-    # Major festival periods (Highest Surge)
-    # Avurudu (Sinhala & Tamil New Year) - April
-    if month == 4 and 10 <= day <= 20:
-        return 1.0
-    # Christmas/New Year - December 20 - January 5
-    elif (month == 12 and day >= 20) or (month == 1 and day <= 5):
+    # All Saturdays and Sundays are Bank Holidays
+    is_weekend = weekday >= 5  # 5=Sat, 6=Sun
+    
+    # ===== MAJOR FESTIVAL PERIODS (SCORE: 1.0) =====
+    # These are high-risk periods with mass travel and celebrations
+    
+    # Duruthu Full Moon Poya Day - January 3
+    if month == 1 and day == 3:
         return 1.0
     
-    # Minor festival periods (High Surge)
-    # Vesak - May (full moon period)
-    if month == 5 and 5 <= day <= 15:
+    # Nawam Full Moon Poya Day - March 1
+    if month == 3 and day == 1:
+        return 1.0
+    
+    # Medin Full Moon Poya Day - June 21
+    if month == 6 and day == 21:
+        return 1.0
+    
+    # Bak Full Moon Poya Day - July 1
+    if month == 7 and day == 1:
+        return 1.0
+    
+    # Vesak Full Moon Poya Day - September 28
+    if month == 9 and day == 28:
+        return 1.0
+    
+    # Asadha Full Moon Poya Day - October 29
+    if month == 10 and day == 29:
+        return 1.0
+    
+    # Il Full Moon Poya Day - November 24
+    if month == 11 and day == 24:
+        return 1.0
+    
+    # Unduvap Full Moon Poya Day - December 13
+    if month == 12 and day == 13:
+        return 1.0
+    
+    # ===== PUBLIC HOLIDAYS (SCORE: 0.9) =====
+    # These are single-day public holidays with increased travel
+    
+    # Tamil Thai Pongal Day - February 15
+    if month == 2 and day == 15:
         return 0.9
-    # Deepavali - October/November (approximate)
-    if month == 10 and 20 <= day <= 30:
-        return 0.85
-    if month == 11 and 1 <= day <= 5:
-        return 0.85
     
-    # Long weekends / Public holidays
-    # Independence Day - February 4
-    if month == 2 and day == 4:
-        return 0.8
-    # May Day - May 1
-    if month == 5 and day == 1:
-        return 0.8
+    # Maha Sivarathri Day - May 2
+    if month == 5 and day == 2:
+        return 0.9
     
-    # Normal days
+    # Id-Ul-Fitr (Ramazan Festival Day) - July 1
+    if month == 7 and day == 1:
+        return 0.9
+    
+    # Christmas Day - December 25
+    if month == 12 and day == 25:
+        return 0.9
+    
+    # ===== LONG WEEKEND PERIODS (SCORE: 0.85) =====
+    # When holidays create long weekends
+    
+    # Check if it's a Friday before a Saturday holiday
+    if weekday == 4:  # Friday
+        next_day = day + 1
+        if (month == 1 and next_day == 3) or \
+           (month == 2 and next_day == 15) or \
+           (month == 3 and next_day == 1) or \
+           (month == 5 and next_day == 2) or \
+           (month == 6 and next_day == 21) or \
+           (month == 7 and next_day == 1) or \
+           (month == 9 and next_day == 28) or \
+           (month == 10 and next_day == 29) or \
+           (month == 11 and next_day == 24) or \
+           (month == 12 and next_day == 13):
+            return 0.85
+    
+    # Check if it's a Monday after a Sunday holiday
+    if weekday == 0:  # Monday
+        prev_day = day - 1
+        if (month == 1 and prev_day == 3) or \
+           (month == 2 and prev_day == 15) or \
+           (month == 3 and prev_day == 1) or \
+           (month == 5 and prev_day == 2) or \
+           (month == 6 and prev_day == 21) or \
+           (month == 7 and prev_day == 1) or \
+           (month == 9 and prev_day == 28) or \
+           (month == 10 and prev_day == 29) or \
+           (month == 11 and prev_day == 24) or \
+           (month == 12 and prev_day == 13):
+            return 0.85
+    
+    # ===== WEEKEND (SCORE: 0.7) =====
+    # Saturdays and Sundays (Bank Holidays) have increased traffic
+    if is_weekend:
+        return 0.7
+    
+    # ===== NORMAL DAYS (SCORE: 0.4) =====
     return 0.4
 
 # ============================================
@@ -361,8 +433,8 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
     1. Vehicle Vulnerability (Vu) - 25%
     2. Location Risk (Lr) - 20%
     3. Time-of-Day Risk (Tr) - 15%
-    4. Holiday Surge (Hs) - 10%
-    5. Severity Grade (Sg) - 15% (as direct score, not multiplier)
+    4. Holiday Surge (Hs) - 10% (Based on 2026 Sri Lankan holidays)
+    5. Severity Grade (Sg) - 15% (as direct score)
     6. Distance Urgency (Du) - 15%
     """
     # Parse incident time
@@ -377,7 +449,7 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
     Vu = calculate_vulnerability_index(inc)           # 25% weight
     Lr = map_risk(inc.camera_risk_class)              # 20% weight
     Tr = get_temporal_impact(dt)                       # 15% weight
-    Hs = get_holiday_surge(dt)                         # 10% weight
+    Hs = get_holiday_surge(dt)                         # 10% weight - UPDATED with 2026 holidays
     Sg = get_severity_score(inc.severity_grade)        # 15% weight (direct score)
     Du = calculate_distance_urgency(inc, responder_location)  # 15% weight
     
@@ -404,7 +476,7 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
                 0.25 * Vu +    # Vehicle Vulnerability - 25%
                 0.20 * Lr +    # Location Risk - 20%
                 0.15 * Tr +    # Time Risk - 15%
-                0.10 * Hs +    # Holiday Surge - 10%
+                0.10 * Hs +    # Holiday Surge - 10% (based on 2026 holidays)
                 0.15 * Sg +    # Severity Grade - 15% (direct)
                 0.15 * Du      # Distance Urgency - 15%
             )
@@ -416,7 +488,17 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
             explain.append(f"  1. Vehicle Vulnerability (Vu): {Vu:.2f} (Vehicle: {vehicle_type}) [25%] = {Vu*0.25:.3f}")
             explain.append(f"  2. Location Risk (Lr): {Lr:.2f} [20%] = {Lr*0.20:.3f}")
             explain.append(f"  3. Time Risk (Tr): {Tr:.2f} [15%] = {Tr*0.15:.3f}")
-            explain.append(f"  4. Holiday Surge (Hs): {Hs:.2f} [10%] = {Hs*0.10:.3f}")
+            
+            # Enhanced holiday explanation
+            holiday_note = ""
+            if Hs >= 0.9:
+                holiday_note = " (Major Festival)"
+            elif Hs >= 0.8:
+                holiday_note = " (Public Holiday)"
+            elif Hs >= 0.7:
+                holiday_note = " (Weekend/Bank Holiday)"
+            
+            explain.append(f"  4. Holiday Surge (Hs): {Hs:.2f}{holiday_note} [10%] = {Hs*0.10:.3f}")
             explain.append(f"  5. Severity Grade (Sg): {Sg:.2f} [15%] = {Sg*0.15:.3f}")
             explain.append(f"  6. Distance Urgency (Du): {Du:.2f} [15%] = {Du*0.15:.3f}")
             explain.append(f"  Weighted Sum: {weighted_sum:.3f}")
@@ -447,7 +529,7 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
             0.20 * P +    # Crowd density - 20%
             0.15 * Tr +   # Time risk - 15%
             0.10 * Lr +   # Location risk - 10%
-            0.10 * Hs +   # Holiday surge - 10%
+            0.10 * Hs +   # Holiday surge - 10% (based on 2026 holidays)
             0.15 * Du     # Distance urgency - 15%
         )
         
@@ -459,8 +541,18 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
         explain.append(f"  Participants: {P:.2f} [20%] = {P*0.20:.3f}")
         explain.append(f"  Time Risk: {Tr:.2f} [15%] = {Tr*0.15:.3f}")
         explain.append(f"  Location Risk: {Lr:.2f} [10%] = {Lr*0.10:.3f}")
-        explain.append(f"  Holiday Surge: {Hs:.2f} [10%] = {Hs*0.10:.3f}")
-        explain.append(f"  Distance Urgency: {Du:.2f} [15%] = {Du*0.15:.3f}")
+        
+        # Enhanced holiday explanation
+        holiday_note = ""
+        if Hs >= 0.9:
+            holiday_note = " (Major Festival)"
+        elif Hs >= 0.8:
+            holiday_note = " (Public Holiday)"
+        elif Hs >= 0.7:
+            holiday_note = " (Weekend/Bank Holiday)"
+        
+        explain.append(f"  Holiday Surge (Hs): {Hs:.2f}{holiday_note} [10%] = {Hs*0.10:.3f}")
+        explain.append(f"  Distance Urgency (Du): {Du:.2f} [15%] = {Du*0.15:.3f}")
         explain.append(f"  Severity Grade: {Sg:.2f} (included in base)")
         explain.append(f"  Weighted Sum: {weighted_sum:.3f}")
         explain.append(f"  Final Score: {inc.score}")
