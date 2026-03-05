@@ -308,7 +308,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             "ambalangoda": {"lat": 6.2275, "lng": 80.0564},
             "galle": {"lat": 6.0319, "lng": 80.2168},
             "kirama": {"lat": 6.2134, "lng": 80.6527},
-            "walasmulla kirama": {"lat": 6.2134, "lng": 80.6527},
             "matara": {"lat": 5.9549, "lng": 80.5550},
             "colombo": {"lat": 6.9271, "lng": 79.8612},
         }
