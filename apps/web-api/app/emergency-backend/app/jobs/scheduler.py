@@ -17,11 +17,9 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Global model instance
 _accident_model = None
 
 def get_accident_model():
-    """Lazy load the accident detection model"""
     global _accident_model
     if _accident_model is None:
         model_path = getattr(settings, 'ACCIDENT_MODEL_PATH', "app/accident_model.pt")
@@ -35,7 +33,6 @@ def get_accident_model():
     return _accident_model
 
 def _get_direct_drive_url(url: str) -> str:
-    """Converts a Google Drive 'view' or 'open' link to a direct download URL."""
     match = re.search(r'drive\.google\.com/file/d/([^/]+)', url)
     if match:
         file_id = match.group(1)
@@ -98,7 +95,6 @@ def get_vehicles_involved(violation_data: Dict[str, Any]) -> int:
         return 1
 
 async def fetch_camera_data(cameras_collection, location: str, camera_id: str = None) -> Optional[Dict]:
-    """Fetch camera details - FIRST by location name, THEN by ID"""
     try:
         if location and location != "Unknown":
             camera = await cameras_collection.find_one({
@@ -222,7 +218,6 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
     return False, 0.0
 
 async def check_duplicate_incident(db, location: str, time_window_minutes: int = 5) -> Optional[Dict]:
-    """Check for duplicate incidents (spatiotemporal clustering)"""
     try:
         time_threshold = (datetime.now() - timedelta(minutes=time_window_minutes)).isoformat()
         
@@ -240,7 +235,6 @@ async def check_duplicate_incident(db, location: str, time_window_minutes: int =
         return None
 
 async def process_violation(violation: Dict, cameras_collection, incidents_collection) -> bool:
-    """Process a single violation record"""
     try:
         violation_id = violation.get("_id")
         logger.info(f"Processing violation: {violation_id}")
@@ -364,7 +358,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         logger.error(f"Error processing violation {violation.get('_id')}: {e}")
         return False
 
-# NEW: Function to process ALL violations (for demo/force refresh)
 async def poll_shenal_database_once():
     """Run one cycle of the database poller manually - processes ALL violations regardless of emergency_processed flag"""
     logger.info("🔄 FORCE REFRESH: Processing all violations")
@@ -376,7 +369,6 @@ async def poll_shenal_database_once():
         cameras_collection = shenal_db["cameras"]
         emergency_db = client["emergency_db"]
         
-        # Get ALL violations (not just unprocessed)
         total_violations = await violations_collection.count_documents({})
         logger.info(f"📊 Total violations in database: {total_violations}")
         
@@ -395,7 +387,6 @@ async def poll_shenal_database_once():
             try:
                 logger.info(f"Force processing violation {violation.get('_id')} - Type: {violation.get('violationType')}")
                 
-                # Process the violation
                 success = await process_violation(
                     violation, 
                     cameras_collection, 
@@ -405,13 +396,10 @@ async def poll_shenal_database_once():
                 if success:
                     processed_count += 1
                     
-                    # Check if it was an accident
                     violation_type = violation.get("violationType", "").lower()
                     if "accident" in violation_type or "crash" in violation_type:
                         accident_count += 1
                 
-                # Don't update emergency_processed flag - let normal flow handle it
-                # This allows multiple force refreshes
                 
                 await asyncio.sleep(1)
                 
@@ -427,7 +415,6 @@ async def poll_shenal_database_once():
         return 0
 
 async def poll_shenal_database():
-    """Main polling function - only processes unprocessed violations"""
     logger.info("🚀 Starting database poller...")
     
     consecutive_errors = 0
@@ -496,7 +483,6 @@ async def poll_shenal_database():
             await asyncio.sleep(min(30 * (2 ** consecutive_errors), 300))
 
 async def start_scheduler():
-    """Start the background poller"""
     try:
         asyncio.create_task(poll_shenal_database())
         logger.info("✅ database poller scheduled")
