@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'services/payment_service.dart';
-
+import 'screens/previous_trips_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_owner_screen.dart';
@@ -66,6 +66,9 @@ class RoadGuruApp extends StatelessWidget {
         '/vehicle-detail': (_) => const VehicleDetailScreen(),
         '/vehicles': (_) => const VehiclesScreen(),
         '/violations': (_) => const ViolationsScreen(),
+        '/trips': (_) => const PreviousTripsScreen(),
+
+    
 
         '/forgot': (_) => Scaffold(
               appBar: AppBar(title: const Text('Reset Password')),
