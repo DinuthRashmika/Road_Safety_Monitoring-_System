@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 import logging
+from datetime import datetime
 
 from app.config import settings
 from app.db.mongo import get_db
@@ -14,7 +15,7 @@ from app.modules.telemetry.routes import router as telemetry_router
 from app.modules.hub.ingest_routes import router as hub_router
 from app.modules.routing.routes import router as routing_router
 from app.seed.seed_cli import create_admin
-from app.jobs.scheduler import start_scheduler, poll_shenal_database_once  # Added poll_shenal_database_once
+from app.jobs.scheduler import start_scheduler, poll_shenal_database_once
 
 # Setup logging
 logging.basicConfig(
@@ -72,12 +73,12 @@ async def version():
         "version": "1.0.0"
     }
 
-# NEW: Force refresh endpoint for demo purposes
+# Force refresh endpoint for demo purposes
 @app.post("/api/demo/force-refresh")
 async def force_refresh_incidents():
     """Manually trigger processing of ALL violations (for demo purposes)"""
     try:
-        logger.info("🔴 DEMO: Force refresh triggered manually")
+        logger.info("Force refresh triggered")
         result = await poll_shenal_database_once()
         return {
             "success": True,
@@ -90,6 +91,53 @@ async def force_refresh_incidents():
             "success": False,
             "message": str(e)
         }
+
+# UPDATED: Permanent Force ignore - never comes back
+@app.post("/api/demo/force-ignore-normal")
+async def force_ignore_normal():
+    """Force ignore the latest violation - PERMANENTLY marks it as normal vehicle"""
+    from app.db.mongo import get_client
+    from bson import ObjectId
+    
+    client = get_client()
+    shenal_db = client["road_safety"]
+    violations_collection = shenal_db["violations"]
+    emergency_db = client["emergency_db"]
+    incidents_collection = emergency_db["incidents"]
+    
+    # Find the latest violation
+    latest = await violations_collection.find_one(
+        sort=[("_id", -1)]
+    )
+    
+    if latest:
+        # Check if this violation already created an incident
+        report_id = f"VIOLATION-{str(latest['_id'])}"
+        existing_incident = await incidents_collection.find_one({"report_id": report_id})
+        
+        if existing_incident:
+            # Delete the incident if it exists
+            await incidents_collection.delete_one({"_id": existing_incident["_id"]})
+            logger.info(f"🗑️ Deleted incident for violation: {latest['_id']}")
+        
+        # Mark it as PERMANENTLY ignored with a special flag
+        await violations_collection.update_one(
+            {"_id": latest["_id"]},
+            {
+                "$set": {
+                    "emergency_processed": True,
+                    "emergency_processed_at": datetime.now().isoformat(),
+                    "emergency_success": False,
+                    "emergency_note": "PERMANENT_IGNORE - Normal Vehicle",
+                    "emergency_permanent_ignore": True  # New flag for permanent ignore
+                }
+            }
+        )
+        logger.info(f"🗑️ Removed false positive detection:  {latest['_id']}")
+        return {"success": True, "ignored": str(latest["_id"])}
+    
+    logger.info("⚠️ No violations to ignore")
+    return {"success": False, "message": "No violations to ignore"}
 
 # Include all routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])

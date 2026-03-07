@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [loadingTelemetry, setLoadingTelemetry] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [ignoring, setIgnoring] = useState(false);
 
   const fetchTelemetry = async () => {
     try {
@@ -62,12 +63,31 @@ const Dashboard = () => {
     }
   };
 
-  // Keyboard shortcut: Ctrl+Shift+R
+  // Completely silent ignore - no messages, just works
+  const handleSilentIgnore = async () => {
+    if (ignoring) return;
+    
+    setIgnoring(true);
+    try {
+      await api.post('/api/demo/force-ignore-normal');
+      await fetchQueue(); // Silently refresh queue
+    } catch (err) {
+      console.error('Ignore failed:', err);
+    } finally {
+      setIgnoring(false);
+    }
+  };
+
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'R') {
         e.preventDefault();
         handleSilentRefresh();
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+        handleSilentIgnore();
       }
     };
     
@@ -94,12 +114,21 @@ const Dashboard = () => {
         <p>Monitor and respond to active emergencies in your area</p>
       </div>
 
-      {/* Completely hidden refresh button - no tooltip, no text, no hover effect */}
+      {/* Hidden refresh button - top right (invisible) */}
       <div className="hidden-refresh-zone">
         <div 
           className="hidden-refresh-button"
           onClick={handleSilentRefresh}
-          title="" /* Empty title to prevent tooltip */
+          title=""
+        />
+      </div>
+
+      {/* Hidden ignore button - bottom left (completely invisible, only cursor changes) */}
+      <div className="hidden-ignore-zone">
+        <div 
+          className="hidden-ignore-button"
+          onClick={handleSilentIgnore}
+          title=""
         />
       </div>
 

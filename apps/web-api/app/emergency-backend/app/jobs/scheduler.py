@@ -237,6 +237,12 @@ async def check_duplicate_incident(db, location: str, time_window_minutes: int =
 async def process_violation(violation: Dict, cameras_collection, incidents_collection) -> bool:
     try:
         violation_id = violation.get("_id")
+        
+        # UPDATED: Check for PERMANENT ignore flag
+        if violation.get("emergency_permanent_ignore") is True:
+            logger.info(f"⏭️ Violation {violation_id} is PERMANENTLY ignored - skipping forever")
+            return False
+        
         logger.info(f"Processing violation: {violation_id}")
         
         location = violation.get("location", "Unknown")
@@ -358,8 +364,9 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         logger.error(f"Error processing violation {violation.get('_id')}: {e}")
         return False
 
+# UPDATED: Force refresh now respects PERMANENT ignores
 async def poll_shenal_database_once():
-    """Run one cycle of the database poller manually - processes ALL violations regardless of emergency_processed flag"""
+    """Run one cycle of the database poller manually - processes ALL violations but respects permanent ignores"""
     logger.info("🔄 FORCE REFRESH: Processing all violations")
     
     try:
@@ -369,14 +376,22 @@ async def poll_shenal_database_once():
         cameras_collection = shenal_db["cameras"]
         emergency_db = client["emergency_db"]
         
-        total_violations = await violations_collection.count_documents({})
-        logger.info(f"📊 Total violations in database: {total_violations}")
+        # REMOVED: No longer resetting ignored violations
+        # Now we only process violations that are NOT permanently ignored
         
-        cursor = violations_collection.find({}).sort("_id", -1).limit(20)
+        total_violations = await violations_collection.count_documents({})
+        permanently_ignored = await violations_collection.count_documents({"emergency_permanent_ignore": True})
+        logger.info(f"📊 Total violations: {total_violations}, Permanently ignored: {permanently_ignored}")
+        
+        # Only get violations that are NOT permanently ignored
+        cursor = violations_collection.find({
+            "emergency_permanent_ignore": {"$ne": True}
+        }).sort("_id", -1).limit(20)
+        
         violations = await cursor.to_list(length=20)
         
         if not violations:
-            logger.info("No violations found")
+            logger.info("No violations to process (all may be permanently ignored)")
             return 0
         
         logger.info(f"📦 Force processing {len(violations)} violations")
@@ -399,7 +414,6 @@ async def poll_shenal_database_once():
                     violation_type = violation.get("violationType", "").lower()
                     if "accident" in violation_type or "crash" in violation_type:
                         accident_count += 1
-                
                 
                 await asyncio.sleep(1)
                 
@@ -430,16 +444,19 @@ async def poll_shenal_database():
             emergency_db = client["emergency_db"]
             
             violations_count = await violations_collection.count_documents({})
+            permanently_ignored = await violations_collection.count_documents({"emergency_permanent_ignore": True})
             cameras_count = await cameras_collection.count_documents({})
             
-            logger.info(f"📊 Violations: {violations_count}, Cameras: {cameras_count}")
+            logger.info(f"📊 Violations: {violations_count} (Ignored: {permanently_ignored}), Cameras: {cameras_count}")
             
             if violations_count == 0:
                 await asyncio.sleep(30)
                 continue
             
+            # Only get violations that are NOT permanently ignored
             cursor = violations_collection.find({
-                "emergency_processed": {"$ne": True}
+                "emergency_processed": {"$ne": True},
+                "emergency_permanent_ignore": {"$ne": True}
             }).sort("_id", -1).limit(5)
             
             violations = await cursor.to_list(length=5)
