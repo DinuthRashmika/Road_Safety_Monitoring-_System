@@ -65,6 +65,14 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         color: _textSecondary,
       );
 
+  @override
+  void dispose() {
+    _type.dispose();
+    _model.dispose();
+    _plate.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -92,15 +100,18 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
 
   // which: 'front'|'back'|'right'|'left'|'plate'
   Future<void> _pick(String which) async {
-    if (_picking) return; // guard against re-entrancy
+    if (_picking) return;
     _picking = true;
+
     try {
+      // ✅ FIX: compress + resize (prevents sendTimeout on real phones)
       final XFile? x = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
+        imageQuality: 60,
+        maxWidth: 1280,
+        maxHeight: 1280,
       );
 
-      // if user cancelled or no file, nothing to do
       if (!mounted || x == null) return;
 
       setState(() {
@@ -123,7 +134,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         }
       });
     } on PlatformException catch (err) {
-      // Platform-specific error (including already_active)
       debugPrint('ImagePicker PlatformException: ${err.code} - ${err.message}');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -164,7 +174,9 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       );
       return;
     }
+
     setState(() => _saving = true);
+
     try {
       await VehicleService.create(
         vehicleType: _type.text.trim(),
@@ -177,9 +189,9 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         imageLeft: fLeft,
         imagePlate: fPlate,
       );
+
       if (!mounted) return;
-      
-      // Show success feedback
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Vehicle added successfully!'),
@@ -188,7 +200,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
-      
+
       Navigator.pop(context);
     } catch (e) {
       debugPrint('Vehicle create failed: $e');
@@ -242,10 +254,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: _labelStyle,
-              ),
+              Text(label, style: _labelStyle),
               if (required) ...[
                 const SizedBox(width: 4),
                 Text(
@@ -286,10 +295,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                                 children: [
                                   Icon(Icons.error_outline, color: _textDisabled, size: 32),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    'Cannot display image',
-                                    style: TextStyle(color: _textDisabled),
-                                  ),
+                                  Text('Cannot display image', style: TextStyle(color: _textDisabled)),
                                 ],
                               ),
                             );
@@ -305,11 +311,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                             color: Colors.black.withOpacity(0.6),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            Icons.check_circle,
-                            color: _successColor,
-                            size: 16,
-                          ),
+                          child: Icon(Icons.check_circle, color: _successColor, size: 16),
                         ),
                       ),
                     ],
@@ -324,22 +326,12 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                           color: _primaryColor.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          Icons.camera_alt_outlined,
-                          size: 24,
-                          color: _primaryLight,
-                        ),
+                        child: Icon(Icons.camera_alt_outlined, size: 24, color: _primaryLight),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Upload $label Photo',
-                        style: _hintStyle.copyWith(fontWeight: FontWeight.w500),
-                      ),
+                      Text('Upload $label Photo', style: _hintStyle.copyWith(fontWeight: FontWeight.w500)),
                       const SizedBox(height: 4),
-                      Text(
-                        'Tap to select from gallery',
-                        style: _hintStyle.copyWith(fontSize: 12),
-                      ),
+                      Text('Tap to select from gallery', style: _hintStyle.copyWith(fontSize: 12)),
                     ],
                   ),
           ),
@@ -358,18 +350,10 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                 ),
                 elevation: 0,
               ),
-              icon: Icon(
-                path == null ? Icons.cloud_upload_outlined : Icons.edit_outlined,
-                size: 18,
-              ),
+              icon: Icon(path == null ? Icons.cloud_upload_outlined : Icons.edit_outlined, size: 18),
               label: Text(
-                path == null 
-                  ? (disabled ? 'Selecting...' : 'Upload Photo')
-                  : (disabled ? 'Selecting...' : 'Change Photo'),
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
+                path == null ? (disabled ? 'Selecting...' : 'Upload Photo') : (disabled ? 'Selecting...' : 'Change Photo'),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
             ),
           ),
@@ -382,7 +366,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Vehicle Type
         _buildSection(
           title: 'Vehicle Type',
           subtitle: 'Select the type of your vehicle.',
@@ -416,8 +399,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Vehicle Model
         _buildSection(
           title: 'Vehicle Model',
           subtitle: 'Make, model, and year.',
@@ -443,8 +424,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Registration Date
         _buildSection(
           title: 'Registration Date',
           subtitle: 'Date of first registration.',
@@ -484,8 +463,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Number Plate
         _buildSection(
           title: 'Number Plate',
           subtitle: 'Please enter a valid number plate.',
@@ -565,20 +542,19 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   Widget _buildPhotosStep() {
     return Column(
       children: [
-        // Tips Box
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A), // Dark blue background
+            color: const Color(0xFF0F172A),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFF1E3A8A)),
-            gradient: LinearGradient(
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF0F172A),
-                const Color(0xFF1E293B),
+                Color(0xFF0F172A),
+                Color(0xFF1E293B),
               ],
             ),
           ),
@@ -622,8 +598,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Photo Upload Sections
         _buildImageUpload('Front View', fFront, () => _pick('front'), required: true),
         _buildImageUpload('Rear View', fBack, () => _pick('back'), required: true),
         _buildImageUpload('Right Side', fRight, () => _pick('right'), required: true),
@@ -636,7 +610,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
   Widget _buildConfirmStep() {
     return Column(
       children: [
-        // Summary Card
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
@@ -666,10 +639,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                     child: Icon(Icons.check_circle_outline, color: _successColor, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    'Ready to Submit',
-                    style: _sectionTitleStyle,
-                  ),
+                  Text('Ready to Submit', style: _sectionTitleStyle),
                 ],
               ),
               const SizedBox(height: 20),
@@ -681,8 +651,6 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
           ),
         ),
         const SizedBox(height: 24),
-
-        // Photos Preview
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
@@ -712,10 +680,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                     child: Icon(Icons.photo_library_outlined, color: _primaryLight, size: 20),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    'Uploaded Photos',
-                    style: _sectionTitleStyle,
-                  ),
+                  Text('Uploaded Photos', style: _sectionTitleStyle),
                 ],
               ),
               const SizedBox(height: 16),
@@ -790,7 +755,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
         ],
       ),
     );
-  } // Add this closing brace
+  }
 
   Widget _buildPhotoThumbnail(String path, String label) {
     return Column(
@@ -814,23 +779,17 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
             child: Image.file(
               File(path),
               fit: BoxFit.cover,
-              errorBuilder: (c, e, s) {
-                return Container(
-                  color: _cardColor,
-                  child: Icon(Icons.error_outline, color: _textDisabled),
-                );
-              },
+              errorBuilder: (c, e, s) => Container(
+                color: _cardColor,
+                child: Icon(Icons.error_outline, color: _textDisabled),
+              ),
             ),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: _textSecondary,
-          ),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _textSecondary),
         ),
       ],
     );
@@ -842,10 +801,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       backgroundColor: _backgroundColor,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: Text(
-          'Add Vehicle',
-          style: _titleStyle,
-        ),
+        title: Text('Add Vehicle', style: _titleStyle),
         backgroundColor: _surfaceColor,
         elevation: 0,
         foregroundColor: _textPrimary,
@@ -855,14 +811,11 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
       ),
       body: Column(
         children: [
-          // Stepper Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             decoration: BoxDecoration(
               color: _surfaceColor,
-              border: Border(
-                bottom: BorderSide(color: _borderColor),
-              ),
+              border: Border(bottom: BorderSide(color: _borderColor)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
@@ -880,14 +833,11 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
               ],
             ),
           ),
-
-          // Content
           Expanded(
             child: ListView(
               physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.all(24),
               children: [
-                // Step title
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20),
                   child: Text(
@@ -899,25 +849,18 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                     style: _sectionTitleStyle.copyWith(fontSize: 20),
                   ),
                 ),
-
-                // Step content
                 if (_currentStep == 0) _buildDetailsStep(),
                 if (_currentStep == 1) _buildPhotosStep(),
                 if (_currentStep == 2) _buildConfirmStep(),
-                
                 const SizedBox(height: 20),
               ],
             ),
           ),
-
-          // Bottom Buttons
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: _surfaceColor,
-              border: Border(
-                top: BorderSide(color: _borderColor),
-              ),
+              border: Border(top: BorderSide(color: _borderColor)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.3),
@@ -989,10 +932,7 @@ class _VehicleAddScreenState extends State<VehicleAddScreen> {
                               : _currentStep == 2
                                   ? 'Submit Vehicle'
                                   : 'Continue',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                         ),
                       ],
                     ),

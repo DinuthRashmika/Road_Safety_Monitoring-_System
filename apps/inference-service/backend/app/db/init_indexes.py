@@ -29,7 +29,12 @@ async def ensure_indexes():
     await mongodb.db.notifications.create_index([("ownerId", ASCENDING), ("createdAt", DESCENDING)])
     await mongodb.db.notifications.create_index([("type", ASCENDING), ("createdAt", DESCENDING)])
     await mongodb.db.notifications.create_index("violationId")
-    
+
+    # ✅ Protective Alerts collection indexes (NEW)  ✅✅✅
+    await mongodb.db.protective_alerts.create_index([("ownerId", ASCENDING), ("createdAt", DESCENDING)])
+    await mongodb.db.protective_alerts.create_index([("ownerId", ASCENDING), ("isRead", ASCENDING), ("createdAt", DESCENDING)])
+    await mongodb.db.protective_alerts.create_index("violationId")
+
     # ✅ DMS
     await database.sessions.create_index([("ownerId", 1), ("startedAt", -1)])
     await database.events.create_index([("sessionId", 1), ("createdAt", -1)])

@@ -1,4 +1,5 @@
 import '../core/api_client.dart';
+import '../core/token_storage.dart';   // ✅ ADD THIS
 import '../models/owner.dart';
 
 class OwnerService {
@@ -18,5 +19,10 @@ class OwnerService {
       'address': address,
     });
     return Owner.fromJson(res.data);
+  }
+
+  // ✅ ADD THIS METHOD (Fix for red underline)
+  static Future<void> logout() async {
+    await TokenStorage.clear();  // clear saved JWT token
   }
 }
