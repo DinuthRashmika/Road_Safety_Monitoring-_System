@@ -220,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.pushNamed(context, '/vehicle-add')
                                   .then((_) => _load()),
                           onMyVehicles: () =>
-                              Navigator.pushNamed(context, '/trips')
+                              Navigator.pushNamed(context, '/vehicles')
                                   .then((_) => _load()),
                           onTrips: () => Navigator.pushNamed(context, '/trips'),
                           onViolations: () =>
