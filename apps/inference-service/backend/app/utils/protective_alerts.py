@@ -1,9 +1,12 @@
+# app/utils/protective_alerts.py
+
 import logging
 from typing import Optional
 import app.db.mongodb as mongodb
 from app.models.protective_notification_model import protective_notification_doc
 
 logger = logging.getLogger(__name__)
+
 
 async def send_protective_alert_to_owner(
     *,
@@ -15,7 +18,8 @@ async def send_protective_alert_to_owner(
     violation_image: Optional[str] = None,
 ) -> bool:
     """
-    Saves an in-app 'protective_alert' notification for nearby vehicle owners.
+    Save ONLY protective alerts into NEW collection: protective_alerts
+    (NOT into notifications)
     """
     try:
         if mongodb.db is None or mongodb.db.db is None:
@@ -26,6 +30,7 @@ async def send_protective_alert_to_owner(
 
         owner_id = str(owner.get("id") or owner.get("_id"))
         if not owner_id:
+            logger.error("Owner id missing, cannot save protective alert")
             return False
 
         message = (
@@ -35,16 +40,18 @@ async def send_protective_alert_to_owner(
 
         doc = protective_notification_doc(
             owner_id=owner_id,
-            vehicle_plate=near_plate,
+            vehicle_plate=near_plate,          # ✅ nearby vehicle plate ONLY
             message=message,
             location=location,
-            violation_id=violation_id,
+            violation_id=violation_id,         # ✅ link to violation
             violation_type=violation_type,
             violation_image=violation_image,
         )
 
-        await database.notifications.insert_one(doc)
-        logger.info(f"✅ Protective alert saved for owner={owner_id} plate={near_plate}")
+        # ✅ This line AUTO-CREATES the MongoDB collection if it does not exist
+        await database.protective_alerts.insert_one(doc)
+
+        logger.info(f"✅ Protective alert saved in protective_alerts for owner={owner_id} plate={near_plate}")
         return True
 
     except Exception as e:

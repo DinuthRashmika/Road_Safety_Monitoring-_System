@@ -65,6 +65,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ✅ LOGOUT (ADDED)
+  Future<void> _logout() async {
+    try {
+      // If you already have a logout/clear-token method in OwnerService, it will be used.
+      // If not, add it there (OwnerService.logout()) to clear token.
+      await OwnerService.logout();
+    } catch (_) {
+      // even if logout fails, still redirect to login
+    }
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_me == null) {
@@ -79,7 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final me = _me!;
     final email = me.email ?? '';
     final nic = me.nic ?? '';
-    
 
     return Scaffold(
       backgroundColor: Colors.black, // Changed to black
@@ -94,7 +106,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             IconButton(
               icon: _saving
                   ? const SizedBox(
-                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
                   : const Icon(Icons.check_rounded, color: Colors.white),
               onPressed: _saving ? null : _save,
               tooltip: 'Save',
@@ -105,6 +121,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () => setState(() => _editing = true),
               tooltip: 'Edit',
             ),
+
+          // ✅ LOGOUT BUTTON (ADDED)
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -130,7 +153,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : null,
                     ),
                     child: (me.imageUrl == null || me.imageUrl!.isEmpty)
-                        ? const Icon(Icons.person, size: 44, color: Colors.grey)
+                        ? const Icon(Icons.person,
+                            size: 44, color: Colors.grey)
                         : null,
                   ),
                   const SizedBox(height: 12),
@@ -175,7 +199,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'Phone',
                     value: me.phone,
                     editor: _editing
-                        ? _editField(_phone, hint: 'Phone number', keyboardType: TextInputType.phone)
+                        ? _editField(_phone,
+                            hint: 'Phone number',
+                            keyboardType: TextInputType.phone)
                         : null,
                   ),
                   _infoRow(label: 'Email', value: email),
@@ -186,7 +212,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     editor: _editing ? _editField(_address, hint: 'Address') : null,
                     multiline: true,
                   ),
-                  
                 ],
               ),
             ),
@@ -202,7 +227,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _rowTile(
                     leading: 'Password',
                     trailing: '•••••••',
-                    onTap: () => Navigator.pushNamed(context, '/change-password'),
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/change-password'),
                     trailingIcon: Icons.chevron_right_rounded,
                   ),
                 ],
@@ -248,8 +274,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      _chipButton('License', onTap: () => Navigator.pushNamed(context, '/doc-license')),
-                      _chipButton('Insurance', onTap: () => Navigator.pushNamed(context, '/doc-insurance')),
+                      _chipButton('License',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/doc-license')),
+                      _chipButton('Insurance',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/doc-insurance')),
                     ],
                   ),
                 ],
@@ -279,7 +309,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isDense: true,
         filled: true,
         fillColor: Colors.grey.shade800,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.grey.shade700),
@@ -302,13 +333,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Widget? editor,
     bool multiline = false,
   }) {
-    final labelStyle = TextStyle(color: Colors.grey.shade400, fontSize: 13, fontWeight: FontWeight.w600);
-    final valueStyle = TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600);
+    final labelStyle = TextStyle(
+        color: Colors.grey.shade400,
+        fontSize: 13,
+        fontWeight: FontWeight.w600);
+    final valueStyle =
+        const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
-        crossAxisAlignment: multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment:
+            multiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           SizedBox(
             width: 130,
@@ -353,7 +389,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (trailing != null)
               Text(
                 trailing,
-                style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    color: Colors.grey.shade400, fontWeight: FontWeight.w600),
               ),
             if (trailingIcon != null) ...[
               const SizedBox(width: 8),
@@ -373,7 +410,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
           Switch(

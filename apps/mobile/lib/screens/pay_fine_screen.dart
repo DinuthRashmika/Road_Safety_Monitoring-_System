@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/notification_model.dart';
-import '../services/payment_service.dart';
 
 class PayFineScreen extends StatefulWidget {
   final NotificationModel notification;
@@ -20,51 +19,73 @@ class PayFineScreen extends StatefulWidget {
 class _PayFineScreenState extends State<PayFineScreen> {
   bool _rememberCard = false;
   bool _isLoading = false;
-  
+
   // Controllers
   final _nameController = TextEditingController(text: "John Doe");
   final _numberController = TextEditingController();
   final _expiryController = TextEditingController();
   final _cvvController = TextEditingController();
 
+  // ✅ Dummy success popup
+  Future<void> _showPaymentSuccessDialog(String totalDisplay) async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: Colors.grey.shade900,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text(
+            "Payment Successful",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 64),
+              const SizedBox(height: 12),
+              Text(
+                "Your fine has been paid successfully.\nTotal: $totalDisplay",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade300),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text(
+                "OK",
+                style: TextStyle(color: Color(0xFF60A5FA), fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ✅ Dummy payment process
   Future<void> _processPayment() async {
     setState(() => _isLoading = true);
 
-    // Call your Payment Service
-    bool success = await PaymentService.makePayment(
-      widget.amount,
-      widget.notification.vehiclePlate,
-    );
+    // total for popup
+    final currencyFormat = NumberFormat("#,##0", "en_US");
+    final serviceFee = 500.0;
+    final totalDisplay = "LKR ${currencyFormat.format(widget.amount + serviceFee)}";
 
-    if (success) {
-      try {
-        // Mark as paid in backend
-        await PaymentService.markViolationAsPaid(widget.notification.violationId);
-        
-        if (mounted) {
-          // Return 'true' to the previous screen to indicate success
-          Navigator.pop(context, true); 
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error updating database: $e'),
-              backgroundColor: Colors.grey.shade800,
-            ),
-          );
-        }
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment Failed'), 
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    // ✅ simulate short delay (dummy)
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+
+    // ✅ show success popup
+    await _showPaymentSuccessDialog(totalDisplay);
+
+    if (!mounted) return;
+
+    // ✅ go back + tell previous screen payment success
+    Navigator.pop(context, true);
 
     if (mounted) setState(() => _isLoading = false);
   }
@@ -124,7 +145,11 @@ class _PayFineScreenState extends State<PayFineScreen> {
                       ),
                       Text(
                         "Due in 2 days",
-                        style: TextStyle(color: Colors.red.shade400, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.red.shade400,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -182,7 +207,6 @@ class _PayFineScreenState extends State<PayFineScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Card Icons
                   Row(
                     children: [
                       Icon(Icons.credit_card, color: Colors.grey.shade400),
@@ -200,7 +224,7 @@ class _PayFineScreenState extends State<PayFineScreen> {
 
                   _buildLabel("Card Number*"),
                   _buildTextField(
-                    hint: "0000 0000 0000 0000", 
+                    hint: "0000 0000 0000 0000",
                     controller: _numberController,
                     suffixIcon: Icons.credit_card,
                   ),
@@ -224,7 +248,7 @@ class _PayFineScreenState extends State<PayFineScreen> {
                           children: [
                             _buildLabel("CVV*"),
                             _buildTextField(
-                              hint: "•••", 
+                              hint: "•••",
                               controller: _cvvController,
                               suffixIcon: Icons.visibility_off_outlined,
                             ),
@@ -235,7 +259,6 @@ class _PayFineScreenState extends State<PayFineScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Checkbox
                   Row(
                     children: [
                       SizedBox(
@@ -284,15 +307,19 @@ class _PayFineScreenState extends State<PayFineScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Buttons
+            // Pay Now Button
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton.icon(
                 onPressed: _isLoading ? null : _processPayment,
-                icon: _isLoading 
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                  : const Icon(Icons.credit_card, color: Colors.white),
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Icon(Icons.credit_card, color: Colors.white),
                 label: Text(
                   _isLoading ? "Processing..." : "Pay Now",
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
@@ -305,6 +332,7 @@ class _PayFineScreenState extends State<PayFineScreen> {
               ),
             ),
             const SizedBox(height: 16),
+
             SizedBox(
               width: double.infinity,
               height: 56,
@@ -322,8 +350,7 @@ class _PayFineScreenState extends State<PayFineScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            
-            // Footer
+
             Center(
               child: Text(
                 "By paying you agree to the Terms & Refund Policy.",
@@ -382,7 +409,7 @@ class _PayFineScreenState extends State<PayFineScreen> {
   }
 
   Widget _buildTextField({
-    required String hint, 
+    required String hint,
     required TextEditingController controller,
     IconData? suffixIcon,
   }) {

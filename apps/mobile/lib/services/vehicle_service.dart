@@ -36,7 +36,23 @@ class VehicleService {
         'image_plate': await MultipartFile.fromFile(imagePlate, filename: 'plate.jpg'),
     });
 
-    final res = await ApiClient.dio.post('/api/vehicles', data: form);
+    final res = await ApiClient.dio.post(
+      '/api/vehicles',
+      data: form,
+      options: Options(
+        contentType: 'multipart/form-data',
+        sendTimeout: const Duration(minutes: 3),    // ✅ FIX
+        receiveTimeout: const Duration(minutes: 3), // ✅ FIX
+      ),
+      onSendProgress: (sent, total) {
+        if (total > 0) {
+          final pct = (sent / total * 100).toStringAsFixed(0);
+          // ignore: avoid_print
+          print('⬆️ Uploading: $pct%');
+        }
+      },
+    );
+
     return Vehicle.fromJson(res.data);
   }
 
