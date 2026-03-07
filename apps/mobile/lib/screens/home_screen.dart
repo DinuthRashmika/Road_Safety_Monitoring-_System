@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 import '../models/owner.dart';
 import '../models/vehicle.dart';
 import '../services/owner_service.dart';
 import '../services/vehicle_service.dart';
 import '../core/token_storage.dart';
+import '../core/api_client.dart';
 
 // ✅ NEW
 import '../services/notification_service.dart';
@@ -23,50 +28,163 @@ class _HomeScreenState extends State<HomeScreen> {
   // ✅ NEW: real protective alerts from backend (using dedicated endpoint)
   List<NotificationModel> _protective = [];
 
+  // ✅ NEW: recent real trips from /api/sessions
+  List<_TripItem> _trips = [];
+
   // ✅ NEW: unseen protective count for badge
   int get _unseenProtectiveCount =>
       _protective.where((n) => n.isRead == false).length;
-
-  // Mock trips (unchanged)
-  final List<_TripItem> _trips = const [
-    _TripItem(
-        date: 'Aug 18, 2023',
-        route: 'Downtown → Home',
-        distance: '12.5 km',
-        duration: '32 min'),
-    _TripItem(
-        date: 'Aug 17, 2023',
-        route: 'Work → Gym',
-        distance: '5.2 km',
-        duration: '15 min'),
-    _TripItem(
-        date: 'Aug 16, 2023',
-        route: 'Home → Airport',
-        distance: '28.1 km',
-        duration: '45 min'),
-  ];
 
   Future<void> _load() async {
     try {
       final me = await OwnerService.me();
       final v = await VehicleService.mine();
 
-      // ✅ ONLY CHANGE: protective fetch must NOT break owner/vehicle load
+      // ✅ protective fetch must NOT break owner/vehicle load
       List<NotificationModel> protective = [];
       try {
         protective = await NotificationService.getProtectiveAlerts();
       } catch (_) {
-        protective = []; // if endpoint fails, keep empty
+        protective = [];
       }
 
+      // ✅ NEW: recent trips fetch must NOT break page load
+      List<_TripItem> recentTrips = [];
+      try {
+        recentTrips = await _fetchRecentTrips();
+      } catch (_) {
+        recentTrips = [];
+      }
+
+      if (!mounted) return;
+
       setState(() {
-        _owner = me; // keep as-is
-        _vehicles = v; // keep as-is
-        _protective = protective.take(3).toList(); // keep as-is
+        _owner = me;
+        _vehicles = v;
+        _protective = protective.take(3).toList();
+        _trips = recentTrips;
       });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  // ✅ NEW: fetch latest 3 trips from same API used in PreviousTripsScreen
+  Future<List<_TripItem>> _fetchRecentTrips() async {
+    try {
+      String? token;
+      try {
+        token = await TokenStorage.read();
+      } catch (_) {
+        token = null;
+      }
+
+      final Map<String, String> headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+
+      if (token != null && token.isNotEmpty) {
+        headers['Authorization'] = 'Bearer $token';
+      }
+
+      final response = await ApiClient.dio.get(
+        '/api/sessions',
+        options: Options(headers: headers),
+      );
+
+      dynamic responseData;
+      if (response.data is String) {
+        responseData = jsonDecode(response.data as String);
+      } else {
+        responseData = response.data;
+      }
+
+      List<dynamic> trips = [];
+      if (responseData is List) {
+        trips = responseData;
+      } else if (responseData is Map && responseData.containsKey('data')) {
+        trips = responseData['data'] is List
+            ? responseData['data'] as List<dynamic>
+            : [];
+      }
+
+      // Sort latest first using startedAt
+      trips.sort((a, b) {
+        final aDate = DateTime.tryParse((a['startedAt'] ?? '').toString()) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final bDate = DateTime.tryParse((b['startedAt'] ?? '').toString()) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        return bDate.compareTo(aDate);
+      });
+
+      final latest3 = trips.take(3).toList();
+
+      return latest3.map((trip) {
+        final tripName =
+            (trip['name'] ?? trip['route'] ?? 'Unnamed Trip').toString();
+        final startedAt = (trip['startedAt'] ?? '').toString();
+        final endedAt = trip['endedAt']?.toString();
+
+        return _TripItem(
+          date: _formatTripDate(startedAt),
+          route: tripName,
+          distance: _buildTripDistanceText(trip),
+          duration: _calculateTripDuration(startedAt, endedAt),
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  // ✅ NEW
+  String _formatTripDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString).toLocal();
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (_) {
+      return 'Unknown date';
+    }
+  }
+
+  // ✅ NEW
+  String _calculateTripDuration(String startTime, String? endTime) {
+    try {
+      final start = DateTime.parse(startTime);
+      final end = endTime != null ? DateTime.parse(endTime) : DateTime.now();
+      final duration = end.difference(start);
+
+      if (duration.inHours > 0) {
+        return '${duration.inHours}h ${duration.inMinutes % 60}m';
+      }
+      return '${duration.inMinutes} min';
+    } catch (_) {
+      return 'Ongoing';
+    }
+  }
+
+  // ✅ NEW
+  String _buildTripDistanceText(dynamic trip) {
+    final possibleKeys = [
+      'distance',
+      'distanceKm',
+      'distance_km',
+      'totalDistance',
+      'tripDistance'
+    ];
+
+    for (final key in possibleKeys) {
+      final value = trip[key];
+      if (value != null) {
+        final number = double.tryParse(value.toString());
+        if (number != null) {
+          return '${number.toStringAsFixed(1)} km';
+        }
+      }
+    }
+
+    return '-- km';
   }
 
   @override
@@ -158,7 +276,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 const Icon(Icons.notifications_outlined,
                                     color: Colors.white, size: 28),
-
                                 if (_unseenProtectiveCount > 0)
                                   Positioned(
                                     right: -2,
@@ -189,7 +306,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
-
                           IconButton(
                             onPressed: () {},
                             icon: const Icon(Icons.search,
@@ -327,7 +443,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             )),
 
-                      // Trip History Section
+                      // ✅ Trip History Section
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
                         child: _EnhancedSectionHeader(
@@ -357,15 +473,48 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
-                          child: Column(
-                            children: [
-                              for (int i = 0; i < _trips.length; i++)
-                                _EnhancedTripRow(
-                                  item: _trips[i],
-                                  isLast: i == _trips.length - 1,
+                          child: _trips.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0C4A6E),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(
+                                          Icons.route_rounded,
+                                          color: Color(0xFF38BDF8),
+                                          size: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Text(
+                                          'No recent trips found',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade400,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Column(
+                                  children: [
+                                    for (int i = 0; i < _trips.length; i++)
+                                      _EnhancedTripRow(
+                                        item: _trips[i],
+                                        isLast: i == _trips.length - 1,
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
                         ),
                       ),
 
@@ -1202,9 +1351,10 @@ class _TripItem {
   final String route;
   final String distance;
   final String duration;
-  const _TripItem(
-      {required this.date,
-      required this.route,
-      required this.distance,
-      required this.duration});
+  const _TripItem({
+    required this.date,
+    required this.route,
+    required this.distance,
+    required this.duration,
+  });
 }
