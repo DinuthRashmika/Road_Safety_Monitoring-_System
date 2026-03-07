@@ -148,6 +148,7 @@ from app.routes.camera_integration import router as camera_integration_router
 from app.routes.mobile_notifications import router as notifications_router
 from app.routes.payments import router as payments_router
 from app.routes import sessions_rest, sessions_ws, debug_yolo
+from app.routes.protective_alerts import router as protective_alerts_router
 
 
 
@@ -164,6 +165,7 @@ app.include_router(payments_router)
 app.include_router(sessions_rest.router)
 app.include_router(sessions_ws.router)
 app.include_router(debug_yolo.router)
+app.include_router(protective_alerts_router)
 
 
 logger.info("✓ All routers loaded successfully")

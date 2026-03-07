@@ -1,26 +1,28 @@
 class NotificationModel {
   final String id;
-  final String ownerId;
   final String vehiclePlate;
   final String violationId;
   final String message;
   final String location;
 
-  // Detailed Info
+  /// NEW: "violation_alert" | "protective_alert" | fallback
+  final String type;
+
+  /// Optional extra fields (your backend may or may not return these)
   final String violationType;
   final double fineAmount;
-  final String? violationImage; // Nullable to handle cases with no image
+  final String? violationImage;
 
   final bool isRead;
   final DateTime createdAt;
 
   NotificationModel({
     required this.id,
-    required this.ownerId,
     required this.vehiclePlate,
     required this.violationId,
     required this.message,
     required this.location,
+    required this.type,
     required this.violationType,
     required this.fineAmount,
     this.violationImage,
@@ -29,34 +31,40 @@ class NotificationModel {
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    // safe fine parsing
+    final fine = (json['fineAmount'] is int)
+        ? (json['fineAmount'] as int).toDouble()
+        : (json['fineAmount'] is double)
+            ? (json['fineAmount'] as double)
+            : double.tryParse('${json['fineAmount']}') ?? 0.0;
+
+    // type fallback if backend does not return it
+    String t = (json['type'] ?? '').toString().trim();
+    if (t.isEmpty) {
+      final msg = (json['message'] ?? '').toString().toLowerCase();
+      if (msg.contains('protective alert') || fine == 0.0) {
+        t = 'protective_alert';
+      } else {
+        t = 'violation_alert';
+      }
+    }
+
     return NotificationModel(
-      // MongoDB usually returns '_id', but we map it to 'id' for the app
       id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
-
-      ownerId: json['ownerId']?.toString() ?? '',
-      vehiclePlate: json['vehiclePlate'] ?? '',
+      vehiclePlate: json['vehiclePlate']?.toString() ?? '',
       violationId: json['violationId']?.toString() ?? '',
-
-      message: json['message'] ?? '',
-      location: json['location'] ?? 'Unknown Location',
-
-      // Default to "Violation" if the type is missing
-      violationType: json['violationType'] ?? 'Violation',
-
-      // Safe double parsing
-      fineAmount: (json['fineAmount'] is int)
-          ? (json['fineAmount'] as int).toDouble()
-          : (json['fineAmount'] ?? 0.0),
-
-      // This will be the relative path (e.g., "detections/2026-02-23/img.jpg")
-      violationImage: json['violationImage'],
-
-      isRead: json['isRead'] ?? false,
-
-      // specific date parsing to handle potentially different formats or nulls
+      message: json['message']?.toString() ?? '',
+      location: json['location']?.toString() ?? 'Unknown Location',
+      type: t,
+      violationType: json['violationType']?.toString() ?? 'Unknown',
+      fineAmount: fine,
+      violationImage: json['violationImage']?.toString(),
+      isRead: json['isRead'] == true,
       createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
   }
+
+  bool get isProtective => type == 'protective_alert';
 }
