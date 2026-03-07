@@ -8,7 +8,7 @@ import '../models/token.dart';
 class AuthService {
   
   // 1. Define the URL here temporarily
-  static const String _baseUrl = 'http://192.168.1.60:8000';
+  static const String _baseUrl = 'http://192.168.8.174:8000';
 
   static Future<void> login({
     required String username, 

@@ -15,6 +15,6 @@ class AppConfig {
     if (Platform.isIOS) return "http://127.0.0.1:8000";
 
     // For physical devices - USE YOUR PC's IP
-    return "http://192.168.1.60:8000"; // ← CHANGED TO YOUR IP
+    return "http://192.168.8.174:8000"; // ← CHANGED TO YOUR IP
   }
 }
