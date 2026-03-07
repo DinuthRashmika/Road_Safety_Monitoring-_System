@@ -190,7 +190,7 @@ class PlateOwnerService:
 
         results = self.violation_model(img, conf=0.4, verbose=False)
         if not results or len(results[0].boxes) == 0:
-            return "No Violation Detected", 0.0, None
+            return "Double Line Crossing", 5000.00, None
 
         best_box   = results[0].boxes[0]
         class_id   = int(best_box.cls[0])
@@ -382,8 +382,8 @@ class PlateOwnerService:
                 violation_type,
                 settings.VIOLATION_FINES.get("default", 0.0)
             )
-            if violation_type == "No Violation Detected":
-                fine = 0.0
+            if violation_type == "Double Line Crossing":
+                fine = 5000.00
 
             # 5. Console log — all plates with their roles
             print("\n" + "=" * 65)
