@@ -39,7 +39,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icon/
-    - assets/sounds/
+    - assets/sounds/alarm.mp3
 
 flutter_launcher_icons:
   android: true
