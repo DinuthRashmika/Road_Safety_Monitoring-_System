@@ -421,7 +421,7 @@ async def poll_shenal_database_once():
                 logger.error(f"Error force processing violation: {e}")
                 continue
         
-        logger.info(f"✅ Force refresh complete: Processed {processed_count} incidents ({accident_count} accidents)")
+        logger.info(f": Processed {processed_count} incidents ({accident_count} accidents)")
         return processed_count
         
     except Exception as e:

@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/layout/Layout';
 import api from '../api/axiosConfig'; 
-import { GoogleMap, LoadScript, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, MarkerF } from '@react-google-maps/api';
 import './MapView.css'; 
 
 const MapView = () => {
@@ -12,29 +12,21 @@ const MapView = () => {
   const [incident, setIncident] = useState(state?.incident);
   const [route, setRoute] = useState(state?.route);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [directionsResponse, setDirectionsResponse] = useState(null);
 
-  // --- REPROCESSED AUTO-REFRESH FIX ---
   useEffect(() => {
-    // Check if we have incident data
     if (incident && incident.id) {
       const refreshKey = `map_refresh_id_${incident.id}`;
       const hasRefreshed = sessionStorage.getItem(refreshKey);
 
       if (!hasRefreshed) {
-        console.log("Initial map load: Triggering one-time refresh...");
         sessionStorage.setItem(refreshKey, 'true');
-        
-        // Use a tiny timeout to ensure storage is set before reload
         const timer = setTimeout(() => {
           window.location.reload();
         }, 100);
-        
         return () => clearTimeout(timer);
       }
     }
   }, [incident]); 
-  // ------------------------------------
 
   const mapContainerStyle = {
     width: '100%',
@@ -42,14 +34,25 @@ const MapView = () => {
     borderRadius: '16px'
   };
 
-  const mapOrigin = route?.start || (route?.path && route.path[0]) || { lat: 6.9271, lng: 79.8612 };
-  const mapDestination = incident?.location || route?.end || (route?.path && route.path[1]) || { lat: 6.9271, lng: 79.8612 };
+  const getCoord = (obj, defaultLat, defaultLng) => {
+    if (!obj || obj.lat === undefined || obj.lng === undefined) return { lat: defaultLat, lng: defaultLng };
+    const lat = parseFloat(obj.lat);
+    const lng = parseFloat(obj.lng);
+    return {
+      lat: isNaN(lat) || lat === 0 ? defaultLat : lat,
+      lng: isNaN(lng) || lng === 0 ? defaultLng : lng
+    };
+  };
 
-  const directionsCallback = useCallback((response) => {
-    if (response !== null && response.status === 'OK') {
-      setDirectionsResponse(response);
-    }
-  }, []);
+  const mapOrigin = useMemo(() => getCoord(route?.start, 6.0535, 80.2210), [route]); 
+  const mapDestination = useMemo(() => getCoord(incident?.location, 6.0328, 80.2150), [incident]);
+
+  const onLoadMap = useCallback((map) => {
+    const bounds = new window.google.maps.LatLngBounds();
+    bounds.extend(mapOrigin);
+    bounds.extend(mapDestination);
+    map.fitBounds(bounds);
+  }, [mapOrigin, mapDestination]);
 
   const handleUpdateStatus = async (newStatus) => {
     setIsUpdating(true);
@@ -88,13 +91,12 @@ const MapView = () => {
     );
   };
 
-  if (!incident || !route) {
+  if (!incident) {
     return (
       <Layout>
         <div className="empty-state-container">
           <div className="empty-state-content">
             <h3>No Active Deployment</h3>
-            <p>Please select an incident from your dashboard to begin navigation.</p>
             <button className="back-dash-btn" onClick={() => navigate('/')}>Return to Dashboard</button>
           </div>
         </div>
@@ -111,18 +113,20 @@ const MapView = () => {
               <h3>Live Navigation</h3>
               <div className={`status-orb ${incident.status}`}></div>
             </div>
-            <p className="incident-id-tag">Case ID: #{incident.id.toString().slice(-8)}</p>
+            <p className="incident-id-tag">Case ID: #{incident.id?.toString().slice(-8)}</p>
           </header>
           
           <div className="detail-section">
             <label className="pro-label">Primary Destination</label>
-            <h2 className="pro-address">{incident.location.address}</h2>
+            <h2 className="pro-address">{incident.location?.address || 'Location Unavailable'}</h2>
           </div>
 
           <div className="pro-metrics-grid">
             <div className="metric-box">
               <label className="pro-label">Est. Distance</label>
-              <div className="metric-value">{route.distance_km} <span className="unit">km</span></div>
+              <div className="metric-value">
+                {route?.distance_km || '0'} <span className="unit">km</span>
+              </div>
             </div>
             <div className="metric-box">
               <label className="pro-label">Current Status</label>
@@ -138,30 +142,29 @@ const MapView = () => {
         <main className="map-view-area-pro">
           <LoadScript googleMapsApiKey="AIzaSyCiDuhWjlO3yK6QeYgPX-JdHtkIs78p31Q">
             <GoogleMap
-              key={incident.id}
               mapContainerStyle={mapContainerStyle}
-              center={mapDestination}
-              zoom={14}
+              onLoad={onLoadMap}
               options={{
                 disableDefaultUI: false,
                 mapTypeControl: false,
                 streetViewControl: false
               }}
             >
-              {!directionsResponse && (
-                <DirectionsService
-                  options={{ origin: mapOrigin, destination: mapDestination, travelMode: 'DRIVING' }}
-                  callback={directionsCallback}
-                />
-              )}
-              {directionsResponse && (
-                <DirectionsRenderer 
-                  options={{ 
-                    directions: directionsResponse,
-                    polylineOptions: { strokeColor: '#4f46e5', strokeWeight: 6 } 
-                  }} 
-                />
-              )}
+              
+              {/* Responder Base Pin (Labeled 'R') */}
+              <MarkerF 
+                position={mapOrigin} 
+                label="R" 
+                title="Responder Base" 
+              />
+              
+              {/* Emergency Destination Pin (Labeled 'E') */}
+              <MarkerF 
+                position={mapDestination} 
+                label="E" 
+                title="Emergency Location" 
+              />
+
             </GoogleMap>
           </LoadScript>
         </main>
