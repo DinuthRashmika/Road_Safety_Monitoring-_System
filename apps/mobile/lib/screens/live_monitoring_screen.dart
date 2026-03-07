@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:yuv_to_png/yuv_to_png.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 /// ⚠️ MUST match backend IP
@@ -57,23 +57,25 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   Timer? _sendTimer;
 
   bool _cameraReady = false;
-  bool _isConverting = false;
-  Uint8List? _latestPngBytes;
+  bool _closing = false;
+  bool _captureBusy = false;
 
   // ===== Alerts state =====
-  String? _latestAlertType; // only TYPE shown
-  bool _alertsDisplayEnabled = true; // keep double tap toggle
+  String? _latestAlertType;
+  bool _alertsDisplayEnabled = true;
 
-  // 5 required categories (fixed row, no scroll)
   late final List<_AlertCategory> _categories;
-
-  // Counts (categoryName -> count)
   final Map<String, int> _alertCounts = {};
 
   bool _isStopping = false;
 
   final AudioPlayer _audioPlayer = AudioPlayer();
-  bool _isAlarmPlaying = false;
+  DateTime _lastAlarmAt = DateTime.fromMillisecondsSinceEpoch(0);
+  bool _alarmBusy = false;
+
+  // ✅ NEW: Beep rules (new alert OR same alert every 5 times)
+  String? _lastBeepAlertType;
+  final Map<String, int> _repeatSinceLastBeep = {}; // alertType -> count
 
   @override
   void initState() {
@@ -90,14 +92,14 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
 
     for (final c in _categories) {
       _alertCounts[c.name] = 0;
+      _repeatSinceLastBeep[c.name] = 0;
     }
 
     _connectWs();
     _initCamera();
-    _startSenderTimer();
   }
 
-  // ================= WEBSOCKET =================
+  // ================= WEBSOCKET (SAFE) =================
   void _connectWs() {
     _channel = WebSocketChannel.connect(
       Uri.parse(wsUrl(widget.sessionId, widget.token)),
@@ -105,29 +107,53 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
 
     _wsSub = _channel!.stream.listen(
       (msg) {
-        try {
-          final data =
-              msg is String ? msg : String.fromCharCodes(msg as Uint8List);
+        if (_closing) return;
 
-          if (data.toLowerCase().contains('alert')) {
-            final alertType = _extractAlertType(data);
+        try {
+          // ✅ ONLY handle String alerts
+          if (msg is String) {
+            final alertType = _extractAlertType(msg);
             if (alertType == null) return;
+            if (!mounted) return;
+
+            bool shouldBeep = false;
 
             setState(() {
               _latestAlertType = alertType;
               _alertCounts[alertType] = (_alertCounts[alertType] ?? 0) + 1;
+
+              // ✅ Beep Logic:
+              // 1) New alert type -> beep once
+              // 2) Same alert type -> beep at 5,10,15,... (every 5 times)
+              if (_lastBeepAlertType != alertType) {
+                _lastBeepAlertType = alertType;
+                _repeatSinceLastBeep[alertType] = 1;
+                shouldBeep = true;
+              } else {
+                final c = (_repeatSinceLastBeep[alertType] ?? 0) + 1;
+                _repeatSinceLastBeep[alertType] = c;
+                if (c % 5 == 0) shouldBeep = true;
+              }
             });
 
-            _playAlarm();
+            if (shouldBeep) {
+              _playAlarmSafe();
+            }
           }
-        } catch (_) {}
+
+          // ✅ If server sends binary, ignore it
+          if (msg is Uint8List) {
+            return;
+          }
+        } catch (e) {
+          debugPrint("❌ WS handler error: $e");
+        }
       },
-      onError: (_) {},
-      onDone: () {},
+      onError: (e) => debugPrint("❌ WS error: $e"),
+      onDone: () => debugPrint("✅ WS closed"),
     );
   }
 
-  // Extract alert TYPE only and map into your categories.
   String? _extractAlertType(String raw) {
     final s = raw.trim();
 
@@ -156,12 +182,8 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     if (all.contains('phone') || all.contains('mobile')) {
       return 'Mobile Phone Usage';
     }
-    if (all.contains('drowsy') || all.contains('sleep')) {
-      return 'Drowsiness';
-    }
-    if (all.contains('yawn')) {
-      return 'Yawning';
-    }
+    if (all.contains('drowsy') || all.contains('sleep')) return 'Drowsiness';
+    if (all.contains('yawn')) return 'Yawning';
     if (all.contains('distract') ||
         all.contains('inattention') ||
         all.contains('attention')) {
@@ -176,45 +198,114 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     return null;
   }
 
-  // ================= CAMERA =================
+  // ================= CAMERA (SAFE) =================
   Future<void> _initCamera() async {
-    final cams = await availableCameras();
+    try {
+      final cams = await availableCameras();
+      final frontCam = cams.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => cams.first,
+      );
 
-    final frontCam = cams.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.front,
-      orElse: () => cams.first,
-    );
+      _cam = CameraController(
+        frontCam,
+        ResolutionPreset.low,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg, // ✅ SAFE (no YUV stream)
+      );
 
-    _cam = CameraController(
-      frontCam,
-      ResolutionPreset.low,
-      enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.yuv420,
-    );
+      await _cam!.initialize();
 
-    await _cam!.initialize();
+      if (!mounted) return;
+      setState(() => _cameraReady = true);
 
-    await _cam!.startImageStream((CameraImage image) {
-      if (_isConverting) return;
-      _isConverting = true;
+      _startSenderTimer(); // start after ready
+    } catch (e) {
+      debugPrint("❌ Camera init error: $e");
+    }
+  }
 
+  // ================= FRAME SENDER (SAFE) =================
+  void _startSenderTimer() {
+    _sendTimer?.cancel();
+    _sendTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (_closing) return;
+      if (_cam == null || !_cam!.value.isInitialized) return;
+      if (_captureBusy) return;
+
+      _captureBusy = true;
       try {
-        final Uint8List? pngBytes = YuvToPng.yuvToPng(
-          image,
-          lensDirection: _cam!.description.lensDirection,
-        );
+        final XFile file = await _cam!.takePicture();
+        final bytes = await File(file.path).readAsBytes();
 
-        if (pngBytes != null) {
-          _latestPngBytes = pngBytes;
-        }
+        // ✅ Send JPEG bytes (backend should accept)
+        _channel?.sink.add(bytes);
       } catch (e) {
-        print("YUV to PNG error: $e");
+        debugPrint("❌ Capture/send error: $e");
       } finally {
-        _isConverting = false;
+        _captureBusy = false;
       }
     });
+  }
 
-    if (mounted) setState(() => _cameraReady = true);
+  // ================= ALARM (SAFE) =================
+  Future<void> _playAlarmSafe() async {
+    // cooldown (prevents MediaPlayer spam)
+    final now = DateTime.now();
+    if (now.difference(_lastAlarmAt).inMilliseconds < 2000) return;
+    _lastAlarmAt = now;
+
+    if (_alarmBusy) return;
+    _alarmBusy = true;
+
+    try {
+      await _audioPlayer.stop();
+      await _audioPlayer.play(
+        AssetSource('sounds/alarm.mp3'),
+        volume: 1.0,
+      );
+    } catch (e) {
+      debugPrint("❌ Alarm error: $e");
+    } finally {
+      _alarmBusy = false;
+    }
+  }
+
+  // ================= STOP MONITORING =================
+  Future<void> _stopMonitoring() async {
+    if (_closing) return;
+    _closing = true;
+
+    _sendTimer?.cancel();
+    _sendTimer = null;
+
+    await _wsSub?.cancel();
+    _wsSub = null;
+
+    try {
+      await _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+
+    try {
+      await _audioPlayer.stop();
+    } catch (_) {}
+
+    try {
+      await _cam?.dispose();
+    } catch (_) {}
+    _cam = null;
+  }
+
+  void _stopSession() async {
+    await _stopMonitoring();
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  void dispose() {
+    _stopMonitoring();
+    super.dispose();
   }
 
   // ================= END SESSION + SUMMARY POPUP =================
@@ -238,16 +329,14 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
           Uri.parse('$baseUrl/api/sessions/${widget.sessionId}'),
           headers: {'Authorization': 'Bearer ${widget.token}'},
         );
-        if (res.statusCode == 200) {
-          sessionData = json.decode(res.body);
-        }
+        if (res.statusCode == 200) sessionData = json.decode(res.body);
       } catch (_) {}
 
       _showSummaryPopup(sessionData);
-      _stopMonitoring();
+      await _stopMonitoring();
     } catch (_) {
       _showSummaryPopup(sessionData);
-      _stopMonitoring();
+      await _stopMonitoring();
     } finally {
       if (mounted) setState(() => _isStopping = false);
     }
@@ -279,11 +368,8 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
                     color: okBg.withOpacity(0.30),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: okText,
-                    size: 46,
-                  ),
+                  child:
+                      const Icon(Icons.check_circle, color: okText, size: 46),
                 ),
                 const SizedBox(height: 12),
                 const Text(
@@ -405,50 +491,6 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     }
   }
 
-  // ================= FRAME SENDER =================
-  void _startSenderTimer() {
-    _sendTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_latestPngBytes == null) return;
-      try {
-        _channel?.sink.add(_latestPngBytes!);
-      } catch (e) {
-        print("Error sending frame: $e");
-      }
-    });
-  }
-
-  // ================= STOP MONITORING =================
-  void _stopMonitoring() {
-    _sendTimer?.cancel();
-    _wsSub?.cancel();
-    _channel?.sink.close();
-    _cam?.stopImageStream();
-    _cam?.dispose();
-    _audioPlayer.stop();
-  }
-
-  void _stopSession() {
-    _stopMonitoring();
-    Navigator.pop(context);
-  }
-
-  @override
-  void dispose() {
-    _stopMonitoring();
-    super.dispose();
-  }
-
-  void _playAlarm() async {
-    if (_isAlarmPlaying) return;
-    _isAlarmPlaying = true;
-
-    try {
-      await _audioPlayer.play(AssetSource('sounds/alarm.mp3'), volume: 1.0);
-    } catch (_) {} finally {
-      _isAlarmPlaying = false;
-    }
-  }
-
   // ================= UI =================
   @override
   Widget build(BuildContext context) {
@@ -469,8 +511,6 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
       body: Column(
         children: [
           const SizedBox(height: 16),
-
-          // ===== Camera preview =====
           AspectRatio(
             aspectRatio: 1,
             child: Padding(
@@ -502,18 +542,12 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // ✅ increased height alert box
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _buildAlertTypeBox(),
           ),
-
           const SizedBox(height: 12),
-
-          // ✅ FIXED 5 ITEMS in ONE ROW (no scrolling)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -525,19 +559,13 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
                     padding: EdgeInsets.only(
                       right: i == _categories.length - 1 ? 0 : 10,
                     ),
-                    child: _AlertCategoryTile(
-                      icon: c.icon,
-                      count: count,
-                    ),
+                    child: _AlertCategoryTile(icon: c.icon, count: count),
                   ),
                 );
               }),
             ),
           ),
-
           const Spacer(),
-
-          // ===== End Session button =====
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
@@ -547,13 +575,6 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
                   colors: [Color(0xFF7F1D1D), Color(0xFFDC2626)],
                 ),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFDC2626).withOpacity(0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  )
-                ],
               ),
               child: SizedBox(
                 height: 52,
@@ -594,9 +615,8 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     );
   }
 
-  /// ✅ Increased height alert box (bigger)
   Widget _buildAlertTypeBox() {
-    const double fixedHeight = 72; // ✅ increased
+    const double fixedHeight = 72;
 
     if (!_alertsDisplayEnabled) {
       return Align(
@@ -637,9 +657,8 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
             color: hasAlert ? alertBg : okBg,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: hasAlert
-                  ? const Color(0xFF7F1D1D)
-                  : const Color(0xFF065F46),
+              color:
+                  hasAlert ? const Color(0xFF7F1D1D) : const Color(0xFF065F46),
             ),
           ),
           child: Text(
@@ -656,23 +675,17 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
   }
 }
 
-// ===== Models / Widgets =====
-
 class _AlertCategory {
   final String name;
   final IconData icon;
   const _AlertCategory({required this.name, required this.icon});
 }
 
-/// ✅ Fixed tile for row (icon + count only)
 class _AlertCategoryTile extends StatelessWidget {
   final IconData icon;
   final int count;
 
-  const _AlertCategoryTile({
-    required this.icon,
-    required this.count,
-  });
+  const _AlertCategoryTile({required this.icon, required this.count});
 
   static const Color cardDark = Color(0xFF111827);
   static const Color borderDark = Color(0xFF1F2937);
