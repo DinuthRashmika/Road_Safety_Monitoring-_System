@@ -14,21 +14,17 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CHANGED: Lower confidence so the bike plate is not missed.
-# Was 0.25 — bike plate was being silently dropped at that threshold.
-# ─────────────────────────────────────────────────────────────────────────────
-PLATE_CONF_FULL = 0.10   # full image pass
-PLATE_CONF_TILE = 0.08   # tile pass (catches partially-visible plates)
-MIN_PLATE_LEN   = 5      # minimum OCR characters to accept
+PLATE_CONF_FULL = 0.10   # full image pass  (was 0.25 — bike plate was being dropped)
+PLATE_CONF_TILE = 0.08   # tile pass fallback
+MIN_PLATE_LEN   = 5
+
 
 class PlateOwnerService:
     def __init__(self):
-        self.plate_model = None
+        self.plate_model     = None
         self.violation_model = None
-        self.ocr_reader = None
+        self.ocr_reader      = None
         self.confidence_threshold = settings.DETECTION_CONFIDENCE
-
         self.load_models()
         self.load_ocr_reader()
 
@@ -36,7 +32,7 @@ class PlateOwnerService:
     def load_models(self):
         try:
             from ultralytics import YOLO
-            self.plate_model = YOLO(settings.YOLO_MODELS)
+            self.plate_model     = YOLO(settings.YOLO_MODELS)
             logger.info(f"✅ Plate Model loaded: {settings.YOLO_MODELS}")
             self.violation_model = YOLO(settings.VIOLATION_MODEL)
             logger.info(f"✅ Violation Model loaded: {settings.VIOLATION_MODEL}")
@@ -70,8 +66,8 @@ class PlateOwnerService:
             (int(width * scale), int(height * scale)),
             interpolation=cv2.INTER_CUBIC
         )
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        gray  = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blur  = cv2.GaussianBlur(gray, (5, 5), 0)
         thresh = cv2.adaptiveThreshold(
             blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV, 19, 9
@@ -80,8 +76,6 @@ class PlateOwnerService:
         closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
         final_img = cv2.bitwise_not(closed)
 
-        # ── CHANGED: add CLAHE and two-row halves for stacked Sri Lankan plates ─
-        # Fixes "CBH 6301" being misread as "CBA 6301"
         clahe      = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         clahe_gray = clahe.apply(gray)
         mid        = img.shape[0] // 2
@@ -89,12 +83,12 @@ class PlateOwnerService:
         bot_half   = gray[mid:, :]
 
         return {
-            'morph'    : final_img,
-            'gray'     : gray,
-            'thresh'   : thresh,
-            'clahe'    : clahe_gray,   # NEW
-            'top_half' : top_half,     # NEW — for two-row plates
-            'bot_half' : bot_half,     # NEW — for two-row plates
+            'morph'   : final_img,
+            'gray'    : gray,
+            'thresh'  : thresh,
+            'clahe'   : clahe_gray,
+            'top_half': top_half,
+            'bot_half': bot_half,
         }
 
     # ── UNCHANGED ─────────────────────────────────────────────────────────────
@@ -120,7 +114,7 @@ class PlateOwnerService:
             return f"{match.group(1)} {match.group(2)}"
         return clean_text
 
-    # ── CHANGED: added clahe strategy + two-row strategy to fix CBH→CBA misread ─
+    # ── UNCHANGED ─────────────────────────────────────────────────────────────
     def perform_ocr(self, plate_region):
         if not self.ocr_reader:
             return []
@@ -131,7 +125,6 @@ class PlateOwnerService:
         best_text = ""
         best_conf = 0.0
 
-        # Strategy 1: whole plate (morph, gray, clahe)
         for strategy in ['morph', 'gray', 'clahe']:
             img = processed_imgs[strategy]
             try:
@@ -143,13 +136,13 @@ class PlateOwnerService:
                     detail=1,
                     paragraph=False,
                     mag_ratio=3.0,
-                    text_threshold=0.5,   # CHANGED: was 0.6, lower = more tolerant
-                    link_threshold=0.3,   # CHANGED: was 0.4
+                    text_threshold=0.5,
+                    link_threshold=0.3,
                     canvas_size=1280
                 )
                 full_text_blob = "".join([res[1] for res in results])
                 if results:
-                    avg_conf = sum([res[2] for res in results]) / len(results)
+                    avg_conf  = sum([res[2] for res in results]) / len(results)
                     formatted = self.format_sri_lankan_plate(full_text_blob)
                     if len(formatted) > 5 and avg_conf > best_conf:
                         best_text = formatted
@@ -157,8 +150,7 @@ class PlateOwnerService:
             except:
                 pass
 
-        # Strategy 2: two-row plate — read top and bottom rows separately
-        # This is the fix for "CBH" on top row + "6301" on bottom row → "CBA 6301" misread
+        # Two-row strategy — fixes stacked plates like CBH/6301 → CBA misread
         try:
             top_res = self.ocr_reader.readtext(
                 processed_imgs['top_half'],
@@ -194,59 +186,198 @@ class PlateOwnerService:
     # ── UNCHANGED ─────────────────────────────────────────────────────────────
     def detect_violation_type(self, img):
         if self.violation_model is None:
-            return "Unknown", 0.0
+            return "Unknown", 0.0, None   # returns bbox too now
 
         results = self.violation_model(img, conf=0.4, verbose=False)
         if not results or len(results[0].boxes) == 0:
-            return "No Violation Detected", 0.0
+            return "No Violation Detected", 0.0, None
 
-        best_box = results[0].boxes[0]
-        class_id = int(best_box.cls[0])
-        conf = float(best_box.conf[0])
-        violation_name = self.violation_model.names[class_id]
-        return violation_name, conf
+        best_box   = results[0].boxes[0]
+        class_id   = int(best_box.cls[0])
+        conf       = float(best_box.conf[0])
+        viol_name  = self.violation_model.names[class_id]
 
-    # ── UNCHANGED — your original single-plate detection for the violation vehicle ─
+        # Return the violation bounding box so we can match it to the nearest plate
+        vx1, vy1, vx2, vy2 = map(int, best_box.xyxy[0])
+        viol_bbox = (vx1, vy1, vx2, vy2)
+
+        return viol_name, conf, viol_bbox
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Helper: centre point of a bounding box
+    # ─────────────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _bbox_centre(bbox):
+        x1, y1, x2, y2 = bbox
+        return ((x1 + x2) / 2, (y1 + y2) / 2)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Helper: Euclidean distance between two (cx, cy) points
+    # ─────────────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _distance(p1, p2):
+        return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Detect ALL plates: full image + tile fallback, deduped, sorted
+    # ─────────────────────────────────────────────────────────────────────────
+    def _detect_all_plates(self, img):
+        """
+        Internal helper. Runs YOLO on the full image + 4 tiles.
+        Returns list of plate dicts sorted by detection confidence desc.
+        Each dict: { plate_number, confidence, ocr_confidence, bbox, crop_b64 }
+        """
+        h, w = img.shape[:2]
+        detected = []
+
+        # ── Pass 1: full image ────────────────────────────────────────────────
+        results = self.plate_model(img, conf=PLATE_CONF_FULL, verbose=False)
+        if results and len(results[0].boxes) > 0:
+            for box in results[0].boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                det_conf = float(box.conf[0])
+                px  = int((x2 - x1) * 0.05);  py = int((y2 - y1) * 0.05)
+                cx1 = max(0, x1 - px);         cy1 = max(0, y1 - py)
+                cx2 = min(w, x2 + px);         cy2 = min(h, y2 + py)
+                crop    = img[cy1:cy2, cx1:cx2]
+                ocr_res = self.perform_ocr(crop)
+                plate_text = ocr_res[0]['text'] if ocr_res else "NO_PLATE"
+                ocr_conf   = ocr_res[0]['confidence'] if ocr_res else 0.0
+                crop_b64   = None
+                try:
+                    _, buf = cv2.imencode('.jpg', crop)
+                    crop_b64 = base64.b64encode(buf).decode('utf-8')
+                except:
+                    pass
+                detected.append({
+                    'plate_number'  : plate_text,
+                    'confidence'    : det_conf,
+                    'ocr_confidence': ocr_conf,
+                    'bbox'          : (x1, y1, x2, y2),
+                    'crop_b64'      : crop_b64,
+                })
+
+        # ── Pass 2: tile scan ─────────────────────────────────────────────────
+        tiles = [
+            (img[:, :w//2], 0,    0),
+            (img[:, w//2:], w//2, 0),
+            (img[:h//2, :], 0,    0),
+            (img[h//2:, :], 0,    h//2),
+        ]
+        for tile_img, x_off, y_off in tiles:
+            tile_res = self.plate_model(tile_img, conf=PLATE_CONF_TILE, verbose=False)
+            if not tile_res or len(tile_res[0].boxes) == 0:
+                continue
+            th, tw = tile_img.shape[:2]
+            for box in tile_res[0].boxes:
+                tx1, ty1, tx2, ty2 = map(int, box.xyxy[0])
+                det_conf = float(box.conf[0])
+                px  = int((tx2 - tx1) * 0.05); py = int((ty2 - ty1) * 0.05)
+                cx1 = max(0, tx1 - px);        cy1 = max(0, ty1 - py)
+                cx2 = min(tw, tx2 + px);       cy2 = min(th, ty2 + py)
+                crop    = tile_img[cy1:cy2, cx1:cx2]
+                ocr_res = self.perform_ocr(crop)
+                plate_text = ocr_res[0]['text'] if ocr_res else "NO_PLATE"
+                ocr_conf   = ocr_res[0]['confidence'] if ocr_res else 0.0
+                if plate_text == "NO_PLATE":
+                    continue
+                abs_bbox = (tx1 + x_off, ty1 + y_off, tx2 + x_off, ty2 + y_off)
+                crop_b64 = None
+                try:
+                    _, buf = cv2.imencode('.jpg', crop)
+                    crop_b64 = base64.b64encode(buf).decode('utf-8')
+                except:
+                    pass
+                detected.append({
+                    'plate_number'  : plate_text,
+                    'confidence'    : det_conf,
+                    'ocr_confidence': ocr_conf,
+                    'bbox'          : abs_bbox,
+                    'crop_b64'      : crop_b64,
+                })
+
+        # ── Deduplicate by normalised text ────────────────────────────────────
+        seen   = set()
+        unique = []
+        for p in detected:
+            norm = p['plate_number'].replace(" ", "").replace("-", "").upper()
+            if norm in ("NOPLATE", "") or len(norm) < MIN_PLATE_LEN:
+                continue
+            if norm not in seen:
+                seen.add(norm)
+                unique.append(p)
+
+        unique.sort(key=lambda d: d['confidence'], reverse=True)
+        return unique
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # KEY METHOD — identifies which plate is the VIOLATION vehicle
+    # and which are NEARBY vehicles using spatial proximity to the
+    # violation bounding box returned by the violation model.
+    #
+    # Why this matters:
+    #   When YOLO detects a "no_helmet" violation, it draws a box around
+    #   the person/bike committing the violation.  The plate physically
+    #   closest to that box belongs to the violation vehicle.
+    #   All other plates are nearby (innocent) vehicles.
+    #
+    # Fallback (no violation bbox or no plates near it):
+    #   Use highest-confidence plate as violation vehicle.
+    # ─────────────────────────────────────────────────────────────────────────
+    def _split_violation_and_nearby(self, all_plates, viol_bbox):
+        """
+        Returns (violation_plate_dict, [nearby_plate_dict, ...])
+        """
+        if not all_plates:
+            return None, []
+
+        if len(all_plates) == 1:
+            return all_plates[0], []
+
+        # If no violation bbox available, fall back to highest-confidence plate
+        if viol_bbox is None:
+            return all_plates[0], all_plates[1:]
+
+        viol_centre = self._bbox_centre(viol_bbox)
+
+        # Find the plate whose centre is closest to the violation bbox centre
+        closest     = None
+        closest_dist = float('inf')
+        for p in all_plates:
+            plate_centre = self._bbox_centre(p['bbox'])
+            dist = self._distance(viol_centre, plate_centre)
+            if dist < closest_dist:
+                closest_dist = dist
+                closest      = p
+
+        nearby = [p for p in all_plates if p is not closest]
+        return closest, nearby
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Main image pipeline
+    # ─────────────────────────────────────────────────────────────────────────
     def detect_and_read_plate_and_violation(self, image_bytes):
         try:
             if self.plate_model is None:
                 return None
 
             nparr = np.frombuffer(image_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             if img is None:
                 return None
 
-            # 1. Detect Plate (main/violation vehicle plate)
-            # CHANGED: conf=0.10 (was 0.25) so the bike plate is not missed
-            plate_results = self.plate_model(img, conf=PLATE_CONF_FULL, verbose=False)
-            final_text = "NO_PLATE"
-            plate_conf = 0.0
-            ocr_conf = 0.0
-            plate_crop = None
+            # 1. Detect ALL plates
+            all_plates = self._detect_all_plates(img)
 
-            x1 = y1 = x2 = y2 = 0
+            # 2. Detect violation type + its bounding box
+            violation_type, violation_conf, viol_bbox = self.detect_violation_type(img)
 
-            if plate_results and len(plate_results[0].boxes) > 0:
-                best_box = plate_results[0].boxes[0]
-                x1, y1, x2, y2 = map(int, best_box.xyxy[0])
-                plate_conf = float(best_box.conf[0])
+            # 3. Identify violation plate vs nearby plates by spatial proximity
+            violation_plate, nearby_plates = self._split_violation_and_nearby(
+                all_plates, viol_bbox
+            )
 
-                h, w = img.shape[:2]
-                pad_x, pad_y = int((x2 - x1) * 0.05), int((y2 - y1) * 0.05)
-                crop_x1, crop_y1 = max(0, x1 - pad_x), max(0, y1 - pad_y)
-                crop_x2, crop_y2 = min(w, x2 + pad_x), min(h, y2 + pad_y)
-
-                plate_crop = img[crop_y1:crop_y2, crop_x1:crop_x2]
-                ocr_results = self.perform_ocr(plate_crop)
-                if ocr_results:
-                    final_text = ocr_results[0]['text']
-                    ocr_conf = ocr_results[0]['confidence']
-
-            # 2. Detect Violation Type
-            violation_type, violation_conf = self.detect_violation_type(img)
-
-            # 3. Calculate Fine
+            # 4. Calculate fine
             fine = settings.VIOLATION_FINES.get(
                 violation_type,
                 settings.VIOLATION_FINES.get("default", 0.0)
@@ -254,141 +385,95 @@ class PlateOwnerService:
             if violation_type == "No Violation Detected":
                 fine = 0.0
 
-            # 4. Visualization
+            # 5. Console log — all plates with their roles
+            print("\n" + "=" * 65)
+            print("  📷  ALL DETECTED PLATES IN IMAGE")
+            print(f"  🚨  Violation : {violation_type}")
+            print("=" * 65)
+            if not all_plates:
+                print("  ⚠️   No plates detected.")
+            for p in all_plates:
+                role = "🔴 VIOLATION VEHICLE" if p is violation_plate else "🟠 NEARBY VEHICLE"
+                print(f"  {role}  |  Plate: {p['plate_number']:<12}"
+                      f"  det:{p['confidence']:.2f}  ocr:{p['ocr_confidence']:.2f}")
+            print("=" * 65 + "\n")
+
+            # 6. Primary values (violation plate)
+            final_text = violation_plate['plate_number']    if violation_plate else "NO_PLATE"
+            plate_conf = violation_plate['confidence']       if violation_plate else 0.0
+            ocr_conf   = violation_plate['ocr_confidence']   if violation_plate else 0.0
+            crop_b64   = violation_plate['crop_b64']         if violation_plate else None
+
+            # 7. Annotate image
             annotated = img.copy()
-            if plate_conf > 0:
-                cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            for p in all_plates:
+                bx1, by1, bx2, by2 = p['bbox']
+                if p is violation_plate:
+                    color = (0, 0, 255)    # Red   = violation vehicle
+                    tag   = "VIOLATION"
+                else:
+                    color = (0, 165, 255)  # Orange = nearby vehicle
+                    tag   = "NEARBY"
+                cv2.rectangle(annotated, (bx1, by1), (bx2, by2), color, 2)
                 cv2.putText(
                     annotated,
-                    final_text,
-                    (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.9,
-                    (0, 255, 0),
-                    2
+                    f"{p['plate_number']} [{tag}]",
+                    (bx1, by1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2
                 )
 
-            label = f"Violation: {violation_type} (Fine: {fine})"
-            cv2.putText(
-                annotated,
-                label,
-                (20, 40),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 0, 255),
-                2
-            )
+            # Draw violation bbox if available
+            if viol_bbox:
+                vx1, vy1, vx2, vy2 = viol_bbox
+                cv2.rectangle(annotated, (vx1, vy1), (vx2, vy2), (255, 0, 0), 2)
+                cv2.putText(annotated, violation_type, (vx1, vy1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+
+            cv2.putText(annotated, f"Violation: {violation_type} (Fine: {fine})",
+                        (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             _, img_buf = cv2.imencode('.jpg', annotated)
-            crop_b64 = None
-
-            if plate_crop is not None:
-                _, crop_buf = cv2.imencode('.jpg', plate_crop)
-                crop_b64 = base64.b64encode(crop_buf).decode('utf-8')
 
             return {
-                'plate_number': final_text,
-                'confidence': plate_conf,
-                'ocr_confidence': ocr_conf,
-                'violation_type': violation_type,
+                'plate_number'        : final_text,
+                'confidence'          : plate_conf,
+                'ocr_confidence'      : ocr_conf,
+                'violation_type'      : violation_type,
                 'violation_confidence': violation_conf,
-                'fine_amount': fine,
-                'annotated_image': base64.b64encode(img_buf).decode('utf-8'),
-                'cropped_plate_image': crop_b64
+                'fine_amount'         : fine,
+                'annotated_image'     : base64.b64encode(img_buf).decode('utf-8'),
+                'cropped_plate_image' : crop_b64,
+                # Internal — used by process_complete_detection
+                '_violation_plate'    : violation_plate,
+                '_nearby_plates'      : nearby_plates,
             }
 
         except Exception as e:
             logger.error(f"Pipeline error: {e}")
             return None
 
-    # ── CHANGED: was only doing full-image at conf=0.25 ───────────────────────
-    # Now does full-image + tile scan at lower confidence to catch the bike plate.
-    # Returns list of unique plate strings (same as before, just finds more plates).
-    def extract_all_plates_from_image(self, image_bytes):
+    # ── UNCHANGED ─────────────────────────────────────────────────────────────
+    def extract_all_plates_from_image(self, image_bytes, already_found=None):
         """
-        Detect ALL plate boxes in the image, OCR each one, return unique plates.
-        Used to find nearby vehicles (cars) for protective alerts.
-
-        FIXES vs original:
-        - Runs at conf=0.10 instead of 0.25 (catches bike plate)
-        - Adds tile scan (left/right/top/bottom halves) as fallback pass
-        - Deduplicates by normalised plate text
+        Returns list of unique plate number strings.
+        Reuses already_found if provided (avoids second YOLO run).
         """
         try:
+            if already_found is not None:
+                return [p['plate_number'] for p in already_found
+                        if p['plate_number'] != "NO_PLATE"
+                        and len(p['plate_number']) > MIN_PLATE_LEN]
+
             if self.plate_model is None:
                 return []
 
             nparr = np.frombuffer(image_bytes, np.uint8)
-            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            img   = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             if img is None:
                 return []
 
-            h, w = img.shape[:2]
-            all_detections = []
-
-            # ── Pass 1: full image at PLATE_CONF_FULL ─────────────────────────
-            results = self.plate_model(img, conf=PLATE_CONF_FULL, verbose=False)
-            if results and len(results[0].boxes) > 0:
-                for box in results[0].boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    det_conf = float(box.conf[0])
-                    pad_x = int((x2 - x1) * 0.05)
-                    pad_y = int((y2 - y1) * 0.05)
-                    cx1 = max(0, x1 - pad_x); cy1 = max(0, y1 - pad_y)
-                    cx2 = min(w, x2 + pad_x); cy2 = min(h, y2 + pad_y)
-                    crop = img[cy1:cy2, cx1:cx2]
-                    ocr_res = self.perform_ocr(crop)
-                    if ocr_res:
-                        txt = ocr_res[0]['text']
-                        if txt and len(txt) > 5:
-                            all_detections.append((txt.strip().upper(), det_conf))
-
-            # ── Pass 2: tile scan — catches plates missed in full-image pass ──
-            tiles = [
-                (img[:, :w//2],  'left'),
-                (img[:, w//2:],  'right'),
-                (img[:h//2, :],  'top'),
-                (img[h//2:, :],  'bottom'),
-            ]
-            for tile_img, tile_name in tiles:
-                tile_results = self.plate_model(tile_img, conf=PLATE_CONF_TILE, verbose=False)
-                if not tile_results or len(tile_results[0].boxes) == 0:
-                    continue
-                th, tw = tile_img.shape[:2]
-                for box in tile_results[0].boxes:
-                    tx1, ty1, tx2, ty2 = map(int, box.xyxy[0])
-                    det_conf = float(box.conf[0])
-                    pad_x = int((tx2 - tx1) * 0.05)
-                    pad_y = int((ty2 - ty1) * 0.05)
-                    cx1 = max(0, tx1 - pad_x); cy1 = max(0, ty1 - pad_y)
-                    cx2 = min(tw, tx2 + pad_x); cy2 = min(th, ty2 + pad_y)
-                    crop = tile_img[cy1:cy2, cx1:cx2]
-                    ocr_res = self.perform_ocr(crop)
-                    if ocr_res:
-                        txt = ocr_res[0]['text']
-                        if txt and len(txt) > 5:
-                            all_detections.append((txt.strip().upper(), det_conf))
-
-            # ── Deduplication by normalised text ──────────────────────────────
-            seen   = set()
-            unique = []
-            for txt, conf in all_detections:
-                norm = txt.replace(" ", "").replace("-", "")
-                if norm not in seen:
-                    seen.add(norm)
-                    unique.append(txt)
-
-            # ── Console log ALL detected plates ───────────────────────────────
-            print("\n" + "=" * 60)
-            print("  📷  ALL DETECTED PLATES IN IMAGE")
-            print("=" * 60)
-            if not unique:
-                print("  ⚠️   No plates detected.")
-            for idx, plate in enumerate(unique):
-                print(f"  [{idx + 1}]  {plate}")
-            print("=" * 60 + "\n")
-
-            return unique
+            plates = self._detect_all_plates(img)
+            return [p['plate_number'] for p in plates]
 
         except Exception as e:
             logger.error(f"extract_all_plates_from_image failed: {e}")
@@ -399,15 +484,14 @@ class PlateOwnerService:
         if not plate_number or plate_number == "NO_PLATE":
             return None
 
-        variations = [
+        variations = list(set([
             plate_number,
             plate_number.replace(" ", ""),
             plate_number.replace("-", ""),
             plate_number.replace(" ", "").replace("-", "")
-        ]
-        variations = list(set(variations))
+        ]))
 
-        vehicle = None
+        vehicle  = None
         database = mongodb.db.db
 
         try:
@@ -415,7 +499,7 @@ class PlateOwnerService:
                 logger.info(f"🔍 Searching DB for vehicle plate: '{key}'")
                 query = {
                     "$or": [
-                        {"plateNo": {"$regex": f"^{key}$", "$options": "i"}},
+                        {"plateNo":      {"$regex": f"^{key}$", "$options": "i"}},
                         {"plate_number": {"$regex": f"^{key}$", "$options": "i"}}
                     ]
                 }
@@ -438,127 +522,133 @@ class PlateOwnerService:
                 owner = await database.owners.find_one({"_id": owner_id})
 
             if not owner:
-                logger.error(f"Owner ID {owner_id} linked to vehicle but not found in Users/Owners collection")
+                logger.error(f"Owner ID {owner_id} not found in users/owners collection")
                 return None
 
             return {
                 "vehicle": {
-                    "id": str(vehicle["_id"]),
+                    "id":      str(vehicle["_id"]),
                     "plateNo": vehicle.get("plateNo"),
-                    "model": vehicle.get("vehicleModel") or vehicle.get("model", "Unknown"),
-                    "type": vehicle.get("vehicleType") or vehicle.get("type", "Car")
+                    "model":   vehicle.get("vehicleModel") or vehicle.get("model", "Unknown"),
+                    "type":    vehicle.get("vehicleType")  or vehicle.get("type",  "Car")
                 },
                 "owner": {
-                    "id": str(owner["_id"]),
-                    "name": owner.get("fullName") or owner.get("name"),
-                    "email": owner.get("email"),
-                    "phone": owner.get("phone"),
+                    "id":      str(owner["_id"]),
+                    "name":    owner.get("fullName") or owner.get("name"),
+                    "email":   owner.get("email"),
+                    "phone":   owner.get("phone"),
                     "address": owner.get("address"),
-                    "nic": owner.get("nic")
+                    "nic":     owner.get("nic")
                 }
             }
         except Exception as e:
             logger.error(f"Error finding owner: {e}")
             return None
 
-    # ── UNCHANGED — your original process_complete_detection ──────────────────
+    # ─────────────────────────────────────────────────────────────────────────
+    # MAIN ENTRY POINT
+    # ─────────────────────────────────────────────────────────────────────────
     async def process_complete_detection(self, image_bytes, location=None, camera_id=None):
         result = self.detect_and_read_plate_and_violation(image_bytes)
 
         if not result or result['plate_number'] == "NO_PLATE":
             return {'success': False, 'error': 'No plate detected'}
 
-        owner_info = await self.find_vehicle_owner(result['plate_number'])
+        # Pull out the pre-split plates (no second YOLO run needed)
+        violation_plate_dict = result.get('_violation_plate')   # dict with bbox, plate_number …
+        nearby_plate_dicts   = result.get('_nearby_plates', []) # list of dicts
 
-        viol_id = None
+        violation_plate_number = violation_plate_dict['plate_number'] if violation_plate_dict else result['plate_number']
+        nearby_plate_numbers   = [p['plate_number'] for p in nearby_plate_dicts
+                                  if p['plate_number'] != "NO_PLATE"]
+
+        # ── A: Look up violation vehicle owner and send VIOLATION REPORT ──────
+        owner_info = await self.find_vehicle_owner(violation_plate_number)
+
+        viol_id  = None
         notified = False
 
         if owner_info:
-            logger.info(f"Processing violation for known owner: {owner_info['owner']['name']}")
+            logger.info(f"🚨 Violation vehicle : {violation_plate_number}")
+            logger.info(f"   Owner            : {owner_info['owner']['name']}")
+            logger.info(f"   Violation        : {result['violation_type']}")
+            logger.info(f"   Fine             : LKR {result['fine_amount']}")
 
-            image_path = save_detection_image(image_bytes, result['plate_number'])
+            image_path = save_detection_image(image_bytes, violation_plate_number)
 
             viol_id = await self.save_violation(
-                result['plate_number'], result['confidence'], result['ocr_confidence'],
-                result['violation_type'], result['fine_amount'], result['violation_confidence'],
+                violation_plate_number,
+                result['confidence'],
+                result['ocr_confidence'],
+                result['violation_type'],
+                result['fine_amount'],
+                result['violation_confidence'],
                 image_bytes, location, camera_id, owner_info,
                 image_path=image_path
             )
 
             if viol_id:
-                logger.info(f"Violation saved with ID: {viol_id}. Sending notification...")
+                logger.info(f"   📩 Sending VIOLATION REPORT → {owner_info['owner']['name']} ({violation_plate_number})")
                 notified = await self.send_notification(
                     owner_info,
-                    result['plate_number'],
+                    violation_plate_number,
                     viol_id,
                     result['violation_type'],
                     result['fine_amount'],
                     location if location else "Unknown Location",
                     image_path=image_path
                 )
-
-                # ── NOVELTY FEATURE: protective alerts for nearby vehicles ────
-                try:
-                    from app.utils.protective_alerts import send_protective_alert_to_owner
-
-                    # extract_all_plates_from_image now finds BOTH plates (bike + car)
-                    # and console-logs them all
-                    all_plates = self.extract_all_plates_from_image(image_bytes)
-
-                    viol_plate_norm = (result.get("plate_number") or "").replace(" ", "").replace("-", "").upper()
-
-                    nearby_plates = []
-                    for p in all_plates:
-                        p_norm = p.replace(" ", "").replace("-", "").upper()
-                        if p_norm and p_norm != viol_plate_norm:
-                            nearby_plates.append(p)
-
-                    nearby_plates = list(set(nearby_plates))
-
-                    # Console log: show which plate is violation and which are nearby
-                    print("\n" + "=" * 60)
-                    print("  🚨  VIOLATION VEHICLE PLATE")
-                    print(f"  🔴  [{result['plate_number']}]  → violation report sent to owner")
-                    if nearby_plates:
-                        print("  🟠  NEARBY VEHICLE PLATE(S)")
-                        for np_ in nearby_plates:
-                            print(f"  🟠  [{np_}]  → protective alert will be sent to owner")
-                    print("=" * 60 + "\n")
-
-                    for near_plate in nearby_plates:
-                        near_owner_info = await self.find_vehicle_owner(near_plate)
-                        if not near_owner_info:
-                            continue
-
-                        if near_owner_info["owner"]["id"] == owner_info["owner"]["id"]:
-                            continue
-
-                        logger.info(
-                            f"🛡️  Sending PROTECTIVE ALERT → "
-                            f"{near_owner_info['owner']['name']} ({near_plate})"
-                        )
-                        await send_protective_alert_to_owner(
-                            owner=near_owner_info["owner"],
-                            near_plate=near_plate,
-                            location=location if location else "Unknown Location",
-                            violation_id=viol_id,
-                            violation_type=result.get("violation_type", "Unknown"),
-                            violation_image=None
-                        )
-
-                except Exception as e:
-                    logger.error(f"Nearby protective alert block failed: {e}")
-                # ─────────────────────────────────────────────────────────────
-
         else:
-            logger.warning("Skipping database save because Owner/Vehicle was not found.")
+            logger.warning(f"⚠️  No registered owner for violation plate: {violation_plate_number}")
+
+        # ── B: Send PROTECTIVE ALERTS to nearby vehicle owners ────────────────
+        if nearby_plate_numbers:
+            logger.info(f"\n🔎 {len(nearby_plate_numbers)} nearby plate(s) found — sending protective alerts...")
+            try:
+                from app.utils.protective_alerts import send_protective_alert_to_owner
+
+                # Console summary
+                print("\n" + "=" * 65)
+                print(f"  🔴  VIOLATION  → [{violation_plate_number}]  violation report sent")
+                for np_ in nearby_plate_numbers:
+                    print(f"  🟠  NEARBY     → [{np_}]  protective alert will be sent")
+                print("=" * 65 + "\n")
+
+                for near_plate in nearby_plate_numbers:
+                    near_owner_info = await self.find_vehicle_owner(near_plate)
+                    if not near_owner_info:
+                        logger.warning(f"   ⚠️  No owner found for nearby plate: {near_plate}")
+                        continue
+
+                    # Never alert the same owner twice
+                    if owner_info and near_owner_info["owner"]["id"] == owner_info["owner"]["id"]:
+                        logger.info(f"   ℹ️  Same owner as violation vehicle — skipping")
+                        continue
+
+                    logger.info(
+                        f"   🛡️  Sending PROTECTIVE ALERT → "
+                        f"{near_owner_info['owner']['name']} ({near_plate})"
+                    )
+                    await send_protective_alert_to_owner(
+                        owner          = near_owner_info["owner"],
+                        near_plate     = near_plate,
+                        location       = location if location else "Unknown Location",
+                        violation_id   = viol_id,
+                        violation_type = result.get("violation_type", "Unknown"),
+                        violation_image= None
+                    )
+
+            except Exception as e:
+                logger.error(f"Nearby protective alert block failed: {e}")
+        else:
+            logger.info("ℹ️  No nearby plates — no protective alerts to send.")
 
         result.update({
-            'success': True,
-            'violation_id': viol_id,
-            'owner_info': owner_info,
+            'success'          : True,
+            'violation_id'     : viol_id,
+            'owner_info'       : owner_info,
             'notification_sent': notified,
-            'timestamp': datetime.now().isoformat()
+            'timestamp'        : datetime.now().isoformat()
         })
         return result
 
@@ -570,25 +660,23 @@ class PlateOwnerService:
         try:
             if mongodb.db is None:
                 return None
-
             violation = violation_doc(
-                vehicleId=owner_info['vehicle']['id'],
-                plateNumber=plate_number,
-                detectionTime=datetime.utcnow(),
-                location=location,
-                cameraId=camera_id,
-                violationType=violation_type,
-                fineAmount=fine_amount,
-                violationConfidence=violation_confidence,
-                confidence=confidence,
-                ocr_confidence=ocr_confidence,
-                notified=False,
-                ownerId=owner_info['owner']['id'],
-                imagePath=image_path
+                vehicleId           = owner_info['vehicle']['id'],
+                plateNumber         = plate_number,
+                detectionTime       = datetime.utcnow(),
+                location            = location,
+                cameraId            = camera_id,
+                violationType       = violation_type,
+                fineAmount          = fine_amount,
+                violationConfidence = violation_confidence,
+                confidence          = confidence,
+                ocr_confidence      = ocr_confidence,
+                notified            = False,
+                ownerId             = owner_info['owner']['id'],
+                imagePath           = image_path
             )
             res = await mongodb.db.db.violations.insert_one(violation)
             return str(res.inserted_id)
-
         except Exception as e:
             logger.error(f"Save error: {e}")
             return None
@@ -598,14 +686,15 @@ class PlateOwnerService:
                                 violation_type, fine_amount, location="Unknown",
                                 image_path=None):
         return await send_notification_to_owner(
-            owner=owner_info['owner'],
-            plate_number=plate_number,
-            violation_type=violation_type,
-            fine_amount=fine_amount,
-            detection_time=datetime.now(),
-            violation_id=violation_id,
-            location=location,
-            image_path=image_path
+            owner          = owner_info['owner'],
+            plate_number   = plate_number,
+            violation_type = violation_type,
+            fine_amount    = fine_amount,
+            detection_time = datetime.now(),
+            violation_id   = violation_id,
+            location       = location,
+            image_path     = image_path
         )
+
 
 plate_owner_service = PlateOwnerService()

@@ -23,6 +23,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // ✅ NEW: real protective alerts from backend (using dedicated endpoint)
   List<NotificationModel> _protective = [];
 
+  // ✅ NEW: unseen protective count for badge
+  int get _unseenProtectiveCount =>
+      _protective.where((n) => n.isRead == false).length;
+
   // Mock trips (unchanged)
   final List<_TripItem> _trips = const [
     _TripItem(
@@ -42,28 +46,28 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: '45 min'),
   ];
 
-Future<void> _load() async {
-  try {
-    final me = await OwnerService.me();
-    final v = await VehicleService.mine();
-
-    // ✅ ONLY CHANGE: protective fetch must NOT break owner/vehicle load
-    List<NotificationModel> protective = [];
+  Future<void> _load() async {
     try {
-      protective = await NotificationService.getProtectiveAlerts();
-    } catch (_) {
-      protective = []; // if endpoint fails, keep empty
-    }
+      final me = await OwnerService.me();
+      final v = await VehicleService.mine();
 
-    setState(() {
-      _owner = me;                    // keep as-is
-      _vehicles = v;                  // keep as-is
-      _protective = protective.take(3).toList(); // keep as-is
-    });
-  } finally {
-    setState(() => _loading = false);
+      // ✅ ONLY CHANGE: protective fetch must NOT break owner/vehicle load
+      List<NotificationModel> protective = [];
+      try {
+        protective = await NotificationService.getProtectiveAlerts();
+      } catch (_) {
+        protective = []; // if endpoint fails, keep empty
+      }
+
+      setState(() {
+        _owner = me; // keep as-is
+        _vehicles = v; // keep as-is
+        _protective = protective.take(3).toList(); // keep as-is
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
-}
 
   @override
   void initState() {
@@ -144,30 +148,48 @@ Future<void> _load() async {
                             ),
                           ),
                           const Spacer(),
+
+                          // ✅ UPDATED: Bell icon shows unseen count badge
                           IconButton(
                             onPressed: () =>
                                 Navigator.pushNamed(context, '/alerts'),
                             icon: Stack(
+                              clipBehavior: Clip.none,
                               children: [
                                 const Icon(Icons.notifications_outlined,
                                     color: Colors.white, size: 28),
-                                // ✅ Only show badge when there are protective alerts
-                                if (_protective.isNotEmpty)
+
+                                if (_unseenProtectiveCount > 0)
                                   Positioned(
-                                    right: 2,
-                                    top: 2,
+                                    right: -2,
+                                    top: -4,
                                     child: Container(
-                                      width: 8,
-                                      height: 8,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF2563EB),
-                                        shape: BoxShape.circle,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2563EB),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: Colors.black,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _unseenProtectiveCount > 99
+                                            ? '99+'
+                                            : '$_unseenProtectiveCount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
                                     ),
                                   ),
                               ],
                             ),
                           ),
+
                           IconButton(
                             onPressed: () {},
                             icon: const Icon(Icons.search,
@@ -177,7 +199,6 @@ Future<void> _load() async {
                       ),
                     ),
                   ),
-
                   SliverList(
                     delegate: SliverChildListDelegate([
                       if (_vehicles.isEmpty)
@@ -191,9 +212,7 @@ Future<void> _load() async {
                             onSkip: () {},
                           ),
                         ),
-
                       const SizedBox(height: 24),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: _EnhancedQuickActions(
@@ -208,9 +227,7 @@ Future<void> _load() async {
                               Navigator.pushNamed(context, '/violations'),
                         ),
                       ),
-
                       const SizedBox(height: 24),
-
                       if (_vehicles.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -270,7 +287,7 @@ Future<void> _load() async {
                         const SizedBox(height: 12),
                       ],
 
-                      // ✅ Protective Alerts Section (REAL DATA from dedicated endpoint)
+                      // ✅ Protective Alerts Section
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
                         child: _EnhancedSectionHeader(
@@ -281,7 +298,6 @@ Future<void> _load() async {
                               Navigator.pushNamed(context, '/alerts'),
                         ),
                       ),
-
                       if (_protective.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(
@@ -290,7 +306,8 @@ Future<void> _load() async {
                             title: 'No protective alerts',
                             subtitle: 'You have no nearby safety alerts yet.',
                             cta: 'View',
-                            onPressed: () => Navigator.pushNamed(context, '/alerts'),
+                            onPressed: () =>
+                                Navigator.pushNamed(context, '/alerts'),
                           ),
                         )
                       else
@@ -302,16 +319,15 @@ Future<void> _load() async {
                                 subtitle: '${n.message}\n${n.location}',
                                 cta: n.isRead ? 'Viewed' : 'Open',
                                 onPressed: () async {
-                                  // ✅ Use the dedicated protective alerts mark as read endpoint
-                                  await NotificationService.markProtectiveAsRead(n.id);
+                                  await NotificationService
+                                      .markProtectiveAsRead(n.id);
                                   if (!context.mounted) return;
-                                  // ✅ Refresh to update the read status
                                   _load();
                                 },
                               ),
                             )),
 
-                      // Trip History Section (unchanged)
+                      // Trip History Section
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
                         child: _EnhancedSectionHeader(
@@ -353,7 +369,7 @@ Future<void> _load() async {
                         ),
                       ),
 
-                      // Live Monitoring Button (unchanged)
+                      // Live Monitoring Button
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                         child: Container(

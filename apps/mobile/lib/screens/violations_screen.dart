@@ -13,7 +13,11 @@ class ViolationsScreen extends StatefulWidget {
 
 class _ViolationsScreenState extends State<ViolationsScreen> {
   String _selectedFilter = 'All';
-  late Future<List<NotificationModel>> _notificationsFuture;
+
+  bool _loading = true;
+  String? _error;
+
+  List<NotificationModel> _allNotifications = [];
 
   @override
   void initState() {
@@ -21,15 +25,30 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
     _loadNotifications();
   }
 
-  void _loadNotifications() {
+  Future<void> _loadNotifications() async {
     setState(() {
-      _notificationsFuture = NotificationService.getMyNotifications();
+      _loading = true;
+      _error = null;
     });
+
+    try {
+      final list = await NotificationService.getMyNotifications();
+      setState(() {
+        _allNotifications = list;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
   }
 
   String _inferSeverity(String message) {
-    if (message.toLowerCase().contains('critical') || message.contains('5000')) return 'Critical';
-    if (message.toLowerCase().contains('high') || message.contains('2000')) return 'High';
+    final msg = message.toLowerCase();
+    if (msg.contains('critical') || msg.contains('5000')) return 'Critical';
+    if (msg.contains('high') || msg.contains('2000')) return 'High';
     return 'Medium';
   }
 
@@ -62,20 +81,63 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
     ).then((_) => _loadNotifications());
   }
 
+  Future<void> _clearViolation(NotificationModel notification) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        title: const Text(
+          'Clear Violation',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: Text(
+          'Do you want to clear this violation from the list? (Frontend only)',
+          style: TextStyle(color: Colors.grey.shade300),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade300)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+            child: const Text('Clear', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    setState(() {
+      _allNotifications.removeWhere((n) => n.id == notification.id);
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Violation cleared (frontend only)'),
+        backgroundColor: Colors.grey.shade900,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filteredList = _applyFilter(_allNotifications);
+
     return Scaffold(
-      backgroundColor: Colors.black, // Changed to black
+      backgroundColor: Colors.black,
       body: CustomScrollView(
         slivers: [
-          // Enhanced App Bar with gradient
           SliverAppBar(
             expandedHeight: 120,
             floating: true,
             pinned: true,
             snap: false,
             elevation: 0,
-            backgroundColor: Colors.black, // Changed to black
+            backgroundColor: Colors.black,
             surfaceTintColor: Colors.black,
             shadowColor: Colors.black.withOpacity(0.3),
             flexibleSpace: FlexibleSpaceBar(
@@ -85,8 +147,8 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color(0xFF0F172A), // Dark blue
-                      Color(0xFF1E293B), // Darker blue
+                      Color(0xFF0F172A),
+                      Color(0xFF1E293B),
                     ],
                   ),
                 ),
@@ -159,13 +221,12 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Filter Chips - Enhanced Design
                   const Text(
                     'Filter by Severity',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white, // White text
+                      color: Colors.white,
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -187,24 +248,24 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
                           label: 'Critical',
                           isSelected: _selectedFilter == 'Critical',
                           onTap: () => setState(() => _selectedFilter = 'Critical'),
-                          backgroundColor: const Color(0xFF7F1D1D), // Dark red
-                          textColor: const Color(0xFFFCA5A5), // Light red
+                          backgroundColor: const Color(0xFF7F1D1D),
+                          textColor: const Color(0xFFFCA5A5),
                         ),
                         const SizedBox(width: 12),
                         _EnhancedFilterChip(
                           label: 'High',
                           isSelected: _selectedFilter == 'High',
                           onTap: () => setState(() => _selectedFilter = 'High'),
-                          backgroundColor: const Color(0xFF7C2D12), // Dark orange
-                          textColor: const Color(0xFFFDBA74), // Light orange
+                          backgroundColor: const Color(0xFF7C2D12),
+                          textColor: const Color(0xFFFDBA74),
                         ),
                         const SizedBox(width: 12),
                         _EnhancedFilterChip(
                           label: 'Medium',
                           isSelected: _selectedFilter == 'Medium',
                           onTap: () => setState(() => _selectedFilter = 'Medium'),
-                          backgroundColor: const Color(0xFF713F12), // Dark yellow
-                          textColor: const Color(0xFFFCD34D), // Light yellow
+                          backgroundColor: const Color(0xFF713F12),
+                          textColor: const Color(0xFFFCD34D),
                         ),
                       ],
                     ),
@@ -216,155 +277,158 @@ class _ViolationsScreenState extends State<ViolationsScreen> {
 
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            sliver: FutureBuilder<List<NotificationModel>>(
-              future: _notificationsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation(
-                          const Color(0xFF60A5FA).withOpacity(0.8),
-                        ),
+            sliver: () {
+              if (_loading) {
+                return SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(
+                        const Color(0xFF60A5FA).withOpacity(0.8),
                       ),
                     ),
-                  );
-                } else if (snapshot.hasError) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade900, // Dark background
-                              borderRadius: BorderRadius.circular(40),
+                  ),
+                );
+              }
+
+              if (_error != null) {
+                return SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade900,
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: const Icon(
+                            Icons.error_outline_rounded,
+                            color: Colors.grey,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Unable to load violations',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _loadNotifications,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(
-                              Icons.error_outline_rounded,
-                              color: Colors.grey, // Grey icon
-                              size: 32,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Unable to load violations',
+                          child: const Text(
+                            'Try Again',
                             style: TextStyle(
-                              fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Colors.grey, // Light grey
+                              fontSize: 14,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${snapshot.error}',
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              if (filteredList.isEmpty) {
+                return SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(50),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0EA5E9).withOpacity(0.2),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: Color(0xFF60A5FA),
+                            size: 40,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          _allNotifications.isEmpty
+                              ? 'No Violations Found'
+                              : 'No Results For This Filter',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Text(
+                            _allNotifications.isEmpty
+                                ? 'Great job! You have no traffic violations. Keep driving safely.'
+                                : 'Try a different filter to see other violations.',
                             style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade500, // Medium grey
+                              fontSize: 15,
+                              color: Colors.grey.shade400,
+                              fontWeight: FontWeight.w500,
+                              height: 1.5,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 24),
-                          ElevatedButton(
-                            onPressed: _loadNotifications,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2563EB),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
-                              ),
-                            ),
-                            child: const Text(
-                              'Try Again',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  );
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B), // Dark blue
-                              borderRadius: BorderRadius.circular(50),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF0EA5E9).withOpacity(0.2),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.check_circle_outline_rounded,
-                              color: Color(0xFF60A5FA), // Light blue
-                              size: 40,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'No Violations Found',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white, // White text
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: Text(
-                              'Great job! You have no traffic violations. Keep driving safely.',
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: Colors.grey.shade400, // Light grey
-                                fontWeight: FontWeight.w500,
-                                height: 1.5,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                final filteredList = _applyFilter(snapshot.data!);
-
-                return SliverList.separated(
-                  itemCount: filteredList.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final item = filteredList[index];
-                    return _EnhancedViolationCard(
-                      notification: item,
-                      severity: _inferSeverity(item.message),
-                      type: _extractType(item.message),
-                      onTap: () => _navigateToViolationDetails(context, item),
-                    );
-                  },
+                  ),
                 );
-              },
-            ),
+              }
+
+              return SliverList.separated(
+                itemCount: filteredList.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                itemBuilder: (context, index) {
+                  final item = filteredList[index];
+                  return _EnhancedViolationCard(
+                    notification: item,
+                    severity: _inferSeverity(item.message),
+                    type: _extractType(item.message),
+                    onTap: () => _navigateToViolationDetails(context, item),
+                    onClear: () => _clearViolation(item),
+                  );
+                },
+              );
+            }(),
           ),
         ],
       ),
@@ -377,33 +441,35 @@ class _EnhancedViolationCard extends StatelessWidget {
   final String severity;
   final String type;
   final VoidCallback onTap;
+  final VoidCallback onClear;
 
   const _EnhancedViolationCard({
     required this.notification,
     required this.severity,
     required this.type,
     required this.onTap,
+    required this.onClear,
   });
 
   Color _getSeverityColor(String severity) {
     switch (severity) {
       case 'Critical':
-        return const Color(0xFFF87171); // Light red
+        return const Color(0xFFF87171);
       case 'High':
-        return const Color(0xFFFB923C); // Light orange
+        return const Color(0xFFFB923C);
       default:
-        return const Color(0xFFFBBF24); // Light yellow
+        return const Color(0xFFFBBF24);
     }
   }
 
   Color _getSeverityBackgroundColor(String severity) {
     switch (severity) {
       case 'Critical':
-        return const Color(0xFF431C1C); // Dark red
+        return const Color(0xFF431C1C);
       case 'High':
-        return const Color(0xFF4A271A); // Dark orange
+        return const Color(0xFF4A271A);
       default:
-        return const Color(0xFF4A3710); // Dark yellow
+        return const Color(0xFF4A3710);
     }
   }
 
@@ -422,11 +488,11 @@ class _EnhancedViolationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade900, // Dark card
+        color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3), // Darker shadow
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -438,7 +504,7 @@ class _EnhancedViolationCard extends StatelessWidget {
         ],
         border: Border.all(
           color: notification.isRead
-              ? Colors.grey.shade800 // Dark border
+              ? Colors.grey.shade800
               : const Color(0xFF2563EB).withOpacity(0.3),
           width: notification.isRead ? 1.5 : 2,
         ),
@@ -454,7 +520,6 @@ class _EnhancedViolationCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header with type and unread indicator
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -484,7 +549,7 @@ class _EnhancedViolationCard extends StatelessWidget {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 17,
-                                    color: Colors.white, // White text
+                                    color: Colors.white,
                                     letterSpacing: -0.3,
                                   ),
                                   maxLines: 1,
@@ -494,7 +559,7 @@ class _EnhancedViolationCard extends StatelessWidget {
                                 Text(
                                   notification.vehiclePlate,
                                   style: TextStyle(
-                                    color: Colors.grey.shade400, // Light grey
+                                    color: Colors.grey.shade400,
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -513,7 +578,7 @@ class _EnhancedViolationCard extends StatelessWidget {
                           color: const Color(0xFF2563EB),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.grey.shade900, // Match card background
+                            color: Colors.grey.shade900,
                             width: 2,
                           ),
                           boxShadow: [
@@ -529,14 +594,10 @@ class _EnhancedViolationCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Details section
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: _getSeverityBackgroundColor(severity),
                         borderRadius: BorderRadius.circular(12),
@@ -557,23 +618,16 @@ class _EnhancedViolationCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade800, // Dark background
+                        color: Colors.grey.shade800,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.grey.shade700,
-                          width: 1,
-                        ),
+                        border: Border.all(color: Colors.grey.shade700, width: 1),
                       ),
                       child: Text(
-                        DateFormat('MMM d, h:mm a')
-                            .format(notification.createdAt.toLocal()),
+                        DateFormat('MMM d, h:mm a').format(notification.createdAt.toLocal()),
                         style: TextStyle(
-                          color: Colors.grey.shade400, // Light grey
+                          color: Colors.grey.shade400,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -583,14 +637,9 @@ class _EnhancedViolationCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Location row
                 Row(
                   children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 16,
-                      color: Colors.grey.shade500,
-                    ),
+                    Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade500),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -607,58 +656,63 @@ class _EnhancedViolationCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 14),
 
-                // View details button
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF2563EB),
-                          Color(0xFF1D4ED8),
-                        ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onClear,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFF87171),
+                        side: BorderSide(color: const Color(0xFFF87171).withOpacity(0.6)),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF2563EB).withOpacity(0.5), // Brighter shadow
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      label: const Text(
+                        'Clear',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                      ),
                     ),
-                    child: ElevatedButton(
-                      onPressed: onTap,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
+                    const SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'View Details',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withOpacity(0.5),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
                           ),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_ios_rounded, size: 14),
                         ],
                       ),
+                      child: ElevatedButton(
+                        onPressed: onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'View Details',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -692,7 +746,7 @@ class _EnhancedFilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? backgroundColor : Colors.grey.shade900, // Dark background when not selected
+          color: isSelected ? backgroundColor : Colors.grey.shade900,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? backgroundColor : Colors.grey.shade700,
