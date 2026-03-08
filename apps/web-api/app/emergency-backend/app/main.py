@@ -20,7 +20,6 @@ from app.seed.seed_cli import create_admin
 from app.jobs.scheduler import start_scheduler, poll_shenal_database_once
 from app.jobs.h_scheduler import start_human_scheduler
 
-# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -37,8 +36,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# REMOVED: Static files mounting - using custom router instead
-# app.mount("/api/images", StaticFiles(directory="."), name="images")
 
 @app.on_event("startup")
 async def on_startup():
@@ -82,7 +79,6 @@ async def version():
         "version": "1.0.0"
     }
 
-# Force refresh endpoint for demo purposes
 @app.post("/api/demo/force-refresh")
 async def force_refresh_incidents():
     """Manually trigger processing of ALL violations (for demo purposes)"""
@@ -101,7 +97,6 @@ async def force_refresh_incidents():
             "message": str(e)
         }
 
-# Force ignore endpoint for false positives
 @app.post("/api/demo/force-ignore-normal")
 async def force_ignore_normal():
     """Force ignore the latest violation - PERMANENTLY marks it as normal vehicle"""
@@ -114,7 +109,6 @@ async def force_ignore_normal():
     emergency_db = client["emergency_db"]
     incidents_collection = emergency_db["incidents"]
     
-    # Find the latest violation
     latest = await violations_collection.find_one(
         sort=[("_id", -1)]
     )
@@ -148,14 +142,13 @@ async def force_ignore_normal():
     logger.info("⚠️ No violations to ignore")
     return {"success": False, "message": "No violations to ignore"}
 
-# Include all routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(responders_router, prefix="/api", tags=["responders"])
 app.include_router(incidents_router, prefix="/api", tags=["incidents"])
 app.include_router(assignments_router, prefix="/api", tags=["assignments"])
 app.include_router(telemetry_router, prefix="/api", tags=["telemetry"])
 app.include_router(routing_router, prefix="/api", tags=["routing"])
-app.include_router(images_router, prefix="/api", tags=["images"])  # Custom images router
+app.include_router(images_router, prefix="/api", tags=["images"]) 
 app.include_router(hub_router, prefix="/hub", tags=["hub"])
 app.include_router(human_router, prefix="/hub", tags=["human"])
 

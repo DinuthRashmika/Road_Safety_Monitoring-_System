@@ -23,7 +23,6 @@ async def process_human_alert(alert: Dict, incidents_collection) -> bool:
         alert_id = alert.get("alert_id") or alert.get("_id")
         logger.info(f"Processing human behavior alert: {alert_id}")
         
-        # Check if already processed
         if alert.get("emergency_processed") is True:
             logger.debug(f"Alert {alert_id} already processed")
             return False
@@ -51,7 +50,6 @@ async def process_human_alert(alert: Dict, incidents_collection) -> bool:
             "alert_number": alert.get("alert_number")
         }
         
-        # Call the ingest endpoint
         result = await ingest_human_alert(mapped_payload)
         
         if result and result.get("id"):
@@ -91,7 +89,6 @@ async def poll_human_database():
                 await asyncio.sleep(30)
                 continue
             
-            # Find alerts not yet processed by EMERGENCY SYSTEM
             cursor = alerts_collection.find({
                 "emergency_processed": {"$ne": True}
             }).sort("timestamp", -1).limit(5)
@@ -109,7 +106,6 @@ async def poll_human_database():
                         emergency_db
                     )
                     
-                    # Mark as processed by EMERGENCY SYSTEM only
                     await alerts_collection.update_one(
                         {"_id": alert["_id"]},
                         {

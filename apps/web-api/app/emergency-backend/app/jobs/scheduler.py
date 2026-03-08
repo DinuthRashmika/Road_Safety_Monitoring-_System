@@ -17,7 +17,6 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Global model instances
 _accident_model = None
 _fire_model = None
 
@@ -149,9 +148,6 @@ async def fetch_camera_data(cameras_collection, location: str, camera_id: str = 
     
     return None
 
-# ============================================
-# UPDATED: Separate accident and fire detection
-# ============================================
 async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
     """
     Use accident model to detect if image contains an accident.
@@ -164,16 +160,12 @@ async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, 
     if not model:
         return False, 0.0
 
-    # Define which class IDs are accidents - ADJUST THIS BASED ON YOUR MODEL
-    # If your model has class 0 = fire, class 1 = accident, then ACCIDENT_CLASS_IDS = [1]
-    # If your model has class 0 = accident, class 1 = vehicle, then ACCIDENT_CLASS_IDS = [0]
-    ACCIDENT_CLASS_IDS = [0]  # Change this based on your model's class mapping
+    ACCIDENT_CLASS_IDS = [0]  
 
     for attempt in range(max_retries + 1):
         try:
             img = None
             
-            # Check if it's a URL or local file path
             if image_path.startswith(('http://', 'https://')):
                 actual_url = _get_direct_drive_url(image_path)
                 logger.info(f"Downloading image for accident detection (attempt {attempt + 1}/{max_retries + 1})...")
@@ -195,7 +187,6 @@ async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, 
                     img = cv2.imdecode(arr, -1)
             
             else:
-                # Handle Shenal's local file path
                 clean_path = image_path.replace('\\', '/').lstrip('/')
                 full_path = os.path.join("shenal_uploads", clean_path)
                 
@@ -264,7 +255,6 @@ async def detect_fire(image_path: str, max_retries: int = 2) -> Tuple[bool, floa
         try:
             img = None
             
-            # Check if it's a URL or local file path
             if image_path.startswith(('http://', 'https://')):
                 actual_url = _get_direct_drive_url(image_path)
                 logger.info(f"Downloading image for fire detection (attempt {attempt + 1}/{max_retries + 1})...")
@@ -286,7 +276,6 @@ async def detect_fire(image_path: str, max_retries: int = 2) -> Tuple[bool, floa
                     img = cv2.imdecode(arr, -1)
             
             else:
-                # Handle Shenal's local file path
                 clean_path = image_path.replace('\\', '/').lstrip('/')
                 full_path = os.path.join("shenal_uploads", clean_path)
                 
@@ -350,7 +339,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
     try:
         violation_id = violation.get("_id")
         
-        # Check for PERMANENT ignore flag
         if violation.get("emergency_permanent_ignore") is True:
             logger.info(f"⏭️ Violation {violation_id} is PERMANENTLY ignored - skipping forever")
             return False
@@ -380,7 +368,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         
         logger.info(f"Checking image: {image_path[:100]}...")
         
-        # STEP 1: Detect accident using accident model
         is_accident, accident_conf = await detect_accident(image_path)
         
         if not is_accident:
@@ -389,13 +376,11 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         
         logger.info(f"✅ Accident detected! Confidence: {accident_conf:.2f}")
         
-        # STEP 2: Detect fire using fire model
         has_fire, fire_conf = await detect_fire(image_path)
         
         if has_fire:
             logger.info(f"🔥 FIRE DETECTED in accident with confidence {fire_conf:.2f}")
         
-        # Check for duplicates
         existing = await check_duplicate_incident(
             incidents_collection.database, 
             location
@@ -450,7 +435,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
                     lat, lng = coords["lat"], coords["lng"]
                     break
         
-        # Create payload with fire detection result
         payload = {
             "source": "traffic",
             "timestamp_utc": detection_time,
@@ -463,7 +447,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             "camera_risk_class": map_camera_risk(camera_data),
             "accident": {
                 "vehicles_involved": get_vehicles_involved(violation),
-                "fire_present": has_fire  # Set based on fire detection
+                "fire_present": has_fire  
             },
             "media": {
                 "image_url": image_path
@@ -502,7 +486,6 @@ async def poll_shenal_database_once():
         permanently_ignored = await violations_collection.count_documents({"emergency_permanent_ignore": True})
         logger.info(f"📊 Total violations: {total_violations}, Permanently ignored: {permanently_ignored}")
         
-        # Only get violations that are NOT permanently ignored
         cursor = violations_collection.find({
             "emergency_permanent_ignore": {"$ne": True}
         }).sort("_id", -1).limit(20)
@@ -572,7 +555,6 @@ async def poll_shenal_database():
                 await asyncio.sleep(30)
                 continue
             
-            # Only get violations that are NOT permanently ignored
             cursor = violations_collection.find({
                 "emergency_processed": {"$ne": True},
                 "emergency_permanent_ignore": {"$ne": True}

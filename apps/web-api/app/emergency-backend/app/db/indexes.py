@@ -23,23 +23,21 @@ async def _create_indexes(db: AgnosticDatabase, coll_name: str, indexes: Iterabl
 
 async def ensure_all(db: AgnosticDatabase) -> None:
 
-    # users (Responder Stations)
 
     await _ensure_collection(db, "users")
     user_indexes = [
         IndexModel([("email", ASCENDING)], unique=True, name="ux_users_email"),
         IndexModel([("role", ASCENDING)], name="ix_users_role"),
-        IndexModel([("location", GEOSPHERE)], name="gx_users_location"), # <-- ADDED
+        IndexModel([("location", GEOSPHERE)], name="gx_users_location"),
     ]
     await _create_indexes(db, "users", user_indexes)
 
-    # incidents
     
     await _ensure_collection(db, "incidents")
     incident_indexes = [
         IndexModel([("status", ASCENDING), ("score", DESCENDING)], name="ix_incidents_status_score"),
         IndexModel([("reported_at", DESCENDING)], name="ix_incidents_reported_at"),
-        IndexModel([("location", GEOSPHERE)], name="gx_incidents_location"), # 2dsphere for geo queries
+        IndexModel([("location", GEOSPHERE)], name="gx_incidents_location"), 
         IndexModel([("source", ASCENDING)], name="ix_incidents_source"),
         IndexModel([("camera_risk_class", ASCENDING)], name="ix_incidents_risk"),
         IndexModel([("severity_grade", ASCENDING)], name="ix_incidents_severity"),

@@ -22,7 +22,6 @@ async def ingest_human_alert(payload: dict = Body(...)):
     Responders: Police and Ambulance only (no fire)
     """
     try:
-        # Map Pamalis fields to your schema
         objects_detected = []
         if payload.get("objects_detected"):
             for obj in payload["objects_detected"]:
@@ -31,13 +30,10 @@ async def ingest_human_alert(payload: dict = Body(...)):
                     confidence=obj.get("confidence", 0)
                 ))
         
-        # Get camera risk class (default to medium)
-        # You can enhance this with camera mapping later
         camera_risk = "medium"
         
-        # Create violence details object
         violence_details = ViolenceDetails(
-            participants_count=1,  # Default for human behavior
+            participants_count=1,  
             weapon_conf=payload.get("threat_score", 0),
             threat_score=payload.get("threat_score"),
             has_weapon=payload.get("has_weapon", False),
@@ -53,7 +49,6 @@ async def ingest_human_alert(payload: dict = Body(...)):
             human_summary=payload.get("human_summary")
         )
         
-        # Determine severity grade from threat level
         severity_map = {
             "HIGH": "high",
             "MEDIUM": "medium", 
@@ -61,12 +56,11 @@ async def ingest_human_alert(payload: dict = Body(...)):
         }
         severity = severity_map.get(payload.get("threat_level", "MEDIUM"), "medium")
         
-        # Create incident object
         incident = Incident(
             source="human_behavior",
             reported_at=payload.get("timestamp", utcnow_iso()),
             location={
-                "lat": 0,  # You'll need to map from camera location
+                "lat": 0, 
                 "lng": 0,
                 "address": payload.get("location", "Unknown")
             },
@@ -79,7 +73,6 @@ async def ingest_human_alert(payload: dict = Body(...)):
         # Compute priority scores
         incident = compute_scores(incident)
         
-        # Insert into database
         doc = incident.model_dump(exclude_none=True)
         inserted_id = await insert_incident(doc)
         

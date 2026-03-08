@@ -7,9 +7,6 @@ Severity = Literal["low","medium","high"]
 Risk = Literal["low","medium","high"]
 Status = Literal["unverified", "new","accepted","enroute","arrived","resolved"]
 
-# ============================================
-# NEW: Classes for Pamalis Human Behavior Data
-# ============================================
 class DetectedObject(BaseModel):
     """Individual object detected in human behavior alert"""
     object: str
@@ -20,7 +17,6 @@ class ViolenceDetails(BaseModel):
     participants_count: int = 1
     weapon_conf: float = 0.0
     
-    # Pamalis specific fields
     threat_score: Optional[float] = None
     has_weapon: Optional[bool] = None
     action_confidence: Optional[float] = None
@@ -34,9 +30,6 @@ class ViolenceDetails(BaseModel):
     reasoning: Optional[str] = None
     human_summary: Optional[str] = None
 
-# ============================================
-# EXISTING CLASSES (Preserved)
-# ============================================
 class Accident(BaseModel):
     vehicles_involved: int = 1
     fire_present: bool = False
@@ -55,7 +48,7 @@ class Incident(BaseModel):
     
     report_id: Optional[str] = None 
     
-    source: Literal["traffic","violence", "human_behavior"]  # Added "human_behavior"
+    source: Literal["traffic","violence", "human_behavior"] 
     
     reported_at: Optional[str] = Field(None, alias="timestamp_utc")
     
@@ -63,7 +56,7 @@ class Incident(BaseModel):
     severity_grade: Severity
     camera_risk_class: Risk
     accident: Optional[Accident] = None
-    violence: Optional[ViolenceDetails] = None  # Updated to use ViolenceDetails
+    violence: Optional[ViolenceDetails] = None  
     media: Optional[Media] = None
     score: int = 0
     required_roles: list[str] = Field(default_factory=list) 

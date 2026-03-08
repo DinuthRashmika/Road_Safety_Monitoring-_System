@@ -8,7 +8,6 @@ from typing import Optional
 from ultralytics import YOLO
 from app.config import settings
 
-# Initialize logger
 logger = logging.getLogger(__name__)
 
 _model_instance = None
@@ -39,9 +38,6 @@ def _get_direct_url(url: str) -> str:
     
     return url
 
-# ============================================
-# UPDATED: Fire detection with local file support
-# ============================================
 async def fire_present_from_image(image_path: Optional[str]) -> bool:
     """
     Check for fire in image - handles both URLs and Shenal's local paths
@@ -52,9 +48,8 @@ async def fire_present_from_image(image_path: Optional[str]) -> bool:
     try:
         frame = None
         
-        # Check if it's a URL or local file
         if image_path.startswith(('http://', 'https://')):
-            # Handle URL
+          
             target_url = _get_direct_url(image_path)
             logger.info(f"Downloading image from URL for fire detection: {target_url[:50]}...")
             
@@ -71,11 +66,8 @@ async def fire_present_from_image(image_path: Optional[str]) -> bool:
             frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         
         else:
-            # Handle Shenal's local file path
-            # Clean up the path (remove any leading slashes and fix backslashes)
             clean_path = image_path.replace('\\', '/').lstrip('/')
             
-            # Construct full path to the image in shenal_uploads folder
             full_path = os.path.join("shenal_uploads", clean_path)
             
             logger.info(f"Looking for local image for fire detection at: {full_path}")
@@ -87,7 +79,6 @@ async def fire_present_from_image(image_path: Optional[str]) -> bool:
                 else:
                     logger.warning(f"OpenCV failed to read image: {full_path}")
             else:
-                # Try alternative paths (in case path format is different)
                 alt_path = os.path.join("shenal_uploads", "detections", os.path.basename(image_path))
                 if os.path.exists(alt_path):
                     logger.info(f"Found image at alternative path: {alt_path}")
@@ -104,7 +95,6 @@ async def fire_present_from_image(image_path: Optional[str]) -> bool:
         logger.error(f"Image processing error for {image_path}: {e}")
         return False
 
-    # Load Model and Run Inference
     model = get_model()
     if not model:
         logger.warning("Model not available. Skipping check.")
