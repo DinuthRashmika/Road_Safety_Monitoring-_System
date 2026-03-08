@@ -53,12 +53,6 @@ class DmsPipeline:
                 "message": "Driver is using phone"
             })
 
-        if self.debouncers["seatbelt"].update(seatbelt_off, now):
-            out.append({
-                "type": "seatbelt",
-                "confidence": 0.9,
-                "message": "Driver seatbelt not detected"
-            })
 
         if self.debouncers["drowsiness"].update(drowsiness, now):
             out.append({
@@ -79,6 +73,12 @@ class DmsPipeline:
                 "type": "headpose",
                 "confidence": float(y.get("headpose_conf", 0.0)),
                 "message": "Driver head pose abnormal"
+            })
+        if self.debouncers["seatbelt"].update(seatbelt_off, now):
+            out.append({
+                "type": "seatbelt",
+                "confidence": 0.9,
+                "message": "Driver seatbelt not detected"
             })
 
         return out
