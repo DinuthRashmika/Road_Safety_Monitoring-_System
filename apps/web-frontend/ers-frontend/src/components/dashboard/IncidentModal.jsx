@@ -159,7 +159,8 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         if (assigned) {
             return {
                 ...assigned,
-                isAssigned: true
+                isAssigned: true,
+                status: assigned.status || 'assigned'
             };
         } else {
             return {
@@ -201,16 +202,10 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     setImageLoading(false);
   };
 
-  if (loading) return (
-    <div className="modal-backdrop">
-      <div className="modal-content">
-        <div className="loading-spinner">Loading incident details...</div>
-      </div>
-    </div>
-  );
+  if (loading) return null;
   
   if (error) return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content">
         <p className="error-message">{error}</p>
         <button onClick={onClose} className="btn-close">Close</button>
@@ -221,10 +216,8 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   if (!incident) return null;
 
   const isAdmin = user?.role === 'admin';
-  const isNew = incident.status === 'new';
   const myStatus = incident.status; 
 
-  // Get image URL only for traffic incidents
   const rawImageUrl = incident.media?.image_url;
   const imageUrl = getImageUrl(rawImageUrl, API_BASE_URL);
 
@@ -232,15 +225,8 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const isLocalImage = isLocalApiUrl(rawImageUrl);
   const roleStatusList = getRoleStatusList();
 
-  // Determine if this is a violence/human behavior incident
   const isViolence = incident.source === 'violence' || incident.source === 'human_behavior';
   const isTraffic = incident.source === 'traffic';
-
-  // Debug log
-  console.log("Incident ID:", incidentId);
-  console.log("Source:", incident.source);
-  console.log("Is Violence:", isViolence);
-  console.log("Raw URL from API:", rawImageUrl);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -249,7 +235,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         <h3>Emergency Details - #{incident.id ? incident.id.slice(-6) : '...'}</h3>
         
         <div className="modal-body">
-          {/* LEFT COLUMN - Always visible */}
+          {/* LEFT COLUMN - Incident Information */}
           <div className="modal-left">
             <h4>Incident Information</h4>
             <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Traffic Accident' : 'Violence'}</p>
@@ -284,133 +270,163 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             </div>
           </div>
 
-          {/* RIGHT COLUMN - Conditional based on incident type */}
-          {isTraffic && (
-            /* TRAFFIC INCIDENT - Show Scene Evidence with image */
-            <div className="modal-right">
-              <h4>Scene Evidence</h4>
-              <div className="scene-image-placeholder">
-                {imageUrl ? (
-                  driveId ? (
-                    <iframe 
-                        src={`https://drive.google.com/file/d/${driveId}/preview`}
-                        width="100%" 
-                        height="250px" 
-                        className="evidence-iframe"
-                        title="Scene Evidence"
-                        allowFullScreen
-                        onLoad={() => console.log("Google Drive iframe loaded")}
-                        onError={() => console.error("Google Drive iframe failed")}
-                    />
-                  ) : (
-                    <>
-                      {imageLoading && <div className="image-loading">Loading image...</div>}
-                      <img 
-                          src={imageUrl} 
-                          alt="Scene" 
-                          className="evidence-image"
-                          style={{ display: imageError ? 'none' : 'block' }}
-                          onLoad={handleImageLoad}
-                          onError={handleImageError}
+          {/* RIGHT COLUMN - Scene Evidence or Violence Details */}
+          <div className="modal-right">
+            {isTraffic && (
+              <>
+                <h4>Scene Evidence</h4>
+                <div className="scene-image-placeholder">
+                  {imageUrl ? (
+                    driveId ? (
+                      <iframe 
+                          src={`https://drive.google.com/file/d/${driveId}/preview`}
+                          width="100%" 
+                          height="250px" 
+                          className="evidence-iframe"
+                          title="Scene Evidence"
+                          allowFullScreen
+                          onLoad={() => console.log("Google Drive iframe loaded")}
+                          onError={() => console.error("Google Drive iframe failed")}
                       />
-                      {imageError && (
-                        <div className="image-error-container">
-                          <span className="image-load-error">⚠️ Image failed to load</span>
-                          {isLocalImage && (
-                            <div className="image-debug-info">
-                              <p>Debug info:</p>
-                              <p>Raw path: {rawImageUrl}</p>
-                              <p>Final URL: {imageUrl}</p>
-                              <p>Try accessing directly:</p>
-                              <a href={imageUrl} target="_blank" rel="noopener noreferrer">
-                                Open image directly
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )
-                ) : (
-                  <span className="no-image-text">No image provided</span>
+                    ) : (
+                      <>
+                        {imageLoading && <div className="image-loading">Loading image...</div>}
+                        <img 
+                            src={imageUrl} 
+                            alt="Scene" 
+                            className="evidence-image"
+                            style={{ display: imageError ? 'none' : 'block' }}
+                            onLoad={handleImageLoad}
+                            onError={handleImageError}
+                        />
+                        {imageError && (
+                          <div className="image-error-container">
+                            <span className="image-load-error">⚠️ Image failed to load</span>
+                            {isLocalImage && (
+                              <div className="image-debug-info">
+                                <p>Debug info:</p>
+                                <p>Raw path: {rawImageUrl}</p>
+                                <p>Final URL: {imageUrl}</p>
+                                <p>Try accessing directly:</p>
+                                <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+                                  Open image directly
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )
+                  ) : (
+                    <span className="no-image-text">No image provided</span>
+                  )}
+                </div>
+                {imageUrl && !imageError && (
+                    <div className="view-original-container">
+                        <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="view-original-link">
+                            View Original ↗
+                        </a>
+                    </div>
                 )}
-              </div>
-              {imageUrl && !imageError && (
-                  <div className="view-original-container">
-                      <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="view-original-link">
-                          View Original ↗
-                      </a>
-                  </div>
-              )}
-            </div>
-          )}
+              </>
+            )}
 
-          {isViolence && (
-            /* VIOLENCE INCIDENT - Show detailed violence information instead of image */
-            <div className="modal-right">
-              <h4>Violence Details</h4>
-              <div className="violence-details-box">
-                {incident.violence?.threat_level && (
-                  <p><strong>Threat Level:</strong> 
-                    <span className={`threat-badge ${incident.violence.threat_level.toLowerCase()}`}>
-                      {incident.violence.threat_level}
-                    </span>
-                  </p>
-                )}
-                
-                {incident.violence?.threat_score && (
-                  <p><strong>Threat Score:</strong> {(incident.violence.threat_score * 100).toFixed(1)}%</p>
-                )}
-                
-                {incident.violence?.action && (
-                  <p><strong>Action:</strong> {incident.violence.action}</p>
-                )}
-                
-                {incident.violence?.action_confidence && (
-                  <p><strong>Action Confidence:</strong> {(incident.violence.action_confidence * 100).toFixed(1)}%</p>
-                )}
-                
-                {incident.violence?.has_weapon && (
-                  <p><strong>Weapon Detected:</strong> Yes</p>
-                )}
-                
-                {incident.violence?.weapon_conf > 0 && (
-                  <p><strong>Weapon Confidence:</strong> {(incident.violence.weapon_conf * 100).toFixed(1)}%</p>
-                )}
-                
-                {incident.violence?.sustained_seconds > 0 && (
-                  <p><strong>Duration:</strong> {incident.violence.sustained_seconds} seconds</p>
-                )}
-                
-                {incident.violence?.objects_detected && incident.violence.objects_detected.length > 0 && (
-                  <div className="objects-detected">
-                    <p><strong>Objects Detected:</strong></p>
-                    <ul>
-                      {incident.violence.objects_detected.map((obj, idx) => (
-                        <li key={idx}>
-                          {obj.object} ({(obj.confidence * 100).toFixed(1)}% confidence)
-                        </li>
-                      ))}
-                    </ul>
+            {isViolence && (
+              <>
+                <h4>Violence Details</h4>
+                <div className="violence-details-box">
+                  {incident.violence?.threat_level && (
+                    <p><strong>Threat Level:</strong> 
+                      <span className={`threat-badge ${incident.violence.threat_level.toLowerCase()}`}>
+                        {incident.violence.threat_level}
+                      </span>
+                    </p>
+                  )}
+                  
+                  {incident.violence?.threat_score && (
+                    <p><strong>Threat Score:</strong> {(incident.violence.threat_score * 100).toFixed(1)}%</p>
+                  )}
+                  
+                  {incident.violence?.action && (
+                    <p><strong>Action:</strong> {incident.violence.action}</p>
+                  )}
+                  
+                  {incident.violence?.action_confidence && (
+                    <p><strong>Action Confidence:</strong> {(incident.violence.action_confidence * 100).toFixed(1)}%</p>
+                  )}
+                  
+                  {incident.violence?.has_weapon && (
+                    <p><strong>Weapon Detected:</strong> Yes</p>
+                  )}
+                  
+                  {incident.violence?.weapon_conf > 0 && (
+                    <p><strong>Weapon Confidence:</strong> {(incident.violence.weapon_conf * 100).toFixed(1)}%</p>
+                  )}
+                  
+                  {incident.violence?.sustained_seconds > 0 && (
+                    <p><strong>Duration:</strong> {incident.violence.sustained_seconds} seconds</p>
+                  )}
+                  
+                  {incident.violence?.objects_detected && incident.violence.objects_detected.length > 0 && (
+                    <div className="objects-detected">
+                      <p><strong>Objects Detected:</strong></p>
+                      <ul>
+                        {incident.violence.objects_detected.map((obj, idx) => (
+                          <li key={idx}>
+                            {obj.object} ({(obj.confidence * 100).toFixed(1)}% confidence)
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {incident.violence?.human_summary && (
+                    <div className="human-summary">
+                      <p><strong>Summary:</strong></p>
+                      <p>{incident.violence.human_summary}</p>
+                    </div>
+                  )}
+                  
+                  {incident.violence?.reasoning && (
+                    <div className="reasoning">
+                      <p><strong>Reasoning:</strong></p>
+                      <p>{incident.violence.reasoning}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* RESPONSE STATUS SECTION - Always visible for all incident types */}
+            <div className="response-status-section">
+              <h4>Response Status</h4>
+              <div className="resp-list">
+                {roleStatusList.length > 0 ? roleStatusList.map((item, idx) => (
+                  <div 
+                      key={idx} 
+                      className={`resp-row ${item.status}`}
+                      onClick={() => item.isAssigned ? handleResponderClick(item) : null}
+                      style={item.isAssigned && isAdmin ? {cursor: 'pointer'} : {}}
+                      title={item.isAssigned && isAdmin ? "Click to view profile" : ""}
+                  >
+                      <div className="resp-info">
+                          <span className={`role-tag ${item.role}`} style={{fontSize:'0.7rem', padding:'1px 5px', marginRight:'8px'}}>
+                              {item.role.toUpperCase()}
+                          </span>
+                          <span className={item.isAssigned ? "resp-name" : "resp-name-pending"}>
+                              {item.name}
+                          </span>
+                      </div>
+                      <span className="resp-status">
+                          {item.status === 'pending' ? 'WAITING' : item.status.toUpperCase()}
+                      </span>
                   </div>
-                )}
-                
-                {incident.violence?.human_summary && (
-                  <div className="human-summary">
-                    <p><strong>Summary:</strong></p>
-                    <p>{incident.violence.human_summary}</p>
-                  </div>
-                )}
-                
-                {incident.violence?.reasoning && (
-                  <div className="reasoning">
-                    <p><strong>Reasoning:</strong></p>
-                    <p>{incident.violence.reasoning}</p>
-                  </div>
+                )) : (
+                  <p style={{color:'#999', fontSize:'0.9rem'}}>No responders assigned yet.</p>
                 )}
               </div>
             </div>
-          )}
+          </div>
         </div>
         
         <div className="modal-footer">
