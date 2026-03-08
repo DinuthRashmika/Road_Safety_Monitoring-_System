@@ -213,9 +213,6 @@
 
 .resp-status { font-size: 0.8rem; font-weight: bold; color: #555; }
 
-/* Add these styles to your existing IncidentModal.css */
-
-/* Violence details styling */
 .violence-details-box {
   background: #f8f9fa;
   border-radius: 8px;
@@ -286,7 +283,6 @@
   margin-bottom: 0;
 }
 
-/* Loading spinner */
 .loading-spinner {
   text-align: center;
   padding: 40px;

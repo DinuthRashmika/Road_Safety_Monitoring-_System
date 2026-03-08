@@ -81,7 +81,6 @@
   color: #E4080A;
 }
 
-/* Existing styles below... */
 .card-body {
   display: flex;
   justify-content: space-between;
@@ -115,7 +114,6 @@
 .role-tag.fire { background-color: #E4080A; }
 
 .score-badge {
-  /* Increase this value to make the score larger */
   font-size: 1.7rem !important; 
   font-weight: 700 !important;
   color: #333;
@@ -123,7 +121,6 @@
   margin-right: 10px;
 }
 
-/* Ensure the container aligns the larger text correctly */
 .card-actions {
   display: flex;
   align-items: center;

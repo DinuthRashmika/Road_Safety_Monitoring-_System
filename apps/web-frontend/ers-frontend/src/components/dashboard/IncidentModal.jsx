@@ -13,32 +13,25 @@ const getDriveId = (url) => {
   return null;
 };
 
-// Helper function to check if URL is local API endpoint
 const isLocalApiUrl = (url) => {
   return url && (url.startsWith('/api/images/') || !url.startsWith('http'));
 };
 
-// Helper function to convert Shenal's Windows paths to proper URLs
 const getImageUrl = (rawPath, baseUrl) => {
   if (!rawPath) return null;
   
-  // If it's already a full URL, return as is
   if (rawPath.startsWith('http')) return rawPath;
   
-  // If it's already a proper API path, just add base URL
   if (rawPath.startsWith('/api/images/')) {
     return `${baseUrl}${rawPath}`;
   }
   
-  // Clean Windows paths: replace backslashes with forward slashes
   const cleanPath = rawPath.replace(/\\/g, '/');
   
-  // URL encode each segment to handle spaces and special characters
   const encodedSegments = cleanPath.split('/').map(segment => 
     encodeURIComponent(segment)
   ).join('/');
   
-  // Construct the final URL
   return `${baseUrl}/api/images/${encodedSegments}`;
 };
 
@@ -54,7 +47,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const navigate = useNavigate();
   const { user } = useAuth(); 
 
-  // Backend base URL to resolve local images
   const API_BASE_URL = "http://localhost:8000";
 
   useEffect(() => {
@@ -235,7 +227,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         <h3>Emergency Details - #{incident.id ? incident.id.slice(-6) : '...'}</h3>
         
         <div className="modal-body">
-          {/* LEFT COLUMN - Incident Information */}
           <div className="modal-left">
             <h4>Incident Information</h4>
             <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Traffic Accident' : 'Violence'}</p>
@@ -270,7 +261,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
             </div>
           </div>
 
-          {/* RIGHT COLUMN - Scene Evidence or Violence Details */}
           <div className="modal-right">
             {isTraffic && (
               <>
@@ -390,7 +380,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
               </>
             )}
 
-            {/* RESPONSE STATUS SECTION - Always visible for all incident types */}
             <div className="response-status-section">
               <h4>Response Status</h4>
               <div className="resp-list">

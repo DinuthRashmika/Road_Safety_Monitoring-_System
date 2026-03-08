@@ -1,4 +1,3 @@
-/* Header Styles */
 .history-header {
   margin-bottom: 24px;
   padding-bottom: 16px;
@@ -19,7 +18,6 @@
   font-size: 0.95rem;
 }
 
-/* Container */
 .history-container {
   background: white;
   border-radius: 16px;
@@ -29,7 +27,6 @@
   min-height: 600px;
 }
 
-/* Table Styles */
 .history-table {
   width: 100%;
   border-collapse: collapse;
@@ -63,7 +60,6 @@
   background-color: #f8fafc;
 }
 
-/* Incident ID */
 .incident-id {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-weight: 600;
@@ -71,7 +67,6 @@
   letter-spacing: -0.01em;
 }
 
-/* Type Badge */
 .incident-type {
   display: inline-flex;
   align-items: center;
@@ -95,7 +90,6 @@
   border: 1px solid #fecaca;
 }
 
-/* Location */
 .incident-location {
   max-width: 200px;
   white-space: nowrap;
@@ -104,14 +98,12 @@
   color: #475569;
 }
 
-/* Time */
 .incident-time {
   color: #64748b;
   font-size: 0.9rem;
   white-space: nowrap;
 }
 
-/* Score Badge */
 .score-badge {
   display: inline-block;
   padding: 5px 12px;
@@ -122,31 +114,6 @@
   text-align: center;
 }
 
-/* .score-badge.critical {
-  background-color: #ffebee;
-  color: #c62828;
-  border: 1px solid #ffcdd2;
-}
-
-.score-badge.high {
-  background-color: #fff3e0;
-  color: #ef6c00;
-  border: 1px solid #ffe0b2;
-}
-
-.score-badge.medium {
-  background-color: #fff8e1;
-  color: #ff8f00;
-  border: 1px solid #ffecb3;
-}
-
-.score-badge.low {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #c8e6c9;
-} */
-
-/* View Details Button */
 .view-details-btn {
   background-color: white;
   color: #2563eb;
@@ -172,7 +139,6 @@
   transform: translateY(0);
 }
 
-/* Loading State */
 .loading-state {
   text-align: center;
   color: #64748b;
@@ -182,7 +148,6 @@
   border-radius: 12px;
 }
 
-/* Empty State */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -203,7 +168,6 @@
   margin: 0;
 }
 
-/* Error Message */
 .error-message {
   background-color: #ffebee;
   border: 1px solid #ffcdd2;
@@ -217,7 +181,6 @@
   gap: 8px;
 }
 
-/* Responsive Table */
 @media (max-width: 768px) {
   .history-table thead {
     display: none;
@@ -272,7 +235,6 @@
   }
 }
 
-/* Small Mobile */
 @media (max-width: 480px) {
   .history-header h2 {
     font-size: 1.5rem;

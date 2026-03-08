@@ -47,7 +47,6 @@ const Dashboard = () => {
     fetchQueue();
   };
 
-  // Silent refresh - no messages, no tooltips
   const handleSilentRefresh = async () => {
     if (refreshing) return;
     
@@ -63,14 +62,13 @@ const Dashboard = () => {
     }
   };
 
-  // Completely silent ignore - no messages, just works
   const handleSilentIgnore = async () => {
     if (ignoring) return;
     
     setIgnoring(true);
     try {
       await api.post('/api/demo/force-ignore-normal');
-      await fetchQueue(); // Silently refresh queue
+      await fetchQueue(); 
     } catch (err) {
       console.error('Ignore failed:', err);
     } finally {
@@ -78,7 +76,6 @@ const Dashboard = () => {
     }
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'R') {
@@ -114,7 +111,6 @@ const Dashboard = () => {
         <p>Monitor and respond to active emergencies in your area</p>
       </div>
 
-      {/* Hidden refresh button - top right (invisible) */}
       <div className="hidden-refresh-zone">
         <div 
           className="hidden-refresh-button"
@@ -123,7 +119,6 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Hidden ignore button - bottom left (completely invisible, only cursor changes) */}
       <div className="hidden-ignore-zone">
         <div 
           className="hidden-ignore-button"
