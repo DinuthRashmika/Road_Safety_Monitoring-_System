@@ -386,13 +386,6 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                       <p>{incident.violence.human_summary}</p>
                     </div>
                   )}
-                  
-                  {incident.violence?.reasoning && (
-                    <div className="reasoning">
-                      <p><strong>Reasoning:</strong></p>
-                      <p>{incident.violence.reasoning}</p>
-                    </div>
-                  )}
                 </div>
               </>
             )}
