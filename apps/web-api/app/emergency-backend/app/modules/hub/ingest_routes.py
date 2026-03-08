@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
+import os
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import ValidationError
 from bson import ObjectId
@@ -58,6 +59,28 @@ def clean_image_url(url: str) -> str:
     
     return url
 
+def get_local_image_path(image_path: str) -> str:
+    """Convert local file path to API endpoint, preserving folder structure"""
+    if not image_path:
+        return image_path
+    
+    # If it's already a URL, return as is
+    if image_path.startswith(('http://', 'https://')):
+        return image_path
+    
+    # Clean up the path (replace backslashes with forward slashes)
+    clean_path = image_path.replace('\\', '/')
+    
+    # Remove any leading slashes
+    clean_path = clean_path.lstrip('/')
+    
+    # URL encode the path
+    import urllib.parse
+    encoded_path = urllib.parse.quote(clean_path)
+    
+    # Return API endpoint with the full path
+    return f"/api/images/{encoded_path}"
+
 async def store_violation_reference(incident_id: str, violation_metadata: Dict[str, Any]):
     try:
         db = get_db()
@@ -78,10 +101,14 @@ async def store_violation_reference(incident_id: str, violation_metadata: Dict[s
 async def ingest(payload: dict = Body(...)):
   
     try:
+        # Handle image URL - convert local paths to API endpoints
         if "media" in payload and isinstance(payload["media"], dict):
             raw_url = payload["media"].get("image_url")
             if raw_url:
-                payload["media"]["image_url"] = clean_image_url(raw_url)
+                # First clean Google Drive URLs if needed
+                cleaned_url = clean_image_url(raw_url)
+                # Then convert local paths to API endpoints
+                payload["media"]["image_url"] = get_local_image_path(cleaned_url)
 
         provided_score = payload.pop("score", None)
         report_id = payload.get("report_id")

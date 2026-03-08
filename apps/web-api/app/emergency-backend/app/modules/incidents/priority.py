@@ -3,6 +3,7 @@ from datetime import datetime
 from app.modules.incidents.schemas import Incident
 from enum import Enum
 import math
+from typing import Tuple, List
 
 # Vehicle Types and their Vulnerability Scores
 class VehicleType(Enum):
@@ -425,17 +426,75 @@ def clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
 # ============================================
-# MAIN SCORING ENGINE - MFIPA+ with 6 Parameters
+# UPDATED: Violence scoring with Pamalis parameters
+# ============================================
+def score_violence_incident(inc: Incident, Tr: float, Lr: float, Hs: float, Sg: float, Du: float) -> Tuple[int, List[str]]:
+    """
+    Enhanced violence scoring with Pamalis parameters.
+    ALWAYS requires Police + Ambulance for human behavior incidents.
+    """
+    
+    explain = []
+    
+    # Base violence parameters
+    W = clamp01(inc.violence.weapon_conf) if inc.violence and inc.violence.weapon_conf else 0
+    P = clamp01((inc.violence.participants_count - 1) / 4.0) if inc.violence and inc.violence.participants_count else 0
+    
+    # Pamalis parameters
+    threat_score = clamp01(inc.violence.threat_score) if inc.violence and inc.violence.threat_score else 0
+    has_weapon = 1.0 if inc.violence and inc.violence.has_weapon else 0
+    action_conf = clamp01(inc.violence.action_confidence) if inc.violence and inc.violence.action_confidence else 0
+    sustained = clamp01(inc.violence.sustained_seconds / 10.0) if inc.violence and inc.violence.sustained_seconds else 0
+    
+    # Objects detected factor
+    objects_factor = 0
+    if inc.violence and inc.violence.objects_detected:
+        obj_count = len(inc.violence.objects_detected)
+        avg_conf = sum(obj.confidence for obj in inc.violence.objects_detected) / obj_count if obj_count > 0 else 0
+        objects_factor = clamp01((obj_count * avg_conf) / 5.0)
+    
+    # Weighted combination
+    weighted_sum = (
+        0.25 * threat_score +
+        0.20 * has_weapon +
+        0.15 * action_conf +
+        0.10 * sustained +
+        0.10 * objects_factor +
+        0.10 * W +
+        0.10 * P
+    )
+    
+    # Apply time, location, holiday factors
+    final_weighted = weighted_sum * (0.6) + (0.2 * Tr) + (0.1 * Lr) + (0.1 * Hs)
+    
+    raw_score = 100 * final_weighted * Sg
+    final_score = min(100, round(raw_score))
+    
+    # Build explanation
+    explain.append(f"👥 Violence Incident Scoring:")
+    explain.append(f"  Threat Score: {threat_score:.2f} [25%] = {threat_score*0.25:.3f}")
+    explain.append(f"  Has Weapon: {has_weapon:.2f} [20%] = {has_weapon*0.20:.3f}")
+    explain.append(f"  Action Confidence: {action_conf:.2f} [15%] = {action_conf*0.15:.3f}")
+    explain.append(f"  Duration: {sustained:.2f} [10%] = {sustained*0.10:.3f}")
+    explain.append(f"  Objects: {objects_factor:.2f} [10%] = {objects_factor*0.10:.3f}")
+    explain.append(f"  Weapon Conf: {W:.2f} [10%] = {W*0.10:.3f}")
+    explain.append(f"  Participants: {P:.2f} [10%] = {P*0.10:.3f}")
+    explain.append(f"  Time Risk: {Tr:.2f} [20%] = {Tr*0.20:.3f}")
+    explain.append(f"  Location Risk: {Lr:.2f} [10%] = {Lr*0.10:.3f}")
+    explain.append(f"  Holiday Surge: {Hs:.2f} [10%] = {Hs*0.10:.3f}")
+    explain.append(f"  Severity Multiplier: {Sg:.2f}")
+    explain.append(f"  Final Score: {final_score}")
+    
+    return final_score, explain
+
+# ============================================
+# MAIN SCORING ENGINE - UPDATED WITH NEW REQUIREMENTS
 # ============================================
 def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
     """
-    MFIPA+ Algorithm with 6 Parameters (all as direct scores):
-    1. Vehicle Vulnerability (Vu) - 25%
-    2. Location Risk (Lr) - 20%
-    3. Time-of-Day Risk (Tr) - 15%
-    4. Holiday Surge (Hs) - 10% (Based on 2026 Sri Lankan holidays)
-    5. Severity Grade (Sg) - 15% (as direct score)
-    6. Distance Urgency (Du) - 15%
+    MFIPA+ Algorithm with updated responder requirements:
+    - Shenal (traffic): Fire → 3 responders, No fire → Police + Ambulance
+    - Pamalis (human): Always Police + Ambulance (no fire)
     """
     # Parse incident time
     dt = datetime.now()
@@ -445,13 +504,13 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
         except ValueError:
             pass
 
-    # Calculate all 6 parameters (all as direct scores)
-    Vu = calculate_vulnerability_index(inc)           # 25% weight
-    Lr = map_risk(inc.camera_risk_class)              # 20% weight
-    Tr = get_temporal_impact(dt)                       # 15% weight
-    Hs = get_holiday_surge(dt)                         # 10% weight - UPDATED with 2026 holidays
-    Sg = get_severity_score(inc.severity_grade)        # 15% weight (direct score)
-    Du = calculate_distance_urgency(inc, responder_location)  # 15% weight
+    # Calculate all 6 parameters
+    Vu = calculate_vulnerability_index(inc) if inc.accident else 0.5
+    Lr = map_risk(inc.camera_risk_class)
+    Tr = get_temporal_impact(dt)
+    Hs = get_holiday_surge(dt)
+    Sg = get_severity_score(inc.severity_grade)
+    Du = calculate_distance_urgency(inc, responder_location)
     
     explain: list[str] = []
     
@@ -459,7 +518,7 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
     fire_detected = (inc.accident and inc.accident.fire_present) or \
                     (inc.violence and hasattr(inc.violence, 'fire_present') and inc.violence.fire_present)
     
-    # --- SCENARIO A: ACCIDENT ---
+    # --- SCENARIO A: ACCIDENT (Shenal's traffic) ---
     if inc.accident:
         if inc.accident.fire_present:
             inc.score = 100
@@ -471,14 +530,14 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
             if hasattr(inc.accident, 'vehicle_type') and inc.accident.vehicle_type:
                 vehicle_type = inc.accident.vehicle_type
             
-            # MFIPA+ Formula with 6 parameters (all added, no multiplier)
+            # MFIPA+ Formula with 6 parameters
             weighted_sum = (
-                0.25 * Vu +    # Vehicle Vulnerability - 25%
-                0.20 * Lr +    # Location Risk - 20%
-                0.15 * Tr +    # Time Risk - 15%
-                0.10 * Hs +    # Holiday Surge - 10% (based on 2026 holidays)
-                0.15 * Sg +    # Severity Grade - 15% (direct)
-                0.15 * Du      # Distance Urgency - 15%
+                0.25 * Vu +
+                0.20 * Lr +
+                0.15 * Tr +
+                0.10 * Hs +
+                0.15 * Sg +
+                0.15 * Du
             )
             
             raw_score = 100 * weighted_sum
@@ -504,67 +563,23 @@ def score_incident(inc: Incident, responder_location: dict = None) -> Incident:
             explain.append(f"  Weighted Sum: {weighted_sum:.3f}")
             explain.append(f"  Final Score: {inc.score}")
             
-            # Determine required roles based on score and vehicle type
+            # UPDATED: Shenal's traffic accidents ALWAYS get Police + Ambulance
             inc.required_roles = ["ambulance", "police"]
             
             # Add fire if heavy vehicle (more likely to need fire rescue)
             if vehicle_type in ["truck", "heavy_truck", "bus", "container"] and inc.score > 70:
                 inc.required_roles.append("fire")
                 explain.append("🚒 Fire services added due to heavy vehicle involvement")
-            
-            # Add fire if very high score
-            if inc.score > 85:
-                inc.required_roles.append("fire")
-                explain.append("🚒 Fire services added due to critical score")
 
-    # --- SCENARIO B: VIOLENCE ---
+    # --- SCENARIO B: VIOLENCE (Pamalis human behavior) ---
     elif inc.violence:
-        # Violence incidents use a modified formula
-        W = clamp01(inc.violence.weapon_conf)
-        P = clamp01((inc.violence.participants_count - 1) / 4.0)
+        inc.score, explain = score_violence_incident(inc, Tr, Lr, Hs, Sg, Du)
         
-        # Combine with our parameters
-        weighted_sum = (
-            0.30 * W +    # Weapon presence - 30%
-            0.20 * P +    # Crowd density - 20%
-            0.15 * Tr +   # Time risk - 15%
-            0.10 * Lr +   # Location risk - 10%
-            0.10 * Hs +   # Holiday surge - 10% (based on 2026 holidays)
-            0.15 * Du     # Distance urgency - 15%
-        )
+        # UPDATED: Pamalis ALWAYS gets Police + Ambulance (no fire)
+        inc.required_roles = ["police", "ambulance"]
+        explain.append("🚑 Ambulance dispatched for human behavior incident")
         
-        raw_score = 100 * weighted_sum
-        inc.score = min(100, round(raw_score))
-        
-        explain.append(f"👥 Violence Incident Scoring:")
-        explain.append(f"  Weapon Confidence: {W:.2f} [30%] = {W*0.30:.3f}")
-        explain.append(f"  Participants: {P:.2f} [20%] = {P*0.20:.3f}")
-        explain.append(f"  Time Risk: {Tr:.2f} [15%] = {Tr*0.15:.3f}")
-        explain.append(f"  Location Risk: {Lr:.2f} [10%] = {Lr*0.10:.3f}")
-        
-        # Enhanced holiday explanation
-        holiday_note = ""
-        if Hs >= 0.9:
-            holiday_note = " (Major Festival)"
-        elif Hs >= 0.8:
-            holiday_note = " (Public Holiday)"
-        elif Hs >= 0.7:
-            holiday_note = " (Weekend/Bank Holiday)"
-        
-        explain.append(f"  Holiday Surge (Hs): {Hs:.2f}{holiday_note} [10%] = {Hs*0.10:.3f}")
-        explain.append(f"  Distance Urgency (Du): {Du:.2f} [15%] = {Du*0.15:.3f}")
-        explain.append(f"  Severity Grade: {Sg:.2f} (included in base)")
-        explain.append(f"  Weighted Sum: {weighted_sum:.3f}")
-        explain.append(f"  Final Score: {inc.score}")
-
-        if fire_detected:
-            inc.required_roles = ["ambulance", "police", "fire"]
-            explain.append("Fire Service added due to Fire Risk")
-        else:
-            inc.required_roles = ["police"]
-            if inc.score > 70:
-                inc.required_roles.append("ambulance")
-                explain.append("🚑 Ambulance added due to High Threat Level")
+        # Never add fire for Pamalis incidents
             
     # --- SCENARIO C: UNKNOWN ---
     else:
@@ -600,8 +615,6 @@ def tie_breaker_key(doc: dict):
     # Distance (lower distance = better for tie-breaking)
     distance = 999
     if "location" in doc and doc["location"]:
-        # This would need actual responder location
-        # For now, use a default
         distance = doc.get("distance_km", 999)
     
     # Timestamp (convert to numeric for sorting)

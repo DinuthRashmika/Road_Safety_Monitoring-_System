@@ -130,8 +130,11 @@ async def fetch_camera_data(cameras_collection, location: str, camera_id: str = 
     
     return None
 
+# ============================================
+# UPDATED: Accident detection with local file support
+# ============================================
 async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
-    """Use YOLO to detect if image contains an accident with retry logic"""
+    """Use YOLO to detect if image contains an accident - handles both URLs and local paths"""
     if not image_path:
         logger.warning("No image path provided")
         return False, 0.0
@@ -141,18 +144,22 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
         logger.warning("Accident model not available")
         return False, 0.0
 
+    # Define which class IDs are accidents
+    ACCIDENT_CLASS_IDS = [0]  # Class 0 = accident
+
     for attempt in range(max_retries + 1):
         try:
             img = None
+            
+            # Check if it's a URL or local file path
             if image_path.startswith(('http://', 'https://')):
+                # Handle URL
                 actual_url = _get_direct_drive_url(image_path)
-                logger.info(f"Downloading image for accident detection (attempt {attempt + 1}/{max_retries + 1})...")
+                logger.info(f"Downloading image from URL (attempt {attempt + 1}/{max_retries + 1})...")
                 
                 req = urllib.request.Request(
                     actual_url,  
-                    headers={
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    }
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                 )
                 
                 with urllib.request.urlopen(req, timeout=15) as response:
@@ -166,15 +173,37 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
                     
                     arr = np.asarray(bytearray(image_data), dtype=np.uint8)
                     img = cv2.imdecode(arr, -1)
-                    
-            elif os.path.exists(image_path):
-                img = cv2.imread(image_path)
+            
             else:
-                logger.warning(f"Image path not accessible: {image_path}")
-                return False, 0.0
+                # Handle Shenal's local file path
+                # Clean up the path (remove any leading slashes and fix backslashes)
+                clean_path = image_path.replace('\\', '/').lstrip('/')
+                
+                # Construct full path to the image in shenal_uploads folder
+                full_path = os.path.join("shenal_uploads", clean_path)
+                
+                logger.info(f"Looking for local image at: {full_path}")
+                
+                if os.path.exists(full_path):
+                    img = cv2.imread(full_path)
+                    if img is not None:
+                        logger.info(f"✅ Successfully loaded local image: {full_path}")
+                    else:
+                        logger.warning(f"OpenCV failed to read image: {full_path}")
+                else:
+                    logger.warning(f"Local image not found: {full_path}")
+                    
+                    # Try alternative paths (in case path format is different)
+                    alt_path = os.path.join("shenal_uploads", "detections", os.path.basename(image_path))
+                    if os.path.exists(alt_path):
+                        logger.info(f"Found image at alternative path: {alt_path}")
+                        img = cv2.imread(alt_path)
+                    else:
+                        if attempt < max_retries:
+                            await asyncio.sleep(1 * (attempt + 1))
+                            continue
 
             if img is None:
-                logger.warning(f"Failed to decode image (attempt {attempt + 1})")
                 if attempt < max_retries:
                     await asyncio.sleep(1 * (attempt + 1))
                     continue
@@ -185,27 +214,38 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
 
             if len(results) > 0 and len(results[0].boxes) > 0:
                 confidences = results[0].boxes.conf.cpu().numpy()
+                classes = results[0].boxes.cls.cpu().numpy()
                 max_conf = float(max(confidences)) if len(confidences) > 0 else 0
                 num_detections = len(results[0].boxes)
                 
-                if hasattr(model, 'names'):
-                    class_names = model.names
-                    for i, box in enumerate(results[0].boxes):
-                        class_id = int(box.cls.cpu().numpy()[0])
-                        class_name = class_names.get(class_id, f"class_{class_id}")
-                        conf = float(box.conf.cpu().numpy()[0])
-                        logger.info(f"  Detected: {class_name} with confidence {conf:.2f}")
+                class_names = model.names if hasattr(model, 'names') else {}
+                accident_detected = False
+                accident_conf = 0.0
                 
-                logger.info(f"Accident detection result: {num_detections} objects, max conf: {max_conf:.2f}")
+                for i, box in enumerate(results[0].boxes):
+                    class_id = int(classes[i])
+                    conf = float(confidences[i])
+                    class_name = class_names.get(class_id, f"class_{class_id}")
+                    
+                    logger.info(f"  Detected: {class_name} (ID: {class_id}) with confidence {conf:.2f}")
+                    
+                    if class_id in ACCIDENT_CLASS_IDS:
+                        accident_detected = True
+                        accident_conf = max(accident_conf, conf)
+                        logger.info(f"  ✅ ACCIDENT DETECTED (class {class_id})")
+                    else:
+                        logger.info(f"  ⏭️ Ignoring non-accident class: {class_name}")
                 
-                if max_conf > 0.1 and num_detections > 0:
-                    logger.info(f"✅ Accident confirmed with confidence {max_conf:.2f}")
-                    return True, max_conf
+                logger.info(f"Accident detection result: {num_detections} objects, accident detected: {accident_detected}")
+                
+                if accident_detected:
+                    logger.info(f"✅ Accident confirmed with confidence {accident_conf:.2f}")
+                    return True, accident_conf
                 else:
-                    logger.info(f"❌ Detections below threshold (0.1) - not an accident")
+                    logger.info(f"❌ No accident classes detected")
                     return False, max_conf
             else:
-                logger.info("❌ No objects detected in the image - not an accident")
+                logger.info("❌ No objects detected in the image")
                 return False, 0.0
 
         except Exception as e:
@@ -238,7 +278,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
     try:
         violation_id = violation.get("_id")
         
-        # UPDATED: Check for PERMANENT ignore flag
+        # Check for PERMANENT ignore flag
         if violation.get("emergency_permanent_ignore") is True:
             logger.info(f"⏭️ Violation {violation_id} is PERMANENTLY ignored - skipping forever")
             return False
@@ -364,7 +404,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         logger.error(f"Error processing violation {violation.get('_id')}: {e}")
         return False
 
-# UPDATED: Force refresh now respects PERMANENT ignores
 async def poll_shenal_database_once():
     """Run one cycle of the database poller manually - processes ALL violations but respects permanent ignores"""
     logger.info("🔄 FORCE REFRESH: Processing all violations")
@@ -375,9 +414,6 @@ async def poll_shenal_database_once():
         violations_collection = shenal_db["violations"]
         cameras_collection = shenal_db["cameras"]
         emergency_db = client["emergency_db"]
-        
-        # REMOVED: No longer resetting ignored violations
-        # Now we only process violations that are NOT permanently ignored
         
         total_violations = await violations_collection.count_documents({})
         permanently_ignored = await violations_collection.count_documents({"emergency_permanent_ignore": True})
@@ -421,7 +457,7 @@ async def poll_shenal_database_once():
                 logger.error(f"Error force processing violation: {e}")
                 continue
         
-        logger.info(f": Processed {processed_count} incidents ({accident_count} accidents)")
+        logger.info(f"✅ Force refresh complete: Processed {processed_count} incidents ({accident_count} accidents)")
         return processed_count
         
     except Exception as e:

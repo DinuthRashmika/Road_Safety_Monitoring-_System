@@ -13,15 +13,49 @@ const getDriveId = (url) => {
   return null;
 };
 
+// Helper function to check if URL is local API endpoint
+const isLocalApiUrl = (url) => {
+  return url && (url.startsWith('/api/images/') || !url.startsWith('http'));
+};
+
+// NEW: Helper function to convert Shenal's Windows paths to proper URLs
+const getImageUrl = (rawPath, baseUrl) => {
+  if (!rawPath) return null;
+  
+  // If it's already a full URL, return as is
+  if (rawPath.startsWith('http')) return rawPath;
+  
+  // If it's already a proper API path, just add base URL
+  if (rawPath.startsWith('/api/images/')) {
+    return `${baseUrl}${rawPath}`;
+  }
+  
+  // Clean Windows paths: replace backslashes with forward slashes
+  const cleanPath = rawPath.replace(/\\/g, '/');
+  
+  // URL encode each segment to handle spaces and special characters
+  const encodedSegments = cleanPath.split('/').map(segment => 
+    encodeURIComponent(segment)
+  ).join('/');
+  
+  // Construct the final URL
+  return `${baseUrl}/api/images/${encodedSegments}`;
+};
+
 const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const [incident, setIncident] = useState(null);
   const [route, setRoute] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   
   const navigate = useNavigate();
   const { user } = useAuth(); 
+
+  // Backend base URL to resolve local images
+  const API_BASE_URL = "http://localhost:8000";
 
   useEffect(() => {
     fetchDetails();
@@ -30,13 +64,16 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const fetchDetails = async () => {
     try {
       setLoading(true);
+      console.log(`Fetching incident details for ID: ${incidentId}`);
       const incidentRes = await api.get(`/api/incidents/${incidentId}`);
+      console.log("Incident data received:", incidentRes.data);
       setIncident(incidentRes.data);
       
       if (incidentRes.data.status !== 'new' && incidentRes.data.status !== 'unverified') {
         fetchRoute(incidentId);
       }
     } catch (err) {
+      console.error('Failed to fetch incident details:', err);
       setError('Failed to load incident details.');
     } finally {
       setLoading(false);
@@ -45,6 +82,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
 
   const fetchRoute = async (id) => {
     try {
+      console.log(`Fetching route for incident: ${id}`);
       const routeRes = await api.get(`/api/incidents/${id}/route`);
       setRoute(routeRes.data); 
     } catch (err) {
@@ -142,25 +180,63 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { weekday:'short', year:'numeric', month:'short', day:'numeric' }) : 'N/A';
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }) : 'N/A';
+  
   const getTimeAgo = (d) => {
       if(!d) return '';
       const m = Math.floor((new Date() - new Date(d))/60000);
       if(m<1) return '(Just now)';
       if(m<60) return `(${m} mins ago)`;
       const h = Math.floor(m/60);
-      return h<24 ? `(${h} hours ago)` : '';
+      return h<24 ? `(${h} hours ago)` : `(${Math.floor(h/24)} days ago)`;
   };
 
-  if (error) return <div className="modal-backdrop"><div className="modal-content">{error} <button onClick={onClose}>Close</button></div></div>;
+  const handleImageError = () => {
+    console.error("Image failed to load:", imageUrl);
+    setImageError(true);
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    console.log("Image loaded successfully:", imageUrl);
+    setImageLoading(false);
+  };
+
+  if (loading) return (
+    <div className="modal-backdrop">
+      <div className="modal-content">
+        <div className="loading-spinner">Loading incident details...</div>
+      </div>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="modal-backdrop">
+      <div className="modal-content">
+        <p className="error-message">{error}</p>
+        <button onClick={onClose} className="btn-close">Close</button>
+      </div>
+    </div>
+  );
+  
   if (!incident) return null;
 
   const isAdmin = user?.role === 'admin';
   const isNew = incident.status === 'new';
   const myStatus = incident.status; 
 
-  const imageUrl = incident.media?.image_url;
-  const driveId = getDriveId(imageUrl);
+  // FIXED: Use the helper function to get proper image URL
+  const rawImageUrl = incident.media?.image_url;
+  const imageUrl = getImageUrl(rawImageUrl, API_BASE_URL);
+
+  const driveId = getDriveId(rawImageUrl);
+  const isLocalImage = isLocalApiUrl(rawImageUrl);
   const roleStatusList = getRoleStatusList();
+
+  // Debug log
+  console.log("Incident ID:", incidentId);
+  console.log("Raw URL from API:", rawImageUrl);
+  console.log("Final Image URL:", imageUrl);
+  console.log("Is local image:", isLocalImage);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -171,7 +247,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
         <div className="modal-body">
           <div className="modal-left">
             <h4>Incident Information</h4>
-            <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Accident' : 'Violence'}</p>
+            <p><strong>Type:</strong> {incident.source === 'traffic' ? 'Traffic Accident' : 'Violence'}</p>
             <p><strong>Score:</strong> <span className="score-badge">{incident.score}</span></p>
             
             <div className="time-display-group">
@@ -213,23 +289,43 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                        className="evidence-iframe"
                        title="Scene Evidence"
                        allowFullScreen
+                       onLoad={() => console.log("Google Drive iframe loaded")}
+                       onError={() => console.error("Google Drive iframe failed")}
                    />
                 ) : (
-                   <img 
-                       src={imageUrl} 
-                       alt="Scene" 
-                       className="evidence-image"
-                       onError={(e) => {
-                           e.target.style.display='none';
-                           e.target.parentNode.innerHTML = `<span class="image-load-error">Image failed to load.</span>`;
-                       }}
-                   />
+                  <>
+                    {imageLoading && <div className="image-loading">Loading image...</div>}
+                    <img 
+                        src={imageUrl} 
+                        alt="Scene" 
+                        className="evidence-image"
+                        style={{ display: imageError ? 'none' : 'block' }}
+                        onLoad={handleImageLoad}
+                        onError={handleImageError}
+                    />
+                    {imageError && (
+                      <div className="image-error-container">
+                        <span className="image-load-error">⚠️ Image failed to load</span>
+                        {isLocalImage && (
+                          <div className="image-debug-info">
+                            <p>Debug info:</p>
+                            <p>Raw path: {rawImageUrl}</p>
+                            <p>Final URL: {imageUrl}</p>
+                            <p>Try accessing directly:</p>
+                            <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+                              Open image directly
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )
               ) : (
                 <span className="no-image-text">No image provided</span>
               )}
             </div>
-            {imageUrl && (
+            {imageUrl && !imageError && (
                 <div className="view-original-container">
                     <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="view-original-link">
                         View Original ↗

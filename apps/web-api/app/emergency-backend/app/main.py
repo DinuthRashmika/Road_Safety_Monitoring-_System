@@ -13,9 +13,12 @@ from app.modules.incidents.routes import router as incidents_router
 from app.modules.assignments.routes import router as assignments_router
 from app.modules.telemetry.routes import router as telemetry_router
 from app.modules.hub.ingest_routes import router as hub_router
+from app.modules.hub.h_route import router as human_router
 from app.modules.routing.routes import router as routing_router
+from app.routes.images import router as images_router  # Custom images router
 from app.seed.seed_cli import create_admin
 from app.jobs.scheduler import start_scheduler, poll_shenal_database_once
+from app.jobs.h_scheduler import start_human_scheduler
 
 # Setup logging
 logging.basicConfig(
@@ -34,6 +37,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# REMOVED: Static files mounting - using custom router instead
+# app.mount("/api/images", StaticFiles(directory="."), name="images")
+
 @app.on_event("startup")
 async def on_startup():
     """Initialize database, create indexes, and start background workers"""
@@ -47,6 +53,9 @@ async def on_startup():
     # Start background workers
     logger.info("Starting Shenal's Database Polling Worker...")
     await start_scheduler()
+    
+    logger.info("Starting Human Behavior Database Polling Worker...")
+    await start_human_scheduler()
     
     logger.info("✅ System startup complete")
 
@@ -92,7 +101,7 @@ async def force_refresh_incidents():
             "message": str(e)
         }
 
-# UPDATED: Permanent Force ignore - never comes back
+# Force ignore endpoint for false positives
 @app.post("/api/demo/force-ignore-normal")
 async def force_ignore_normal():
     """Force ignore the latest violation - PERMANENTLY marks it as normal vehicle"""
@@ -129,11 +138,11 @@ async def force_ignore_normal():
                     "emergency_processed_at": datetime.now().isoformat(),
                     "emergency_success": False,
                     "emergency_note": "PERMANENT_IGNORE - Normal Vehicle",
-                    "emergency_permanent_ignore": True  # New flag for permanent ignore
+                    "emergency_permanent_ignore": True
                 }
             }
         )
-        logger.info(f"🗑️ Removed false positive detection:  {latest['_id']}")
+        logger.info(f"🗑️ Removed false positive detection: {latest['_id']}")
         return {"success": True, "ignored": str(latest["_id"])}
     
     logger.info("⚠️ No violations to ignore")
@@ -146,7 +155,9 @@ app.include_router(incidents_router, prefix="/api", tags=["incidents"])
 app.include_router(assignments_router, prefix="/api", tags=["assignments"])
 app.include_router(telemetry_router, prefix="/api", tags=["telemetry"])
 app.include_router(routing_router, prefix="/api", tags=["routing"])
+app.include_router(images_router, prefix="/api", tags=["images"])  # Custom images router
 app.include_router(hub_router, prefix="/hub", tags=["hub"])
+app.include_router(human_router, prefix="/hub", tags=["human"])
 
 if __name__ == "__main__":
     import uvicorn
