@@ -17,9 +17,12 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Global model instances
 _accident_model = None
+_fire_model = None
 
 def get_accident_model():
+    """Lazy load the accident detection model"""
     global _accident_model
     if _accident_model is None:
         model_path = getattr(settings, 'ACCIDENT_MODEL_PATH', "app/accident_model.pt")
@@ -27,10 +30,26 @@ def get_accident_model():
             logger.info(f"Loading Accident Detection Model from: {model_path}")
             _accident_model = YOLO(model_path)
             logger.info("✅ Accident Detection Model loaded successfully")
+            if hasattr(_accident_model, 'names'):
+                logger.info(f"📊 Accident model classes: {_accident_model.names}")
         except Exception as e:
             logger.error(f"❌ Failed to load accident model: {e}")
             _accident_model = None
     return _accident_model
+
+def get_fire_model():
+    """Lazy load the fire detection model"""
+    global _fire_model
+    if _fire_model is None:
+        model_path = getattr(settings, 'FIRE_MODEL_PATH', "app/best.pt")
+        try:
+            logger.info(f"Loading Fire Detection Model from: {model_path}")
+            _fire_model = YOLO(model_path)
+            logger.info("✅ Fire Detection Model loaded successfully")
+        except Exception as e:
+            logger.error(f"❌ Failed to load fire model: {e}")
+            _fire_model = None
+    return _fire_model
 
 def _get_direct_drive_url(url: str) -> str:
     match = re.search(r'drive\.google\.com/file/d/([^/]+)', url)
@@ -131,21 +150,24 @@ async def fetch_camera_data(cameras_collection, location: str, camera_id: str = 
     return None
 
 # ============================================
-# UPDATED: Accident detection with local file support
+# UPDATED: Separate accident and fire detection
 # ============================================
-async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
-    """Use YOLO to detect if image contains an accident - handles both URLs and local paths"""
+async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
+    """
+    Use accident model to detect if image contains an accident.
+    Returns (is_accident, confidence)
+    """
     if not image_path:
-        logger.warning("No image path provided")
         return False, 0.0
 
     model = get_accident_model()
     if not model:
-        logger.warning("Accident model not available")
         return False, 0.0
 
-    # Define which class IDs are accidents
-    ACCIDENT_CLASS_IDS = [0]  # Class 0 = accident
+    # Define which class IDs are accidents - ADJUST THIS BASED ON YOUR MODEL
+    # If your model has class 0 = fire, class 1 = accident, then ACCIDENT_CLASS_IDS = [1]
+    # If your model has class 0 = accident, class 1 = vehicle, then ACCIDENT_CLASS_IDS = [0]
+    ACCIDENT_CLASS_IDS = [0]  # Change this based on your model's class mapping
 
     for attempt in range(max_retries + 1):
         try:
@@ -153,9 +175,8 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
             
             # Check if it's a URL or local file path
             if image_path.startswith(('http://', 'https://')):
-                # Handle URL
                 actual_url = _get_direct_drive_url(image_path)
-                logger.info(f"Downloading image from URL (attempt {attempt + 1}/{max_retries + 1})...")
+                logger.info(f"Downloading image for accident detection (attempt {attempt + 1}/{max_retries + 1})...")
                 
                 req = urllib.request.Request(
                     actual_url,  
@@ -166,7 +187,6 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
                     image_data = response.read()
                     
                     if len(image_data) < 100:
-                        logger.warning(f"Image data too small ({len(image_data)} bytes)")
                         if attempt < max_retries:
                             await asyncio.sleep(1 * (attempt + 1))
                             continue
@@ -176,27 +196,14 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
             
             else:
                 # Handle Shenal's local file path
-                # Clean up the path (remove any leading slashes and fix backslashes)
                 clean_path = image_path.replace('\\', '/').lstrip('/')
-                
-                # Construct full path to the image in shenal_uploads folder
                 full_path = os.path.join("shenal_uploads", clean_path)
-                
-                logger.info(f"Looking for local image at: {full_path}")
                 
                 if os.path.exists(full_path):
                     img = cv2.imread(full_path)
-                    if img is not None:
-                        logger.info(f"✅ Successfully loaded local image: {full_path}")
-                    else:
-                        logger.warning(f"OpenCV failed to read image: {full_path}")
                 else:
-                    logger.warning(f"Local image not found: {full_path}")
-                    
-                    # Try alternative paths (in case path format is different)
                     alt_path = os.path.join("shenal_uploads", "detections", os.path.basename(image_path))
                     if os.path.exists(alt_path):
-                        logger.info(f"Found image at alternative path: {alt_path}")
                         img = cv2.imread(alt_path)
                     else:
                         if attempt < max_retries:
@@ -209,43 +216,28 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
                     continue
                 return False, 0.0
 
-            logger.info("Running accident detection model on image...")
+            logger.info("Running accident detection model...")
             results = model(img, conf=0.1)
 
             if len(results) > 0 and len(results[0].boxes) > 0:
                 confidences = results[0].boxes.conf.cpu().numpy()
                 classes = results[0].boxes.cls.cpu().numpy()
-                max_conf = float(max(confidences)) if len(confidences) > 0 else 0
-                num_detections = len(results[0].boxes)
                 
                 class_names = model.names if hasattr(model, 'names') else {}
-                accident_detected = False
-                accident_conf = 0.0
                 
-                for i, box in enumerate(results[0].boxes):
-                    class_id = int(classes[i])
+                for i, class_id in enumerate(classes):
                     conf = float(confidences[i])
-                    class_name = class_names.get(class_id, f"class_{class_id}")
+                    class_name = class_names.get(int(class_id), f"class_{class_id}")
+                    logger.info(f"  Accident model detected: {class_name} (ID: {int(class_id)}) with confidence {conf:.2f}")
                     
-                    logger.info(f"  Detected: {class_name} (ID: {class_id}) with confidence {conf:.2f}")
-                    
-                    if class_id in ACCIDENT_CLASS_IDS:
-                        accident_detected = True
-                        accident_conf = max(accident_conf, conf)
-                        logger.info(f"  ✅ ACCIDENT DETECTED (class {class_id})")
-                    else:
-                        logger.info(f"  ⏭️ Ignoring non-accident class: {class_name}")
+                    if int(class_id) in ACCIDENT_CLASS_IDS:
+                        logger.info(f"✅ ACCIDENT DETECTED with confidence {conf:.2f}")
+                        return True, conf
                 
-                logger.info(f"Accident detection result: {num_detections} objects, accident detected: {accident_detected}")
-                
-                if accident_detected:
-                    logger.info(f"✅ Accident confirmed with confidence {accident_conf:.2f}")
-                    return True, accident_conf
-                else:
-                    logger.info(f"❌ No accident classes detected")
-                    return False, max_conf
+                logger.info("❌ No accident class detected")
+                return False, 0.0
             else:
-                logger.info("❌ No objects detected in the image")
+                logger.info("❌ No objects detected by accident model")
                 return False, 0.0
 
         except Exception as e:
@@ -254,7 +246,87 @@ async def is_actual_accident(image_path: str, max_retries: int = 2) -> Tuple[boo
                 await asyncio.sleep(1 * (attempt + 1))
                 continue
             return False, 0.0
+    return False, 0.0
 
+async def detect_fire(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
+    """
+    Use fire model to detect if image contains fire.
+    Returns (has_fire, confidence)
+    """
+    if not image_path:
+        return False, 0.0
+
+    model = get_fire_model()
+    if not model:
+        return False, 0.0
+
+    for attempt in range(max_retries + 1):
+        try:
+            img = None
+            
+            # Check if it's a URL or local file path
+            if image_path.startswith(('http://', 'https://')):
+                actual_url = _get_direct_drive_url(image_path)
+                logger.info(f"Downloading image for fire detection (attempt {attempt + 1}/{max_retries + 1})...")
+                
+                req = urllib.request.Request(
+                    actual_url,  
+                    headers={'User-Agent': 'Mozilla/5.0'}
+                )
+                
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    image_data = response.read()
+                    
+                    if len(image_data) < 100:
+                        if attempt < max_retries:
+                            await asyncio.sleep(1 * (attempt + 1))
+                            continue
+                    
+                    arr = np.asarray(bytearray(image_data), dtype=np.uint8)
+                    img = cv2.imdecode(arr, -1)
+            
+            else:
+                # Handle Shenal's local file path
+                clean_path = image_path.replace('\\', '/').lstrip('/')
+                full_path = os.path.join("shenal_uploads", clean_path)
+                
+                if os.path.exists(full_path):
+                    img = cv2.imread(full_path)
+                else:
+                    alt_path = os.path.join("shenal_uploads", "detections", os.path.basename(image_path))
+                    if os.path.exists(alt_path):
+                        img = cv2.imread(alt_path)
+                    else:
+                        if attempt < max_retries:
+                            await asyncio.sleep(1 * (attempt + 1))
+                            continue
+
+            if img is None:
+                if attempt < max_retries:
+                    await asyncio.sleep(1 * (attempt + 1))
+                    continue
+                return False, 0.0
+
+            logger.info("Running fire detection model...")
+            results = model(img, conf=settings.FIRE_CONF_THRESHOLD)
+
+            if len(results) > 0 and len(results[0].boxes) > 0:
+                confidences = results[0].boxes.conf.cpu().numpy()
+                max_conf = float(max(confidences)) if len(confidences) > 0 else 0
+                num_detections = len(results[0].boxes)
+                
+                logger.info(f"🔥 Fire detected: {num_detections} objects, max conf: {max_conf:.2f}")
+                return True, max_conf
+            else:
+                logger.info("✅ No fire detected")
+                return False, 0.0
+
+        except Exception as e:
+            logger.error(f"Error during fire detection: {e}")
+            if attempt < max_retries:
+                await asyncio.sleep(1 * (attempt + 1))
+                continue
+            return False, 0.0
     return False, 0.0
 
 async def check_duplicate_incident(db, location: str, time_window_minutes: int = 5) -> Optional[Dict]:
@@ -306,8 +378,10 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             logger.info(f"No image path for violation {violation_id}")
             return False
         
-        logger.info(f"Checking if image is an accident: {image_path[:100]}...")
-        is_accident, accident_conf = await is_actual_accident(image_path)
+        logger.info(f"Checking image: {image_path[:100]}...")
+        
+        # STEP 1: Detect accident using accident model
+        is_accident, accident_conf = await detect_accident(image_path)
         
         if not is_accident:
             logger.info(f"⏭️ Not an accident (conf: {accident_conf:.2f}) - skipping violation {violation_id}")
@@ -315,6 +389,13 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         
         logger.info(f"✅ Accident detected! Confidence: {accident_conf:.2f}")
         
+        # STEP 2: Detect fire using fire model
+        has_fire, fire_conf = await detect_fire(image_path)
+        
+        if has_fire:
+            logger.info(f"🔥 FIRE DETECTED in accident with confidence {fire_conf:.2f}")
+        
+        # Check for duplicates
         existing = await check_duplicate_incident(
             incidents_collection.database, 
             location
@@ -369,6 +450,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
                     lat, lng = coords["lat"], coords["lng"]
                     break
         
+        # Create payload with fire detection result
         payload = {
             "source": "traffic",
             "timestamp_utc": detection_time,
@@ -381,7 +463,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
             "camera_risk_class": map_camera_risk(camera_data),
             "accident": {
                 "vehicles_involved": get_vehicles_involved(violation),
-                "fire_present": False
+                "fire_present": has_fire  # Set based on fire detection
             },
             "media": {
                 "image_url": image_path
@@ -391,6 +473,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
                 "violation_type": violation_type,
                 "confidence": float(confidence),
                 "accident_confidence": accident_conf,
+                "fire_confidence": fire_conf if has_fire else 0,
                 "plate_number": plate_number,
                 "original_violation_id": str(violation_id)
             }
