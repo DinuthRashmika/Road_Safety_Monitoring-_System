@@ -43,6 +43,7 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [routeLoading, setRouteLoading] = useState(false);
   
   const navigate = useNavigate();
   const { user } = useAuth(); 
@@ -61,6 +62,8 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
       console.log("Incident data received:", incidentRes.data);
       setIncident(incidentRes.data);
       
+      // Fetch route for all incidents except 'new' or 'unverified'
+      // Violence incidents need routes too!
       if (incidentRes.data.status !== 'new' && incidentRes.data.status !== 'unverified') {
         fetchRoute(incidentId);
       }
@@ -74,11 +77,16 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
 
   const fetchRoute = async (id) => {
     try {
+      setRouteLoading(true);
       console.log(`Fetching route for incident: ${id}`);
       const routeRes = await api.get(`/api/incidents/${id}/route`);
+      console.log("Route data received:", routeRes.data);
       setRoute(routeRes.data); 
     } catch (err) {
       console.error('Failed to fetch route', err);
+      // Don't set error state for route failure - just log it
+    } finally {
+      setRouteLoading(false);
     }
   };
 
@@ -89,6 +97,10 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
     try {
       await api.post(`/api/incidents/${incidentId}/accept`);
       await fetchDetails(); 
+      
+      // After acceptance, fetch route again (status is now 'accepted')
+      fetchRoute(incidentId);
+      
       alert('Incident accepted. You are now assigned.');
       if (typeof onUpdate === 'function') {
         onUpdate(); 
@@ -102,21 +114,44 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
 
   const handleStartRoute = async () => {
     if (!route) {
-        alert("Route is still calculating. Please wait a moment.");
+      // Try to fetch route one more time
+      try {
+        setRouteLoading(true);
+        console.log("Route not available, fetching now...");
+        const routeRes = await api.get(`/api/incidents/${incidentId}/route`);
+        setRoute(routeRes.data);
+        
+        if (!routeRes.data) {
+          alert("Route data is not available yet. Please try again in a moment.");
+          setRouteLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch route:", err);
+        alert("Unable to calculate route. Please check your location and try again.");
+        setRouteLoading(false);
         return;
+      } finally {
+        setRouteLoading(false);
+      }
     }
 
     setIsUpdating(true);
     try {
-        await api.post(`/api/incidents/${incidentId}/status`, { status: 'enroute' });
-        if (typeof onUpdate === 'function') onUpdate();
+      await api.post(`/api/incidents/${incidentId}/status`, { status: 'enroute' });
+      if (typeof onUpdate === 'function') onUpdate();
 
-        const updatedIncident = { ...incident, status: 'enroute' };
-        navigate('/map-view', { state: { incident: updatedIncident, route } });
-
+      const updatedIncident = { ...incident, status: 'enroute' };
+      navigate('/map-view', { 
+        state: { 
+          incident: updatedIncident, 
+          route: route,
+          responderLocation: user?.location 
+        } 
+      });
     } catch (err) {
-        alert(`Failed to start route: ${err.response?.data?.detail || err.message}`);
-        setIsUpdating(false);
+      alert(`Failed to start route: ${err.response?.data?.detail || err.message}`);
+      setIsUpdating(false);
     }
   };
 
@@ -427,8 +462,12 @@ const IncidentModal = ({ incidentId, onClose, onUpdate }) => {
                 )}
 
                 {myStatus === 'accepted' && (
-                    <button className="btn-action enroute" onClick={handleStartRoute} disabled={isUpdating}>
-                        {isUpdating ? 'Starting...' : 'Start Route ➜'}
+                    <button 
+                      className="btn-action enroute" 
+                      onClick={handleStartRoute} 
+                      disabled={isUpdating || routeLoading}
+                    >
+                      {isUpdating || routeLoading ? 'Loading...' : 'Start Route ➜'}
                     </button>
                 )}
 

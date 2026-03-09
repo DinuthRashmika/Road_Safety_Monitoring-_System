@@ -1,4 +1,5 @@
 from __future__ import annotations
+from asyncio.log import logger
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +12,9 @@ from .service import accept_incident
 from .status import can_transition
 from .broadcast import get_queue
 from app.modules.assignments.service import record_status 
+from app.modules.routing import route as route_adapter
+from app.db.mongo import get_db
+from bson import ObjectId
 
 router = APIRouter()
 
@@ -69,9 +73,7 @@ async def get_incident_route(
             
     return inc
 
-@router.post(
-    "/incidents/{incident_id}/accept"
-)
+@router.post("/incidents/{incident_id}/accept")
 async def accept_route(incident_id: str, responder: dict = Depends(get_current_responder_doc)):
     responder_id = responder.get("id")
     responder_role = responder.get("role")
@@ -87,10 +89,70 @@ async def accept_route(incident_id: str, responder: dict = Depends(get_current_r
         
     return updated_doc
 
+@router.get("/incidents/{incident_id}/route")
+async def get_incident_route_calculated(
+    incident_id: str,
+    responder: dict = Depends(get_current_responder_doc)
+):
+    """Get route from responder to incident - works for all incident types including violence"""
+    db = get_db()
+    
+    # Get incident
+    try:
+        incident = await db["incidents"].find_one({"_id": ObjectId(incident_id)})
+    except:
+        incident = await db["incidents"].find_one({"id": incident_id})
+    
+    if not incident:
+        raise HTTPException(404, "Incident not found")
+    
+    # Get responder location
+    resp_loc = responder.get("location")
+    if not resp_loc or not resp_loc.get("lat") or not resp_loc.get("lng"):
+        # Use default responder location if not set
+        resp_loc = {"lat": 6.9271, "lng": 79.8612, "address": "Default Location"}
+        logger.warning(f"Responder has no location, using default")
+    
+    # Get incident location
+    inc_loc = incident.get("location", {})
+    if not inc_loc or not inc_loc.get("lat") or not inc_loc.get("lng"):
+        # For incidents without coordinates, use default based on address
+        logger.warning(f"Incident {incident_id} has no coordinates, using address-based default")
+        address = inc_loc.get("address", "Unknown").lower()
+        
+        # Default coordinates based on common locations
+        if "matara" in address:
+            inc_loc = {"lat": 5.9549, "lng": 80.5550, "address": address}
+        elif "galle" in address:
+            inc_loc = {"lat": 6.0319, "lng": 80.2168, "address": address}
+        elif "colombo" in address:
+            inc_loc = {"lat": 6.9271, "lng": 79.8612, "address": address}
+        else:
+            inc_loc = {"lat": 6.9271, "lng": 79.8612, "address": address}
+    
+    logger.info(f"Calculating route from {resp_loc} to {inc_loc}")
+    
+    # Calculate route
+    try:
+        route_data = await route_adapter(
+            float(resp_loc["lat"]), float(resp_loc["lng"]),
+            float(inc_loc["lat"]), float(inc_loc["lng"])
+        )
+        
+        # Add incident info to route data
+        route_data["incident_id"] = incident_id
+        route_data["incident_address"] = inc_loc.get("address", "Unknown")
+        route_data["responder_address"] = resp_loc.get("address", "Unknown")
+        route_data["start"] = resp_loc
+        route_data["end"] = inc_loc
+        
+        return route_data
+        
+    except Exception as e:
+        logger.error(f"Route calculation failed: {e}")
+        raise HTTPException(500, f"Route calculation failed: {str(e)}")
 
-@router.post(
-    "/incidents/{incident_id}/status"
-)
+@router.post("/incidents/{incident_id}/status")
 async def status_route(
     incident_id: str, 
     body: dict, 
