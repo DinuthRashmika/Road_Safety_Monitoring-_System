@@ -24,15 +24,16 @@ const Layout = ({ children }) => {
         </header>
       
         <div className="app-body">
-            {/* <nav className="app-sidebar"> */}
-                {/* <div className="sidebar-sticky"> */}
-                    {/* <ul> */}
-                    {/* <li><NavLink to="/dashboard">Dashboard</NavLink></li> */}
-                    {/* <li><NavLink to="/history">Response History</NavLink></li> */}
-                    {/* <li><NavLink to="/profile">Profile</NavLink></li> */}
-                    {/* </ul> */}
-            {/* </div> */}
-            {/* </nav> */}
+            <nav className="app-sidebar">
+                <div className="sidebar-sticky">
+                    <ul>
+                        <li><NavLink to="/">Home</NavLink></li>
+                        <li><NavLink to="/detection-monitoring">Detection Monitoring</NavLink></li>
+                        <li><NavLink to="/detections">Detection History</NavLink></li>
+                        <li><NavLink to="/alerts">Alert History</NavLink></li>
+                    </ul>
+                </div>
+            </nav>
             
             <main className="app-content">
                 <div className="page-container">

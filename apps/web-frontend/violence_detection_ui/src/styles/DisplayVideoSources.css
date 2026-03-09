@@ -1,208 +1,486 @@
-.camera-page {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  position: relative;
+/* ═══════════════════════════════════════════════
+   DisplayVideoSources.css
+   Light theme — white/grey palette, #E4080A red accent
+   Fully self-contained, no dark bleed from DetectionMonitering.css
+═══════════════════════════════════════════════ */
+.app-content {
+    padding: 0 !important;
+    background-color: #f4f7f6 !important;
 }
 
-.black-text{
-    color: black;
+/* ── Page root ── */
+.vs-page {
+    padding: 28px 32px 48px;
+    max-width: 100%;
+    margin: 0;
+    background: #f4f7f6;
+    min-height: 100%;
+    box-sizing: border-box;
 }
 
-.page-title {
-  display: block;
-  margin-bottom:12px;
-  font-weight: 600;
-  font-size: 14px;
-  color: #374151;
+/* ── Page header ── */
+.vs-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
 }
 
-.loading-text {
-  text-align: center;
-  color: #6b7280;
-  font-size: 1rem;
-  padding: 2rem;
+.vs-page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.3px;
 }
 
-.error-text {
-  background: #fef2f2;
-  color: #dc2626;
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 4px solid #dc2626;
-  margin-bottom: 1.5rem;
+.vs-page-sub {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
 }
 
-/* Camera Grid */
-.camera-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+/* ── Add RTSP button (top-right) ── */
+.vs-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    background: #E4080A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.25);
+}
+.vs-add-btn:hover {
+    background: #c50009;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(228,8,10,0.35);
+}
+.vs-add-btn:active { transform: translateY(0); }
+
+/* ── Section wrapper ── */
+.vs-section {
+    margin-bottom: 28px;
 }
 
-.camera-card {
-  background: white;
-  /* border: 2px solid #e5e7eb; */
-  border-radius: 12px;
-  padding: 1.5rem;
-  border-left: 4px solid #ec4c37;
-  transition: all 0.25s ease;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.vs-section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
-.camera-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  border-color: #c91d1d;
+.vs-count-badge {
+    background: #fee2e2;
+    color: #E4080A;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 12px;
 }
 
-.camera-card.selected {
-  border-left-color: #e4080a;
-  background: linear-gradient(90deg, #fff5f5 0%, #ffffff 40%);
-  box-shadow: 0 6px 18px rgba(215, 128, 129, 0.25);
+/* ── Loading ── */
+.vs-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    color: #6b7280;
+    font-size: 13px;
+}
+.vs-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #e5e7eb;
+    border-top-color: #E4080A;
+    border-radius: 50%;
+    animation: vs-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes vs-spin { to { transform: rotate(360deg); } }
+
+.vs-error-bar {
+    background: #fef2f2;
+    border-left: 4px solid #E4080A;
+    color: #dc2626;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    margin-bottom: 14px;
 }
 
-.camera-card-content {
-  flex: 1;
+/* ═══════════════════════════════
+   CAMERA CARDS GRID
+═══════════════════════════════ */
+.vs-camera-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
 }
 
-.camera-id {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin: 0 0 0.5rem 0;
-  font-weight: 500;
+/* ── Individual camera card ── */
+.vs-cam-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+}
+.vs-cam-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    border-color: #fca5a5;
+}
+.vs-cam-card.vs-cam-offline { opacity: 0.72; }
+.vs-cam-card.vs-cam-selected { border-color: #E4080A; box-shadow: 0 0 0 2px rgba(228,8,10,0.15); }
+
+/* Red left accent stripe */
+.vs-cam-accent {
+    width: 4px;
+    background: #E4080A;
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 12px 0 0 12px;
+}
+.vs-cam-offline .vs-cam-accent { background: #d1d5db; }
+
+.vs-cam-body {
+    padding: 16px 16px 10px 20px;
+    flex: 1;
 }
 
-.source-name {
-  font-size: 1rem;
-  color: #1c1c1d;
-  margin: 0 0 0.5rem 0;
-  font-weight: 500;
+/* Top row: icon + status pill */
+.vs-cam-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
 }
 
-
-.camera-status {
-  display: inline-block;
-  padding: 0.375rem 0.875rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.vs-cam-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #fff5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #E4080A;
+    flex-shrink: 0;
+}
+.vs-cam-offline .vs-cam-icon {
+    background: #f3f4f6;
+    color: #9ca3af;
 }
 
-.camera-status.online {
-  background: #d1fae5;
-  color: #065f46;
+/* Status pill */
+.vs-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.vs-pill-online {
+    background: #d1fae5;
+    color: #065f46;
+}
+.vs-pill-offline {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+.vs-pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+.vs-pill-online .vs-pill-dot {
+    background: #10b981;
+    box-shadow: 0 0 4px rgba(16,185,129,0.6);
+    animation: vs-blink 1.8s ease infinite;
+}
+.vs-pill-offline .vs-pill-dot { background: #9ca3af; }
+@keyframes vs-blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* Camera text */
+.vs-cam-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 5px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.vs-cam-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0 0 4px 0;
+}
+.vs-cam-ip {
+    font-size: 12px;
+    color: #9ca3af;
+    font-family: 'SF Mono', monospace;
+    margin: 0;
 }
 
-.camera-status.offline {
-  background: #fee2e2;
-  color: #991b1b;
+/* Card action buttons */
+.vs-cam-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px 14px 20px;
+    border-top: 1px solid #f3f4f6;
 }
 
-.view-details-btn:active {
-  transform: translateY(0);
+.vs-cam-btn-outline {
+    flex: 1;
+    padding: 7px 0;
+    background: transparent;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.vs-cam-btn-outline:hover {
+    border-color: #E4080A;
+    color: #E4080A;
+    background: #fff5f5;
 }
 
-.view-details-btn:focus {
-  outline: none;           /* remove default focus ring */
-  box-shadow: none;        /* remove any shadow */
+.vs-cam-btn-primary {
+    flex: 1.5;
+    padding: 7px 0;
+    background: #E4080A;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.18s ease;
+}
+.vs-cam-btn-primary:hover { background: #c50009; }
+.vs-cam-btn-disabled,
+.vs-cam-btn-primary:disabled,
+.vs-cam-btn-outline:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
-.camera-card:focus {
-  outline: none;
-  box-shadow: none;
+/* Inline spinner inside buttons */
+.vs-inline-spin {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: vs-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+.vs-spin-red {
+    border-color: rgba(228,8,10,0.25);
+    border-top-color: #E4080A;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .camera-page {
-    padding: 1rem;
-  }
-
-  .camera-grid {
-    grid-template-columns: 1fr;
-  }
+/* ── Empty state ── */
+.vs-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 48px 20px;
+    background: #fff;
+    border: 1px dashed #e5e7eb;
+    border-radius: 12px;
+    text-align: center;
+}
+.vs-empty-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+.vs-empty-sub {
+    font-size: 13px;
+    color: #9ca3af;
+    margin: 0;
 }
 
-
-/* ----vidoe path getting---- */
-/* Container */
-.video-source-section {
-  margin-bottom: 24px;
-  padding: 20px;
-  background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+/* ═══════════════════════════════
+   MANUAL VIDEO SOURCE
+═══════════════════════════════ */
+.vs-manual-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-/* "Or" text */
-.or-text {
-  text-align: center;
-  margin-bottom: 12px;
-  color: #6b7280;
-  font-weight: 500;
+/* Divider */
+.vs-divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 560px;
+    margin-bottom: 24px;
+}
+.vs-divider-line {
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+.vs-divider-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #9ca3af;
+    white-space: nowrap;
 }
 
-/* Label */
-.video-source-label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  font-size: 14px;
-  color: #374151;
+/* Manual card — centered, max-width */
+.vs-manual-card {
+    width: 100%;
+    max-width: 560px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 28px 28px 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
-/* Input */
-.video-source-input {
-  width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-  font-size: 14px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+.vs-manual-icon {
+    width: 48px;
+    height: 48px;
+    background: #fff5f5;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
 }
 
-.video-source-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+.vs-manual-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+}
+.vs-manual-sub {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 0 0 18px 0;
 }
 
-/* Button group */
-.video-source-actions {
-  display:inline;
-  flex-wrap: wrap;
+.vs-manual-input {
+    width: 100%;
+    padding: 11px 14px;
+    font-size: 13px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    color: #111827;
+    background: #fafafa;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+    margin-bottom: 14px;
+    font-family: 'SF Mono', monospace;
+}
+.vs-manual-input:focus {
+    outline: none;
+    border-color: #E4080A;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(228,8,10,0.08);
+}
+.vs-manual-input::placeholder { color: #d1d5db; font-family: inherit; }
+
+.vs-manual-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
 }
 
-/* Button variants */
-.action-btn.success {
-  background-color: #4CAF50;
-  color: #ffffff;
+.vs-manual-btn-outline {
+    flex: 1;
+    padding: 10px 0;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.18s ease;
 }
-
-.action-btn.primary {
-  background-color: #2196F3;
-  color: #ffffff;
+.vs-manual-btn-outline:hover:not(:disabled) {
+    border-color: #E4080A;
+    color: #E4080A;
+    background: #fff5f5;
 }
+.vs-manual-btn-outline:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.action-btn.danger {
-  background-color: #f44336;
-  color: #ffffff;
+.vs-manual-btn-primary {
+    flex: 1.4;
+    padding: 10px 0;
+    background: #E4080A;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.2);
 }
+.vs-manual-btn-primary:hover:not(:disabled) {
+    background: #c50009;
+    box-shadow: 0 4px 14px rgba(228,8,10,0.3);
+}
+.vs-manual-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* Disabled state */
-.action-btn.disabled,
-.action-btn:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .vs-page { padding: 16px; }
+    .vs-page-header { flex-direction: column; align-items: flex-start; }
+    .vs-camera-grid { grid-template-columns: 1fr; }
+    .vs-manual-card { padding: 20px 16px; }
+    .vs-manual-actions { flex-direction: column; }
 }

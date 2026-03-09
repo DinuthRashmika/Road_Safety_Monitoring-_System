@@ -53,7 +53,7 @@ class DetectionSession:
             return True
             
         except Exception as e:
-            print(f"❌ Error initializing session {self.session_id}: {e}")
+            print(f" Error initializing session {self.session_id}: {e}")
             return False
     
     def stop(self):

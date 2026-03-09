@@ -159,9 +159,9 @@ class SessionService:
                 total_frames_processed = 0,
             )
             tracker = SessionTracker(session_id, camera_info)
-            self._trackers[session_id] = tracker   # ← register for stop_session access
+            self._trackers[session_id] = tracker   # register for stop_session access
 
-            # ── Frame loop ─────────────────────────────────────────────
+            # Frame loop 
             while session.is_active and not session.should_stop:
 
                 ret, frame = session.video_cap.read()
@@ -172,7 +172,7 @@ class SessionService:
                         end_reason   = "video_ended",
                         total_frames = frame_count,
                     )
-                    await save_session(summary)   # await directly — we're in async context
+                    await save_session(summary)   # await
                     self._trackers.pop(session_id, None)
 
                     await websocket.send_json({
@@ -245,13 +245,16 @@ class SessionService:
                         print(f"Fusion error frame {frame_count}: {fe}")
 
                 # ── 7. Alert engine ───────────────────────────────────
-                alert_payload = alert_engine.process_frame(
+                result = alert_engine.process_frame(
                     session_id    = session_id,
                     fusion_result = fusion_raw,
                     lrcn_result   = lrcn_result,
                     yolo_result   = {"detections": last_yolo_detections},
                     frame_number  = frame_count,
                 )
+
+                alert_payload, hub_payload = result if result else (None, None)
+
                 alert_progress = alert_engine.get_progress(session_id)
 
                 # ── 7.1 Record alert in tracker if fired ──────────────
@@ -261,14 +264,14 @@ class SessionService:
                         threat_level = alert_payload["threat_level"],
                     )
 
-                print("------------------------------------Final Alert Details------------------------------------")
-                print(f"-----Alert Payload: {alert_payload}")
-                print(f"-----Alert Progress: {alert_progress}")
+                # print("------------------------------------Final Alert Details------------------------------------")
+                # print(f"-----Alert Payload: {alert_payload}")
+                # print(f"-----Alert Progress: {alert_progress}")
 
                 # ── 7.2 Send alert to hub ─────────────────────────────
                 alert_dispatch = None
                 if alert_payload:
-                    send_result    = await alert_engine.send_to_hub(alert_payload)
+                    send_result    = await alert_engine.send_to_hub(hub_payload)
                     alert_dispatch = {"payload": alert_payload, "result": send_result}
 
                 # ── 8. Build & send WebSocket message ─────────────────

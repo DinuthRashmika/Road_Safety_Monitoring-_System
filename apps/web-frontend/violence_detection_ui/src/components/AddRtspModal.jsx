@@ -319,7 +319,7 @@ export default function AddRtspModal({ onClose, onCameraAdded }) {
                                 disabled={step === "testing" || !form.name || !form.ip}
                                 style={{ opacity: step === "testing" || !form.name || !form.ip ? 0.55 : 1 }}
                             >
-                                {step === "testing" ? "Testing…" : "Test Connection →"}
+                                {step === "testing" ? "Testing…" : "Test Connection"}
                             </button>
                         </>
                     )}
@@ -327,7 +327,7 @@ export default function AddRtspModal({ onClose, onCameraAdded }) {
                     {step === "success" && (
                         <>
                             <button className="btn-grey" onClick={handleRetry}>
-                                ← Edit Details
+                                Edit Details
                             </button>
                             <button
                                 className="btn-red"
@@ -346,7 +346,7 @@ export default function AddRtspModal({ onClose, onCameraAdded }) {
                                 Cancel
                             </button>
                             <button className="btn-dark" onClick={handleRetry}>
-                                ← Fix Details
+                                Fix Details
                             </button>
                         </>
                     )}
