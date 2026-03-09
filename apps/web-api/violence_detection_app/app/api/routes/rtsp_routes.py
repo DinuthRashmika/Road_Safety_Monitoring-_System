@@ -35,7 +35,10 @@ from violence_detection_app.app.services.rtsp_service import (
     get_rtsp_url_raw,
 )
 
-router = APIRouter(prefix="/cameras", tags=["Cameras"])
+router = APIRouter(
+    prefix="/cameras", 
+    tags=["Cameras"]
+)
 
 
 # ═══════════════════════════════════════════════

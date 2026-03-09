@@ -233,6 +233,26 @@ class AlertEngine:
             "required_sustain_s":  required_sustain,
         }
 
+        hub_payload = {
+            "alert_id":            payload["alert_id"],
+            "session_id":          payload["session_id"],
+            "timestamp":           payload["timestamp"],
+            "camera":              payload["camera"],
+            "location":            payload["location"],
+            "threat_level":        payload["threat_level"],
+            "threat_score":        payload["threat_score"],
+            "sustained_seconds":   payload["sustained_seconds"],
+            "action":              payload["action"],
+            "action_confidence":   payload["action_confidence"],
+            "objects_detected":    payload["objects_detected"],
+            "action_contribution": payload["action_contribution"],
+            "object_contribution": payload["object_contribution"],
+            "reasoning":           payload["reasoning"],
+            "human_summary":       payload["human_summary"],
+            "alert_number":        payload["alert_number"],
+            "has_weapon":          payload["has_weapon"],
+        }
+
         # ── Save to MongoDB (fire-and-forget, won't block detection loop) ──
         print("Saved to mongodb")
         try:
@@ -240,7 +260,7 @@ class AlertEngine:
         except Exception as e:
             print(f"[DB] Could not schedule save: {e}")
 
-        return payload
+        return payload, hub_payload
 
     def process_frame_with_temporal(
         self,
@@ -274,7 +294,7 @@ class AlertEngine:
         # Run fusion WITH current sustained time
         fusion_result = fusion_module.combine_results(
             yolo_result, lrcn_result,
-            sustained_seconds=current_streak    # ← temporal escalation input
+            sustained_seconds=current_streak    # temporal escalation input
         )
 
         return self.process_frame(
@@ -336,4 +356,10 @@ class AlertEngine:
         }
 
 
-alert_engine = AlertEngine(AlertConfig())
+alert_engine = AlertEngine(AlertConfig(
+    # hub_url = "https://httpbin.org/post",   # echoes your POST back
+    hub_url = "http://localhost:9000/api/alerts" # if using mock_hub
+
+    # hub_url     = "http://localhost:8000/api/alerts/path", real kavi one
+    # hub_api_key = "if_he_requires_one",
+))

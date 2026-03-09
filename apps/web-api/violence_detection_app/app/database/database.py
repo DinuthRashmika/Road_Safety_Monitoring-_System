@@ -33,7 +33,7 @@ def get_client() -> AsyncIOMotorClient:
 def get_alerts_collection():
     return get_client()[MONGODB_DB][MONGODB_ALERTS_COLLECTION]
 
-def get_sessions_collection():
+def get_detections_collection():
     return get_client()[MONGODB_DB][MONGODB_DETECTIONS_COLLECTION]
 
 # Save Alert docs
@@ -84,7 +84,7 @@ async def save_session(summary) -> str | None:
     Accepts either a Pydantic model or a plain dict.
     """
     try:
-        collection = get_sessions_collection()
+        collection = get_detections_collection()
         doc = summary.model_dump() if hasattr(summary, "model_dump") else summary
         result = await collection.insert_one(doc)
         print(f"[DB] Session saved → _id: {result.inserted_id}")
