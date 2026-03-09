@@ -1,8 +1,3 @@
-/* ═══════════════════════════════════════════════
-   DisplayVideoSources.css
-   Light theme — white/grey palette, #E4080A red accent
-   Fully self-contained, no dark bleed from DetectionMonitering.css
-═══════════════════════════════════════════════ */
 .app-content {
     padding: 0 !important;
     background-color: #f4f7f6 !important;
@@ -483,4 +478,95 @@
     .vs-camera-grid { grid-template-columns: 1fr; }
     .vs-manual-card { padding: 20px 16px; }
     .vs-manual-actions { flex-direction: column; }
+}
+
+.vs-upload-dropzone {
+    border: 2px dashed #e5e7eb;
+    border-radius: 10px;
+    padding: 28px 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+    margin-bottom: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.vs-upload-dropzone:hover,
+.vs-upload-dropzone--has-file {
+    border-color: #E4080A;
+    background: #fff5f5;
+}
+.vs-upload-placeholder {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.vs-upload-icon    { font-size: 28px; }
+.vs-upload-hint    { font-size: 13px; color: #6b7280; }
+.vs-upload-formats { font-size: 10px; color: #9ca3af; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.vs-upload-file-info {
+    display: flex; align-items: center; gap: 12px; justify-content: space-between;
+}
+.vs-upload-file-icon { font-size: 24px; }
+.vs-upload-file-name { font-size: 13px; color: #111827; font-weight: 500; text-align: left; }
+.vs-upload-file-size { font-size: 11px; color: #9ca3af; text-align: left; }
+.vs-upload-clear {
+    background: none; border: none; color: #9ca3af;
+    font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1;
+    flex-shrink: 0;
+}
+.vs-upload-clear:hover { color: #374151; }
+
+.vs-upload-progress-wrap {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px; width: 100%;
+}
+.vs-upload-progress-bar {
+    flex: 1; height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden;
+}
+.vs-upload-progress-fill {
+    height: 100%; background: #E4080A; border-radius: 2px;
+    transition: width 0.2s ease;
+}
+.vs-upload-progress-pct { font-size: 11px; color: #9ca3af; min-width: 32px; }
+
+.vs-upload-error {
+    font-size: 12px; color: #dc2626; margin-bottom: 10px; padding: 8px 12px;
+    background: #fef2f2; border-radius: 6px; width: 100%; box-sizing: border-box;
+    border-left: 3px solid #E4080A;
+}
+
+.vs-upload-success-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; width: 100%;
+}
+.vs-upload-success-msg {
+    font-size: 12px; color: #059669; flex: 1;
+}
+
+.vs-start-btn {
+    padding: 10px 20px;
+    background: #E4080A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.18s, box-shadow 0.18s;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.2);
+    width: 100%;
+    margin-top: 4px;
+}
+.vs-start-btn:hover:not(:disabled) {
+    background: #c50009;
+    box-shadow: 0 4px 14px rgba(228,8,10,0.3);
+}
+.vs-start-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.vs-upload-success-row .vs-start-btn {
+    width: auto;
+    margin-top: 0;
+    flex-shrink: 0;
 }

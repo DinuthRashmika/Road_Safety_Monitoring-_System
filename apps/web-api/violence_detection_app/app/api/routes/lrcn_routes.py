@@ -2,6 +2,11 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Re
 from violence_detection_app.app.api.schemas.video_schema import SourceRequest
 from violence_detection_app.app.api.schemas.lrcn_schema import LrcnDetectionStartedResponse
 from violence_detection_app.app.services.session_service import SessionService
+from violence_detection_app.src.config.config import DATA_DIR
+import os
+import shutil
+from fastapi import UploadFile, File
+from fastapi.responses import JSONResponse
 
 
 router = APIRouter(
@@ -12,6 +17,36 @@ router = APIRouter(
 ws_router = APIRouter(tags=["WebSocket"])
 
 detection_service = SessionService()
+
+# UPLOAD_DIR = "uploaded_videos"
+# os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Upload videos
+@router.post("/upload_video")
+async def upload_video(file: UploadFile = File(...)):
+    allowed = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+    ext     = os.path.splitext(file.filename)[1].lower()
+
+    if ext not in allowed:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "error": f"File type {ext} not allowed"}
+        )
+
+    save_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(save_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    abs_path = os.path.abspath(save_path)
+    return {
+        "success":   True,
+        "filename":  file.filename,
+        "path":      abs_path,
+        "size_mb":   round(os.path.getsize(abs_path) / (1024 * 1024), 2),
+    }
 
 
 # Start detection

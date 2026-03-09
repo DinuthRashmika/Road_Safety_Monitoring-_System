@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef} from "react"
 import { useNavigate } from "react-router-dom";
 import Layout from "../layouts/Layout";
 import './../styles/DisplayVideoSources.css'
@@ -23,6 +23,14 @@ function VideoSources() {
     const [startingCameraId, setStartingCameraId] = useState(null);
     const [webcamStarting, setWebcamStarting] = useState(false);
 
+    // for video uploads
+    const [uploadFile, setUploadFile]         = useState(null)
+    const [uploadProgress, setUploadProgress] = useState(0)
+    const [uploading, setUploading]           = useState(false)
+    const [uploadError, setUploadError]       = useState(null)
+    const [uploadedVideo, setUploadedVideo]   = useState(null)
+    const fileInputRef                        = useRef(null)
+
     const handleViewDetails = (cam) => {
         setSelectedCamera(cam);
         setIsPanelOpen(true);
@@ -39,6 +47,77 @@ function VideoSources() {
         setVideoSource(value);
         setIsValid(value.trim().length > 0);
     };
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0]
+        if (!file) return
+        setUploadFile(file)
+        setUploadedVideo(null)
+        setUploadError(null)
+        setUploadProgress(0)
+    }
+
+    const handleDrop = (e) => {
+        e.preventDefault()
+        const file = e.dataTransfer.files[0]
+        if (!file) return
+        setUploadFile(file)
+        setUploadedVideo(null)
+        setUploadError(null)
+        setUploadProgress(0)
+    }
+
+    const handleUpload = async () => {
+        if (!uploadFile) return
+        setUploading(true)
+        setUploadError(null)
+        setUploadProgress(0)
+
+        const formData = new FormData()
+        formData.append("file", uploadFile)
+
+        try {
+            // Use XMLHttpRequest for real progress tracking
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest()
+                xhr.open("POST", "http://127.0.0.1:8000/detection/upload_video")
+
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable)
+                        setUploadProgress(Math.round((e.loaded / e.total) * 100))
+                }
+
+                xhr.onload = () => {
+                    const data = JSON.parse(xhr.responseText)
+                    if (xhr.status === 200 && data.success) {
+                        setUploadedVideo(data)
+                        setUploadProgress(100)
+                        resolve()
+                    } else {
+                        reject(new Error(data.error || "Upload failed"))
+                    }
+                }
+                xhr.onerror = () => reject(new Error("Network error"))
+                xhr.send(formData)
+            })
+        } catch (err) {
+            setUploadError(err.message)
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    const handleUploadedDetection = () => {
+        if (!uploadedVideo) return
+        navigate('/detection-monitering', {
+            state: {
+                videoSource:  uploadedVideo.filename,
+                actualSource: uploadedVideo.path,
+                videoInfo:    null,
+                isCamera:     false,
+            }
+        })
+    }
 
     const getVideoProperties = async () => {
         setLoading(true);
@@ -333,6 +412,85 @@ function VideoSources() {
                     </div>
                 </section>
 
+                {/* ── Upload Video Section ── */}
+                <div className="vs-manual-section">
+                        <div className="vs-divider-label"><span>or upload a video file</span></div>
+
+                    <div className="vs-manual-card">
+                        {/* Drop zone */}
+                        <div
+                            className={`vs-upload-dropzone ${uploadFile ? "vs-upload-dropzone--has-file" : ""}`}
+                            onClick={() => fileInputRef.current?.click()}
+                            onDrop={handleDrop}
+                            onDragOver={(e) => e.preventDefault()}
+                        >
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".mp4,.avi,.mov,.mkv,.webm"
+                                style={{ display: "none" }}
+                                onChange={handleFileSelect}
+                            />
+                            {uploadFile ? (
+                                <div className="vs-upload-file-info">
+                                    <span className="vs-upload-file-icon">🎬</span>
+                                    <div>
+                                        <div className="vs-upload-file-name">{uploadFile.name}</div>
+                                        <div className="vs-upload-file-size">
+                                            {(uploadFile.size / (1024 * 1024)).toFixed(1)} MB
+                                        </div>
+                                    </div>
+                                    <button
+                                        className="vs-upload-clear"
+                                        onClick={(e) => { e.stopPropagation(); setUploadFile(null); setUploadedVideo(null); setUploadProgress(0); }}
+                                    >×</button>
+                                </div>
+                            ) : (
+                                <div className="vs-upload-placeholder">
+                                    <span className="vs-upload-icon">📁</span>
+                                    <span className="vs-upload-hint">Drop video here or click to browse</span>
+                                    <span className="vs-upload-formats">MP4 · AVI · MOV · MKV · WEBM</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Progress bar */}
+                        {uploading && (
+                            <div className="vs-upload-progress-wrap">
+                                <div className="vs-upload-progress-bar">
+                                    <div className="vs-upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+                                </div>
+                                <span className="vs-upload-progress-pct">{uploadProgress}%</span>
+                            </div>
+                        )}
+
+                        {/* Error */}
+                        {uploadError && (
+                            <div className="vs-upload-error">⚠ {uploadError}</div>
+                        )}
+
+                        {/* Success + start */}
+                        {uploadedVideo ? (
+                            <div className="vs-upload-success-row">
+                                <span className="vs-upload-success-msg">
+                                    ✓ {uploadedVideo.filename} uploaded ({uploadedVideo.size_mb} MB)
+                                </span>
+                                <button className="vs-start-btn" onClick={handleUploadedDetection}>
+                                    Start Detection →
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                className="vs-start-btn"
+                                onClick={handleUpload}
+                                disabled={!uploadFile || uploading}
+                                style={{ opacity: (!uploadFile || uploading) ? 0.5 : 1 }}
+                            >
+                                {uploading ? `Uploading ${uploadProgress}%…` : "Upload & Detect"}
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
 
             <SourcesPropsPanel
