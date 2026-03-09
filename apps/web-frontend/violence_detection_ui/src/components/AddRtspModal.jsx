@@ -11,6 +11,7 @@ const EMPTY_FORM = {
     password:    "",
     stream_path: "/stream1",
     location:    "",
+    camera_risk_class:  "medium",   
 };
 
 export default function AddRtspModal({ onClose, onCameraAdded }) {
@@ -229,6 +230,21 @@ export default function AddRtspModal({ onClose, onCameraAdded }) {
                                     value={form.location}
                                     onChange={e => setField("location", e.target.value)}
                                 />
+                            </div>
+
+                            {/* Camera Risk Level */}
+                            <div className="rtsp-field">
+                                <label className="rtsp-label">Risk Level</label>
+                                <select
+                                    className="rtsp-input"
+                                    value={form.camera_risk_class}
+                                    onChange={e => setField("camera_risk_class", e.target.value)}
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
                             </div>
 
                             {/* URL Preview */}

@@ -21,6 +21,7 @@ function VideoSources() {
     const [showModal, setShowModal] = useState(false);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [startingCameraId, setStartingCameraId] = useState(null);
+    const [webcamStarting, setWebcamStarting] = useState(false);
 
     const handleViewDetails = (cam) => {
         setSelectedCamera(cam);
@@ -97,6 +98,7 @@ function VideoSources() {
             navigate('/detection-monitering', {
                 state: {
                     videoSource:  `Camera: ${data.camera.name}`,
+                    actualSource: videoSource,
                     videoInfo:    data.camera,
                     sessionId:    data.session_id,
                     websocketUrl: data.websocket_url,
@@ -107,6 +109,33 @@ function VideoSources() {
             alert(`Could not start detection: ${err.message}`);
         } finally {
             setStartingCameraId(null);
+        }
+    };
+
+    const handleWebcamDetection = async () => {
+        setWebcamStarting(true);
+        try {
+            const res = await fetch("http://127.0.0.1:8000/detection/lrcn_start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ source_path: "0" }),  // "0" = webcam index
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || "Failed to start webcam");
+            navigate('/detection-monitering', {
+                state: {
+                    videoSource:  "Webcam (Device 0)",
+                    actualSource: "0",
+                    videoInfo:    null,
+                    sessionId:    data.session_id,
+                    websocketUrl: data.websocket_url,
+                    isCamera:     true,
+                }
+            });
+        } catch (err) {
+            alert(`Could not start webcam: ${err.message}`);
+        } finally {
+            setWebcamStarting(false);
         }
     };
 
@@ -216,6 +245,44 @@ function VideoSources() {
                                 <p className="vs-empty-sub">Click <strong style={{color:'#E4080A'}}>+ Add RTSP Camera</strong> to connect one</p>
                             </div>
                         )}
+                    </div>
+                </section>
+
+                {/* ── Webcam source ── */}
+                <section className="vs-manual-section">
+                    <div className="vs-divider">
+                        <span className="vs-divider-line" />
+                        <span className="vs-divider-label">or use your webcam</span>
+                        <span className="vs-divider-line" />
+                    </div>
+
+                    <div className="vs-manual-card" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div className="vs-manual-icon" style={{ marginBottom: 0, flexShrink: 0 }}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E4080A" strokeWidth="1.5">
+                                    <circle cx="12" cy="10" r="3"/>
+                                    <path d="M6 21v-1a6 6 0 0112 0v1"/>
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 3.5 2.5 6.5 7 9 4.5-2.5 7-5.5 7-9 0-3.87-3.13-7-7-7z" strokeOpacity="0.3"/>
+                                    <rect x="8" y="7" width="8" height="6" rx="1"/>
+                                    <path d="M8 10l-2-1v2l2-1zM16 10l2-1v2l-2-1z"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <p className="vs-manual-title" style={{ fontSize: '15px', marginBottom: '2px' }}>Local Webcam</p>
+                                <p className="vs-manual-sub" style={{ marginBottom: 0 }}>Currently working device's built-in or connected webcam</p>
+                            </div>
+                        </div>
+                        <button
+                            className="vs-manual-btn-primary"
+                            style={{ flex: 'none', padding: '10px 20px' }}
+                            onClick={handleWebcamDetection}
+                            disabled={webcamStarting}
+                        >
+                            {webcamStarting
+                                ? <><span className="vs-inline-spin" /> Starting…</>
+                                : 'Start Webcam'
+                            }
+                        </button>
                     </div>
                 </section>
 

@@ -48,4 +48,4 @@ ACTION_RECOGNITION_WEIGHT = 0.6
 
 
 
-print(f"Project Root (Read from Config file): {LRCN_MODEL_PATH}")
+print(f"Project Root (Read from Config file): {LRCN_TORCH_MODEL_PATH}")

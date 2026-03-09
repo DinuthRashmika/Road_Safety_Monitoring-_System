@@ -10,7 +10,7 @@ class DetectionSession:
     Manages a single detection session: one video, one model, one state
     """
     
-    def __init__(self, session_id: str, source_path: str):
+    def __init__(self, session_id: str, source_path):
         self.session_id = session_id
         self.source_path = source_path
         self.is_active = False
@@ -44,6 +44,12 @@ class DetectionSession:
             if not self.video_cap.isOpened():
                 raise Exception(f"Cannot open video source: {self.source_path}")
             
+            # Webcam-specific settings
+            if isinstance(self.source_path, int):
+                self.video_cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+                self.video_cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                self.video_cap.set(cv2.CAP_PROP_FPS,          30)
+
             self.is_active = True
             self.should_stop = False
             

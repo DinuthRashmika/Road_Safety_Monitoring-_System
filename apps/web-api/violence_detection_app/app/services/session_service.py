@@ -51,12 +51,27 @@ class SessionService:
     # ─────────────────────────────────────────
     #  Session lifecycle
     # ─────────────────────────────────────────
+    # def create_session(self, source_path: str) -> str:
+    #     session_id = f"session_{uuid.uuid4().hex[:12]}"
+    #     session    = DetectionSession(session_id, source_path)
+    #     if session.initialize():
+    #         self.active_sessions[session_id] = session
+    #         self._source_paths[session_id]   = source_path
+    #         return session_id
+    #     raise Exception("Failed to initialize detection session")
+
     def create_session(self, source_path: str) -> str:
         session_id = f"session_{uuid.uuid4().hex[:12]}"
-        session    = DetectionSession(session_id, source_path)
+        
+        # Convert "0", "1" etc to integer for webcam sources
+        # Also handle if someone passes "webcam" or similar
+        stripped = source_path.strip()
+        actual_source = int(stripped) if stripped.isdigit() else stripped
+        
+        session = DetectionSession(session_id, actual_source)
         if session.initialize():
             self.active_sessions[session_id] = session
-            self._source_paths[session_id]   = source_path   # ← store source
+            self._source_paths[session_id] = source_path
             return session_id
         raise Exception("Failed to initialize detection session")
 
@@ -150,9 +165,24 @@ class SessionService:
 
             # ── Create session tracker ─────────────────────────────────
             cap         = session.video_cap
+            source      = self._source_paths.get(session_id, "unknown")
+            
+            if source == "0":
+                cam_label      = "Webcam (Device 0)"
+                location_label = ""
+            elif source.startswith("rtsp://"):
+                cam_label      = "RTSP Stream"
+                location_label = source          # show the rtsp url as location
+            elif source.startswith("http"):
+                cam_label      = "External Video URL"
+                location_label = source
+            else:
+                cam_label      = f"Video File"
+                location_label = source      
+
             camera_info = CameraInfo(
-                camera_label           = "Main Camera",
-                source_path            = self._source_paths.get(session_id, "unknown"),
+                camera_label           = cam_label,
+                source_path            = source,
                 resolution_width       = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
                 resolution_height      = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
                 fps                    = round(cap.get(cv2.CAP_PROP_FPS), 2),
@@ -245,6 +275,9 @@ class SessionService:
                         print(f"Fusion error frame {frame_count}: {fe}")
 
                 # ── 7. Alert engine ───────────────────────────────────
+                alert_engine.config.camera_label   = cam_label
+                alert_engine.config.location_label = location_label
+
                 result = alert_engine.process_frame(
                     session_id    = session_id,
                     fusion_result = fusion_raw,
