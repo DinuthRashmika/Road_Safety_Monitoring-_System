@@ -192,6 +192,7 @@ async def create_camera(data: CameraCreateRequest) -> CameraDocument:
         "location":    data.location,
         "rtsp_url":    rtsp_url,
         "status":      "unknown",         # will be set after test
+        "camera_risk_class":  data.camera_risk_class,
         "created_at":  now,
         "updated_at":  now,
     }

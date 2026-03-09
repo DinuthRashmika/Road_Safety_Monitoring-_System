@@ -1,17 +1,3 @@
-"""
-camera_routes.py
-────────────────
-FastAPI router for camera management.
-
-Endpoints:
-  POST   /cameras/test          — test RTSP without saving
-  POST   /cameras               — create + save camera
-  GET    /cameras               — list all cameras
-  GET    /cameras/{camera_id}   — get single camera
-  PUT    /cameras/{camera_id}   — update camera
-  DELETE /cameras/{camera_id}   — delete camera
-  POST   /cameras/{camera_id}/test — test an existing saved camera
-"""
 
 import asyncio
 from fastapi import APIRouter, HTTPException

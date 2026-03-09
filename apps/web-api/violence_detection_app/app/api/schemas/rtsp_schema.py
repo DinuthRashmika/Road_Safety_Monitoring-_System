@@ -22,6 +22,7 @@ class CameraCreateRequest(BaseModel):
     password:    Optional[str] = None
     stream_path: str         = "/stream1"     # e.g. "/Streaming/Channels/101"
     location:    Optional[str] = None         # e.g. "Zone A - Entrance"
+    camera_risk_class:  str         = "low"
 
 
 class CameraUpdateRequest(BaseModel):
@@ -49,6 +50,7 @@ class CameraDocument(BaseModel):
     location:    Optional[str] = None
     rtsp_url:    str                          # built by backend
     status:      str         = "unknown"      # "online" | "offline" | "unknown"
+    camera_risk_class:  str         = "medium" 
     created_at:  str
     updated_at:  str
 
