@@ -17,6 +17,7 @@ Threat Tiers:
 """
 
 from typing import Dict, Tuple
+from datetime import datetime
 
 
 class ModelFusion:
@@ -82,7 +83,8 @@ class ModelFusion:
         action     = lrcn_result.get("action", "unknown").lower()
         confidence = lrcn_result.get("confidence", 0.0)
         severity   = self.action_severity.get(action, 0.5)
-        action_score = confidence * severity
+        time_multiplier = self.get_time_multiplier(action)
+        action_score    = min(confidence * severity * time_multiplier, 1.0)
 
         if action_score >= 0.85:
             reason = f"CRITICAL action: {action.upper()} detected with {confidence*100:.0f}% confidence"
@@ -176,6 +178,11 @@ class ModelFusion:
 
     def combine_results(self, yolo_result: Dict, lrcn_result: Dict) -> Dict:
         action_score, action_reason = self.calculate_action_threat(lrcn_result)
+    
+        # Extract these here so reasoning block can use them
+        action_lower = lrcn_result.get("action", "unknown").lower()
+        action_upper = action_lower.upper()
+        confidence   = lrcn_result.get("confidence", 0.0)
 
         amplified_score, object_reason = self.calculate_object_amplification(yolo_result, action_score)
         object_contribution = amplified_score - action_score
@@ -185,9 +192,64 @@ class ModelFusion:
 
         threat_level = self.classify_threat_level(final_score)
 
-        reasoning_parts = [action_reason]
-        if object_reason: reasoning_parts.append(object_reason)
-        if synergy_reason: reasoning_parts.append(synergy_reason)
+        # ── Build reasoning ────────────────────────────────────────────
+        action_level = self.classify_threat_level(action_score)
+
+        reasoning_lines = []
+
+        hour = datetime.now().hour
+        if hour < 6 or hour >= 21:
+            time_note = " (night-time escalation applied)"
+        elif hour >= 17:
+            time_note = " (evening escalation applied)"
+        else:
+            time_note = ""
+
+        # Line 1 — action
+        reasoning_lines.append(
+            f"A {confidence*100:.0f}% confidence {action_upper} detection scores "
+            f"{action_score*100:.0f}% — classified as {action_level}{time_note}."
+        )
+
+        # Line 2 — object amplification (only if weapon found)
+        detections = yolo_result.get("detections", [])
+        weapon_det = next(
+            (d for d in detections if d.get("object", "").lower() in self.object_severity),
+            None
+        )
+        if weapon_det:
+            obj_name     = weapon_det["object"].upper()
+            obj_conf     = weapon_det["confidence"]
+            obj_sev      = self.object_severity.get(weapon_det["object"].lower(), 0.0)
+            obj_weighted = obj_conf * obj_sev
+
+            if action_score >= 0.70:
+                boost_factor = 0.10
+            elif action_score >= 0.50:
+                boost_factor = 0.15
+            elif action_score >= 0.30:
+                boost_factor = 0.20
+            else:
+                boost_factor = 0.05
+
+            boost_amount = obj_weighted * boost_factor
+            reasoning_lines.append(
+                f"A {obj_conf*100:.0f}% confidence {obj_name} detection (severity {obj_sev*100:.0f}%) "
+                f"And applies an object amplification of {boost_amount*100:.1f}% to the threat score."
+            )
+
+        # Line 3 — contextual escalation
+        for det in detections:
+            obj_lower = det.get("object", "").lower()
+            combo     = (action_lower, obj_lower)
+            if combo in self.synergy_rules:
+                bonus     = self.synergy_rules[combo]
+                new_level = self.classify_threat_level(final_score)
+                reasoning_lines.append(
+                    f"Therefore, escalation applied for {action_upper} + {obj_lower.upper()} "
+                    f"Combined occurrence raises the threat level by {bonus*100:.0f}%, reaching {new_level}."
+                )
+                break
 
         return {
             "threat_score":         round(final_score, 4),
@@ -195,7 +257,7 @@ class ModelFusion:
             "action_contribution":  round(action_score, 4),
             "object_contribution":  round(object_contribution, 4),
             "synergy_bonus":        round(synergy_bonus, 4),
-            "reasoning":            " → ".join(reasoning_parts),
+            "reasoning":            "\n".join(reasoning_lines),
             "breakdown": {
                 "base_action_score":   round(action_score, 4),
                 "after_objects":       round(amplified_score, 4),
@@ -219,3 +281,19 @@ class ModelFusion:
             max_severity = max(max_severity, obj_conf * severity)
         return max_severity
 
+    # Step 4 - Get time context added
+    def get_time_multiplier(self, action: str) -> float:
+        """
+        Night-time multiplier for violent actions only.
+        Morning/day = normal. Evening/night = escalated.
+        """
+        if action not in ["attacking", "fighting", "shooting"]:
+            return 1.0
+
+        hour = datetime.now().hour
+
+        if 0 <= hour < 6:     return 1.35   # late night — highest risk
+        elif 6 <= hour < 9:   return 1.0    # early morning — normal
+        elif 9 <= hour < 17:  return 1.0    # business hours — normal
+        elif 17 <= hour < 21: return 1.15   # evening — slightly elevated
+        else:                 return 1.25   # night — elevated
