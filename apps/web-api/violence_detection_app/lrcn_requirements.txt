@@ -1,0 +1,11 @@
+opencv-python
+tensorflow
+numpy
+scikit-learn
+matplotlib
+tqdm
+fastapi
+uvicorn
+pydantic
+pydantic_settings
+httpx

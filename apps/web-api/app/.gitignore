@@ -1,0 +1,11 @@
+﻿# Ignore venv anywhere (root or subfolders)
+**/venv/
+
+# Ignore pycache anywhere
+**/__pycache__/
+
+# Standard ignores
+*.pyc
+.env
+.idea/
+.vscode/

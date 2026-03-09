@@ -1,0 +1,572 @@
+.app-content {
+    padding: 0 !important;
+    background-color: #f4f7f6 !important;
+}
+
+/* ── Page root ── */
+.vs-page {
+    padding: 28px 32px 48px;
+    max-width: 100%;
+    margin: 0;
+    background: #f4f7f6;
+    min-height: 100%;
+    box-sizing: border-box;
+}
+
+/* ── Page header ── */
+.vs-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+}
+
+.vs-page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+    letter-spacing: -0.3px;
+}
+
+.vs-page-sub {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* ── Add RTSP button (top-right) ── */
+.vs-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    background: #E4080A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.25);
+}
+.vs-add-btn:hover {
+    background: #c50009;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(228,8,10,0.35);
+}
+.vs-add-btn:active { transform: translateY(0); }
+
+/* ── Section wrapper ── */
+.vs-section {
+    margin-bottom: 28px;
+}
+
+.vs-section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.vs-count-badge {
+    background: #fee2e2;
+    color: #E4080A;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 12px;
+}
+
+/* ── Loading ── */
+.vs-loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    color: #6b7280;
+    font-size: 13px;
+}
+.vs-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #e5e7eb;
+    border-top-color: #E4080A;
+    border-radius: 50%;
+    animation: vs-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes vs-spin { to { transform: rotate(360deg); } }
+
+.vs-error-bar {
+    background: #fef2f2;
+    border-left: 4px solid #E4080A;
+    color: #dc2626;
+    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    font-size: 13px;
+    margin-bottom: 14px;
+}
+
+/* ═══════════════════════════════
+   CAMERA CARDS GRID
+═══════════════════════════════ */
+.vs-camera-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+/* ── Individual camera card ── */
+.vs-cam-card {
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+}
+.vs-cam-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    border-color: #fca5a5;
+}
+.vs-cam-card.vs-cam-offline { opacity: 0.72; }
+.vs-cam-card.vs-cam-selected { border-color: #E4080A; box-shadow: 0 0 0 2px rgba(228,8,10,0.15); }
+
+/* Red left accent stripe */
+.vs-cam-accent {
+    width: 4px;
+    background: #E4080A;
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 12px 0 0 12px;
+}
+.vs-cam-offline .vs-cam-accent { background: #d1d5db; }
+
+.vs-cam-body {
+    padding: 16px 16px 10px 20px;
+    flex: 1;
+}
+
+/* Top row: icon + status pill */
+.vs-cam-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.vs-cam-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: #fff5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #E4080A;
+    flex-shrink: 0;
+}
+.vs-cam-offline .vs-cam-icon {
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+/* Status pill */
+.vs-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.vs-pill-online {
+    background: #d1fae5;
+    color: #065f46;
+}
+.vs-pill-offline {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+.vs-pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+.vs-pill-online .vs-pill-dot {
+    background: #10b981;
+    box-shadow: 0 0 4px rgba(16,185,129,0.6);
+    animation: vs-blink 1.8s ease infinite;
+}
+.vs-pill-offline .vs-pill-dot { background: #9ca3af; }
+@keyframes vs-blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* Camera text */
+.vs-cam-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 5px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.vs-cam-meta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0 0 4px 0;
+}
+.vs-cam-ip {
+    font-size: 12px;
+    color: #9ca3af;
+    font-family: 'SF Mono', monospace;
+    margin: 0;
+}
+
+/* Card action buttons */
+.vs-cam-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px 14px 20px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.vs-cam-btn-outline {
+    flex: 1;
+    padding: 7px 0;
+    background: transparent;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.vs-cam-btn-outline:hover {
+    border-color: #E4080A;
+    color: #E4080A;
+    background: #fff5f5;
+}
+
+.vs-cam-btn-primary {
+    flex: 1.5;
+    padding: 7px 0;
+    background: #E4080A;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.18s ease;
+}
+.vs-cam-btn-primary:hover { background: #c50009; }
+.vs-cam-btn-disabled,
+.vs-cam-btn-primary:disabled,
+.vs-cam-btn-outline:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Inline spinner inside buttons */
+.vs-inline-spin {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: vs-spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+.vs-spin-red {
+    border-color: rgba(228,8,10,0.25);
+    border-top-color: #E4080A;
+}
+
+/* ── Empty state ── */
+.vs-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 48px 20px;
+    background: #fff;
+    border: 1px dashed #e5e7eb;
+    border-radius: 12px;
+    text-align: center;
+}
+.vs-empty-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+.vs-empty-sub {
+    font-size: 13px;
+    color: #9ca3af;
+    margin: 0;
+}
+
+/* ═══════════════════════════════
+   MANUAL VIDEO SOURCE
+═══════════════════════════════ */
+.vs-manual-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Divider */
+.vs-divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 560px;
+    margin-bottom: 24px;
+}
+.vs-divider-line {
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+}
+.vs-divider-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #9ca3af;
+    white-space: nowrap;
+}
+
+/* Manual card — centered, max-width */
+.vs-manual-card {
+    width: 100%;
+    max-width: 560px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 28px 28px 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.vs-manual-icon {
+    width: 48px;
+    height: 48px;
+    background: #fff5f5;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.vs-manual-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 4px 0;
+}
+.vs-manual-sub {
+    font-size: 14px;
+    color: #9ca3af;
+    margin: 0 0 18px 0;
+}
+
+.vs-manual-input {
+    width: 100%;
+    padding: 11px 14px;
+    font-size: 13px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    color: #111827;
+    background: #fafafa;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+    margin-bottom: 14px;
+    font-family: 'SF Mono', monospace;
+}
+.vs-manual-input:focus {
+    outline: none;
+    border-color: #E4080A;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(228,8,10,0.08);
+}
+.vs-manual-input::placeholder { color: #d1d5db; font-family: inherit; }
+
+.vs-manual-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.vs-manual-btn-outline {
+    flex: 1;
+    padding: 10px 0;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.18s ease;
+}
+.vs-manual-btn-outline:hover:not(:disabled) {
+    border-color: #E4080A;
+    color: #E4080A;
+    background: #fff5f5;
+}
+.vs-manual-btn-outline:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.vs-manual-btn-primary {
+    flex: 1.4;
+    padding: 10px 0;
+    background: #E4080A;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.2);
+}
+.vs-manual-btn-primary:hover:not(:disabled) {
+    background: #c50009;
+    box-shadow: 0 4px 14px rgba(228,8,10,0.3);
+}
+.vs-manual-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .vs-page { padding: 16px; }
+    .vs-page-header { flex-direction: column; align-items: flex-start; }
+    .vs-camera-grid { grid-template-columns: 1fr; }
+    .vs-manual-card { padding: 20px 16px; }
+    .vs-manual-actions { flex-direction: column; }
+}
+
+.vs-upload-dropzone {
+    border: 2px dashed #e5e7eb;
+    border-radius: 10px;
+    padding: 28px 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+    margin-bottom: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+.vs-upload-dropzone:hover,
+.vs-upload-dropzone--has-file {
+    border-color: #E4080A;
+    background: #fff5f5;
+}
+.vs-upload-placeholder {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.vs-upload-icon    { font-size: 28px; }
+.vs-upload-hint    { font-size: 13px; color: #6b7280; }
+.vs-upload-formats { font-size: 10px; color: #9ca3af; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.vs-upload-file-info {
+    display: flex; align-items: center; gap: 12px; justify-content: space-between;
+}
+.vs-upload-file-icon { font-size: 24px; }
+.vs-upload-file-name { font-size: 13px; color: #111827; font-weight: 500; text-align: left; }
+.vs-upload-file-size { font-size: 11px; color: #9ca3af; text-align: left; }
+.vs-upload-clear {
+    background: none; border: none; color: #9ca3af;
+    font-size: 20px; cursor: pointer; padding: 0 4px; line-height: 1;
+    flex-shrink: 0;
+}
+.vs-upload-clear:hover { color: #374151; }
+
+.vs-upload-progress-wrap {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px; width: 100%;
+}
+.vs-upload-progress-bar {
+    flex: 1; height: 4px; background: #e5e7eb; border-radius: 2px; overflow: hidden;
+}
+.vs-upload-progress-fill {
+    height: 100%; background: #E4080A; border-radius: 2px;
+    transition: width 0.2s ease;
+}
+.vs-upload-progress-pct { font-size: 11px; color: #9ca3af; min-width: 32px; }
+
+.vs-upload-error {
+    font-size: 12px; color: #dc2626; margin-bottom: 10px; padding: 8px 12px;
+    background: #fef2f2; border-radius: 6px; width: 100%; box-sizing: border-box;
+    border-left: 3px solid #E4080A;
+}
+
+.vs-upload-success-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; width: 100%;
+}
+.vs-upload-success-msg {
+    font-size: 12px; color: #059669; flex: 1;
+}
+
+.vs-start-btn {
+    padding: 10px 20px;
+    background: #E4080A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.18s, box-shadow 0.18s;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.2);
+    width: 100%;
+    margin-top: 4px;
+}
+.vs-start-btn:hover:not(:disabled) {
+    background: #c50009;
+    box-shadow: 0 4px 14px rgba(228,8,10,0.3);
+}
+.vs-start-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.vs-upload-success-row .vs-start-btn {
+    width: auto;
+    margin-top: 0;
+    flex-shrink: 0;
+}

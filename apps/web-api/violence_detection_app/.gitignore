@@ -1,0 +1,41 @@
+# python 
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+.env
+
+# fast API
+*.log
+
+# deep learning
+*.pt
+*.pth
+*.h5
+*.onnx
+*.weights
+runs/
+outputs/
+results/
+
+# videos
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.png
+*.zip
+
+# ide
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# temporary
+*.tmp
+*.cache

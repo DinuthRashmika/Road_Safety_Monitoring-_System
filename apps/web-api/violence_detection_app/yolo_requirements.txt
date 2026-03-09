@@ -1,0 +1,13 @@
+ultralytics==8.3.0
+torch
+torchvision
+opencv-python
+numpy
+pandas
+scikit-learn
+matplotlib
+tqdm
+fastapi
+uvicorn
+pydantic
+pydantic_settings

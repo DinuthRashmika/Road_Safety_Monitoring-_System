@@ -1,0 +1,282 @@
+/* ═══════════════════════════════════════════════
+   SourcePropsPanel.css
+   Compact right-side slide panel
+   Matches light theme: white, #f4f7f6 bg, #E4080A accent
+═══════════════════════════════════════════════ */
+
+/* ── Panel container ── */
+.sp-panel {
+    position: fixed;
+    top: 60px;               /* below app header */
+    right: -380px;
+    width: 360px;
+    height: calc(100vh - 60px);
+    background: #ffffff;
+    border-left: 1px solid #e5e7eb;
+    box-shadow: -6px 0 28px rgba(0,0,0,0.09);
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+.sp-panel.sp-open { right: 0; }
+
+/* ── Header ── */
+.sp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    background: #E4080A;
+    flex-shrink: 0;
+}
+
+.sp-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sp-header-icon {
+    width: 34px;
+    height: 34px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.sp-header-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 2px 0;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sp-header-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.7);
+    margin: 0;
+}
+
+.sp-close {
+    width: 30px;
+    height: 30px;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease, transform 0.18s ease;
+}
+.sp-close:hover {
+    background: rgba(255,255,255,0.28);
+    transform: rotate(90deg);
+}
+
+/* ── Body ── */
+.sp-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: #f9fafb;
+}
+
+.sp-body::-webkit-scrollbar       { width: 5px; }
+.sp-body::-webkit-scrollbar-track { background: #f3f4f6; }
+.sp-body::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 3px; }
+
+/* ── Status banner ── */
+.sp-status-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 13px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.sp-banner-online  { background: #d1fae5; color: #065f46; }
+.sp-banner-offline { background: #fee2e2; color: #991b1b; }
+
+.sp-status-dot-lg {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.sp-banner-online  .sp-status-dot-lg { background: #10b981; box-shadow: 0 0 5px rgba(16,185,129,0.5); animation: sp-blink 1.8s ease infinite; }
+.sp-banner-offline .sp-status-dot-lg { background: #ef4444; }
+@keyframes sp-blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* ── Group ── */
+.sp-group {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.sp-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #9ca3af;
+    padding: 10px 14px 6px;
+    margin: 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+/* ── Rows ── */
+.sp-rows { display: flex; flex-direction: column; }
+
+.sp-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 14px;
+    border-bottom: 1px solid #f3f4f6;
+    gap: 12px;
+}
+.sp-row:last-child { border-bottom: none; }
+
+.sp-lbl {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+.sp-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 180px;
+}
+.sp-mono {
+    font-family: 'SF Mono', 'Fira Mono', 'Courier New', monospace;
+    font-size: 11px;
+    color: #E4080A;
+}
+
+/* ── RTSP URL box ── */
+.sp-url-box {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+.sp-url-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #9ca3af;
+    margin: 0 0 5px 0;
+}
+.sp-url-value {
+    font-family: 'SF Mono', 'Fira Mono', monospace;
+    font-size: 11px;
+    color: #E4080A;
+    word-break: break-all;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* ── Video stat grid (2x2) ── */
+.sp-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #f3f4f6;
+    border-top: 1px solid #f3f4f6;
+}
+.sp-stat {
+    background: #fff;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.sp-stat-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1;
+}
+.sp-stat-lbl {
+    font-size: 10px;
+    font-weight: 500;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* ── Footer ── */
+.sp-footer {
+    display: flex;
+    gap: 10px;
+    padding: 14px 18px;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.sp-btn-close {
+    flex: 1;
+    padding: 10px 0;
+    background: transparent;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.sp-btn-close:hover { border-color: #d1d5db; color: #374151; }
+
+.sp-btn-start {
+    flex: 1.6;
+    padding: 10px 0;
+    background: #E4080A;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    box-shadow: 0 2px 8px rgba(228,8,10,0.2);
+}
+.sp-btn-start:hover:not(:disabled) {
+    background: #c50009;
+    box-shadow: 0 4px 14px rgba(228,8,10,0.3);
+}
+.sp-btn-start:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+    .sp-panel { width: 100%; right: -100%; top: 60px; }
+}
