@@ -6,7 +6,7 @@
 }
 
 .create-responder-button {
-    background-color: #28a745; /* Green */
+    background-color: #28a745; 
     color: white;
     border: none;
     padding: 10px 20px;
@@ -43,7 +43,6 @@
 .responder-card:has(.responder-role:contains("fire")) { border-left-color: #d9534f; }
 .responder-card:has(.responder-role:contains("admin")) { border-left-color: #f0ad4e; }
 
-/* Fallback for :has support */
 .responder-card { border-left-color: #ccc; } 
 
 .responder-left {
@@ -127,7 +126,6 @@
     margin-bottom: 15px;
 }
 
-/* MODAL STYLES REUSED FROM PREVIOUS STEPS (Confirmed mostly same) */
 .modal-backdrop {
     position: fixed;
     top: 0;
