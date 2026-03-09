@@ -465,7 +465,7 @@ class ObjectDetection:
         cap = cv2.VideoCapture(camera_index)
         
         if not cap.isOpened():
-            print(f"❌ Error: Cannot open camera {camera_index}")
+            print(f" Error: Cannot open camera {camera_index}")
             return
         
         # Get properties
@@ -486,7 +486,7 @@ class ObjectDetection:
                 ret, frame = cap.read()
                 
                 if not ret:
-                    print("❌ Failed to grab frame")
+                    print(" Failed to grab frame")
                     break
                 
                 frame_index += 1
@@ -839,7 +839,7 @@ if __name__ == "__main__":
 #                         end='\r')
                     
 #         except Exception as e:
-#             print(f"❌ Error: {e}")
+#             print(f" Error: {e}")
 #             traceback.print_exc()
 #         finally:
 #             cap.release()

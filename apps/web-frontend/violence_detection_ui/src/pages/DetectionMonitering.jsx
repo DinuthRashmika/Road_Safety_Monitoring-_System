@@ -159,26 +159,41 @@ function Detection() {
         const level = testAlertCounter.current % 2 === 0 ? "HIGH" : "CRITICAL";
 
         const fakePayload = {
-            alert_id:          `test_alert_${testAlertCounter.current}`,
-            session_id:        videoProcessingInfo?.session_id || "test_session",
-            timestamp:         now,
-            camera:            "Test Camera",
-            location:          "Test Zone",
-            threat_level:      level,
-            threat_score:      level === "CRITICAL" ? 0.91 : 0.72,
-            sustained_seconds: 3.4,
-            action:            "fighting",
-            action_confidence: 0.86,
-            objects_detected:  [{ object: "knife", confidence: 0.74 }],
+            alert_id:            `test_alert_${testAlertCounter.current}`,
+            session_id:          videoProcessingInfo?.session_id || "test_session",
+            timestamp:           now,
+            camera:              "Test Camera",
+            location:            "Test Zone",
+            threat_level:        level,
+            threat_score:        level === "CRITICAL" ? 0.91 : 0.72,
+            sustained_seconds:   3.4,
+            action:              "fighting",
+            action_confidence:   0.86,
+            objects_detected:    [{ object: "knife", confidence: 0.74 }],
             action_contribution: 0.52,
             object_contribution: 0.28,
-            synergy_bonus:     0.11,
-            human_summary:     `[TEST] At ${new Date(now).toLocaleTimeString()}, a simulated ${level} threat was detected. This is a test alert to verify the alert pipeline.`,
-            frame_number:      999,
-            alert_number:      testAlertCounter.current,
+            synergy_bonus:       0.11,
+            human_summary:       `[TEST] At ${new Date(now).toLocaleTimeString()}, a simulated ${level} threat was detected. This is a test alert to verify the alert pipeline.`,
+            frame_number:        999,
+            alert_number:        testAlertCounter.current,
+            is_test:             true,   // ← flag so DB knows it's a test
         };
 
-        const result = { success: true, status_code: 200, error: null };
+        // ── Save to DB via backend ──
+        let result = { success: true, status_code: 200, error: null };
+        try {
+            const res = await fetch("http://127.0.0.1:8000/detection/save_alert", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify(fakePayload),
+            });
+            if (!res.ok) {
+                result = { success: false, status_code: res.status, error: `HTTP ${res.status}` };
+            }
+        } catch (err) {
+            result = { success: false, status_code: null, error: err.message };
+        }
+
         dispatchAlert({ payload: fakePayload, result, isTest: true });
     }, [videoProcessingInfo, dispatchAlert]);
 
@@ -906,8 +921,8 @@ function Detection() {
 
                                 <div className={`dm-alert-dispatch-status ${activeAlert.result?.success ? "dispatch-ok" : "dispatch-fail"}`}>
                                     {activeAlert.result?.success
-                                        ? "✓ Successfully sent to Coordination Hub"
-                                        : `✗ Failed to reach Coordination Hub — ${activeAlert.result?.error}`
+                                        ? "Successfully sent to Coordination Hub"
+                                        : `Failed to reach Coordination Hub — ${activeAlert.result?.error}`
                                     }
                                 </div>
                             </div>

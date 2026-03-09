@@ -158,7 +158,7 @@ class ActionRecognitionTorch:
         
         try:
             if not os.path.exists(model_path):
-                print(f"❌ Model file not found: {model_path}")
+                print(f" Model file not found: {model_path}")
                 print("   Using mock model for testing\n")
                 return None
             
@@ -172,7 +172,7 @@ class ActionRecognitionTorch:
             model.eval()
             
             if self.verbose:
-                print(f"✅ PyTorch LRCN model loaded successfully!")
+                print(f"PyTorch LRCN model loaded successfully!")
                 total_params = sum(p.numel() for p in model.parameters())
                 print(f"   Total parameters: {total_params:,}")
                 print(f"   Model architecture: CNN + LSTM\n")
@@ -180,7 +180,7 @@ class ActionRecognitionTorch:
             return model
         
         except Exception as e:
-            print(f"❌ Error loading PyTorch LRCN model: {e}\n")
+            print(f" Error loading PyTorch LRCN model: {e}\n")
             import traceback
             traceback.print_exc()
             return None
@@ -408,7 +408,7 @@ class ActionRecognitionTorch:
         cap = cv2.VideoCapture(video_path)
         
         if not cap.isOpened():
-            print(f"❌ Error: Cannot open video: {video_path}")
+            print(f" Error: Cannot open video: {video_path}")
             return {}
         
         # Get properties
