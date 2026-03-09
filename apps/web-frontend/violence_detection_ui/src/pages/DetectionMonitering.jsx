@@ -26,6 +26,7 @@ function Detection() {
     const videoSource = location.state?.videoSource;
     const videoInfo   = location.state?.videoInfo;
     const isCamera    = location.state?.isCamera || false;
+    const actualSource  = location.state?.actualSource || videoSource;
 
     const [videoProcessingInfo, setVideoProcessingInfo] = useState(null);
     const [loading, setLoading]                         = useState(false);
@@ -44,12 +45,9 @@ function Detection() {
     const [alertModalMs, setAlertModalMs]         = useState(0);
     const [alertHistory, setAlertHistory]         = useState([]);
     const [lastHubResult, setLastHubResult]       = useState(null);
-
-    // ── NEW: Top banner (replaces old sentBanner) ──
     const [topBanner, setTopBanner]               = useState(null); // { level, success, error }
 
-    // ── NEW: Visual countdown state for instant threats ──
-    // { level, stage: 0|1|2 } where 0=DETECTED, 1=SENDING, 2=SENT
+    // where 0=DETECTED, 1=SENDING, 2=SENT
     const [alertCountdown, setAlertCountdown]     = useState(null);
 
     const wsRef              = useRef(null);
@@ -74,9 +72,7 @@ function Detection() {
         };
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────
     //  Top banner (big colored bar under topbar)
-    // ─────────────────────────────────────────────────────────────────
     const showTopBanner = useCallback((level, success, error = null) => {
         clearTimeout(topBannerTimerRef.current);
         setTopBanner({ level, success, error });
@@ -86,10 +82,8 @@ function Detection() {
         );
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────
     //  Visual countdown: DETECTED → SENDING → SENT (1s each)
     //  Then opens the modal
-    // ─────────────────────────────────────────────────────────────────
     const runCountdown = useCallback((level, onComplete) => {
         setAlertCountdown({ level, stage: 0 }); // DETECTED
 
@@ -107,9 +101,7 @@ function Detection() {
         }, 1000);
     }, []);
 
-    // ─────────────────────────────────────────────────────────────────
     //  Alert modal lifecycle
-    // ─────────────────────────────────────────────────────────────────
     const openAlertModal = useCallback((dispatch) => {
         clearTimeout(alertTimerRef.current);
         clearInterval(alertIntervalRef.current);
@@ -135,9 +127,7 @@ function Detection() {
         setActiveAlert(null);
     };
 
-    // ─────────────────────────────────────────────────────────────────
     //  Dispatch helper — runs countdown then opens modal + banner
-    // ─────────────────────────────────────────────────────────────────
     const dispatchAlert = useCallback((dispatch) => {
         const level = dispatch.payload.threat_level;
         setAlertHistory(prev => [dispatch, ...prev].slice(0, 20));
@@ -150,9 +140,7 @@ function Detection() {
         });
     }, [runCountdown, openAlertModal, showTopBanner]);
 
-    // ─────────────────────────────────────────────────────────────────
     //  TEST MODE
-    // ─────────────────────────────────────────────────────────────────
     const fireTestAlert = useCallback(async () => {
         testAlertCounter.current += 1;
         const now   = new Date().toISOString();
@@ -197,9 +185,7 @@ function Detection() {
         dispatchAlert({ payload: fakePayload, result, isTest: true });
     }, [videoProcessingInfo, dispatchAlert]);
 
-    // ─────────────────────────────────────────────────────────────────
     //  WebSocket
-    // ─────────────────────────────────────────────────────────────────
     const startProcessing = async () => {
         setLoading(true);
         setCurrentAction(null);
@@ -218,7 +204,8 @@ function Detection() {
             const response = await fetch("http://127.0.0.1:8000/detection/lrcn_start", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ source_path: videoSource }),
+                // body: JSON.stringify({ source_path: videoSource }),
+                body: JSON.stringify({ source_path: actualSource }),
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
@@ -328,9 +315,7 @@ function Detection() {
         }
     };
 
-    // ─────────────────────────────────────────────────────────────────
     //  Helpers
-    // ─────────────────────────────────────────────────────────────────
     const getThreatColor = (l) => THREAT_COLORS[l] || "#6b7280";
     const getThreatBg    = (l) => THREAT_BG[l]     || "rgba(107,114,128,0.10)";
 
@@ -373,9 +358,7 @@ function Detection() {
         ? COUNTDOWN_STAGES[alertCountdown.stage]
         : null;
 
-    // ─────────────────────────────────────────────────────────────────
     //  Render
-    // ─────────────────────────────────────────────────────────────────
     return (
         <Layout>
             <div className="dm-root">
@@ -392,7 +375,7 @@ function Detection() {
                                 ⚠ {alertProgress.alert_count} ALERT{alertProgress.alert_count > 1 ? "S" : ""} FIRED
                             </span>
                         )}
-                        {TEST_MODE && <span className="dm-test-mode-badge">TEST MODE</span>}
+                        {/* {TEST_MODE && <span className="dm-test-mode-badge">TEST MODE</span>} */}
                     </div>
                     <div className="dm-topbar-right">
                         <span className="dm-src">{videoSource}</span>
@@ -561,11 +544,11 @@ function Detection() {
                                         {currentAction.action.toUpperCase()}
                                     </div>
                                     <div className="dm-action-meta">
-                                        <span>Frame {currentAction.frame_number}</span>
+                                        {/* <span>Frame {currentAction.frame_number}</span> */}
                                         {/* <span className={`dm-violent-tag ${currentAction.is_violent ? "tag-yes" : "tag-no"}`}>
                                             {currentAction.is_violent ? "VIOLENT" : "NORMAL"}
                                         </span> */}
-                                        <span>{fmtPct(currentAction.confidence)} conf</span>
+                                        <span>{fmtPct(currentAction.confidence)} confidence in recognizing</span>
                                     </div>
                                     <div className="dm-probs">
                                         {Object.entries(currentAction.all_probabilities).map(([act, prob]) => (
@@ -621,12 +604,12 @@ function Detection() {
 
                         <div className="dm-card dm-log-card">
                             <div className="dm-card-header">
-                                <span className="dm-card-title">📋 Detection Log</span>
+                                <span className="dm-card-title">📋 Detection Log Summary</span>
                                 <span className="dm-card-sub">unique events only</span>
                             </div>
                             <div className="dm-log-body">
                                 <div className="dm-log-group">
-                                    <div className="dm-log-group-title">Actions</div>
+                                    <div className="dm-log-group-title">All Actions</div>
                                     {detectedActionsLog.length === 0
                                         ? <div className="dm-log-empty">No violent actions yet</div>
                                         : detectedActionsLog.map((evt, i) => (
@@ -641,7 +624,7 @@ function Detection() {
                                     }
                                 </div>
                                 <div className="dm-log-group">
-                                    <div className="dm-log-group-title">Objects</div>
+                                    <div className="dm-log-group-title">All Objects</div>
                                     {detectedObjectsLog.length === 0
                                         ? <div className="dm-log-empty">No violent objects yet</div>
                                         : detectedObjectsLog.map((evt, i) => (
@@ -670,11 +653,13 @@ function Detection() {
                             </div>
                             {fusionResult ? (
                                 <div className="dm-threat-body">
+                                    <div className="dm-threat-score-label-middle">Threat class</div>
                                     <div className="dm-threat-level" style={{ color: getThreatColor(fusionResult.weight_level) }}>
                                         {fusionResult.weight_level}
                                     </div>
+                                    
                                     <div className="dm-threat-score-row">
-                                        <span className="dm-threat-score-label">Threat Score</span>
+                                        <span className="dm-threat-score-label">Total Threat Score</span>
                                         <span className="dm-threat-score-value" style={{ color: getThreatColor(fusionResult.weight_level) }}>
                                             {fmtPct(fusionResult.threat_score)}
                                         </span>
@@ -729,7 +714,7 @@ function Detection() {
                             <div className="dm-alert-status-body">
                                 <div className="dm-alert-state-row">
                                     <div className="dm-alert-state-item">
-                                        <span className="dm-alert-state-label">ENGINE</span>
+                                        <span className="dm-alert-state-label">ALERT ENGINE</span>
                                         <span className={`dm-alert-state-value ${
                                             alertProgress?.is_cooling      ? "val-cyan"   :
                                             alertProgress?.progress_pct > 0 ? "val-orange" : "val-green"
@@ -758,7 +743,7 @@ function Detection() {
                                     </div>
                                 </div>
 
-                                {TEST_MODE && (
+                                {/* {TEST_MODE && (
                                     <div className="dm-test-row">
                                         <div className="dm-test-info">
                                             <span className="dm-test-label">🧪 Test Mode Active</span>
@@ -770,15 +755,15 @@ function Detection() {
                                             Send Test Alert
                                         </button>
                                     </div>
-                                )}
+                                )} */}
 
                                 <div className="dm-alert-hist-section">
                                     <div className="dm-alert-hist-header">
-                                        <span className="dm-log-group-title">Alert History</span>
+                                        <span className="dm-log-group-title">Alert History for the Current Session</span>
                                     </div>
                                     {alertHistory.length === 0 ? (
                                         <div className="dm-waiting" style={{ padding: "14px" }}>
-                                            <span className="dm-wait-icon">📋</span>
+                                            <span className="dm-wait-icon"></span>
                                             <span>No alerts fired yet</span>
                                         </div>
                                     ) : (
