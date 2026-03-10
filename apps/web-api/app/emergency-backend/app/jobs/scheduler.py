@@ -156,20 +156,16 @@ def get_image_path_from_plate(plate_number: str, base_path: str = "shenal_upload
     if not plate_number:
         return None
     
-    # Clean the plate number (remove spaces for matching)
     clean_plate = plate_number.replace(" ", "")
     
-    # Mapping of plate numbers to their specific image files
     plate_to_image = {
         "CBH6301": "CBH 6301_132211_d37f7fef.jpg",
         "JLI4282": "JLI 4282_132617_cf5e4e2c.jpg"
     }
     
-    # Get the image filename for this plate
     image_filename = plate_to_image.get(clean_plate)
     
     if image_filename:
-        # Construct the full path
         full_path = os.path.join(base_path, image_filename)
         return full_path
     
@@ -184,7 +180,6 @@ async def detect_accident(image_path: str, plate_number: str = None, max_retries
     if not image_path and not plate_number:
         return False, 0.0
 
-    # If we have a plate number, try to get the image from the plate mapping first
     actual_image_path = image_path
     if plate_number and not image_path:
         plate_based_path = get_image_path_from_plate(plate_number)
@@ -225,7 +220,6 @@ async def detect_accident(image_path: str, plate_number: str = None, max_retries
                     img = cv2.imdecode(arr, -1)
             
             else:
-                # Try multiple possible paths
                 possible_paths = [
                     actual_image_path,
                     os.path.join("shenal_uploads", actual_image_path.lstrip('/').replace('\\', '/')),
@@ -233,7 +227,6 @@ async def detect_accident(image_path: str, plate_number: str = None, max_retries
                     os.path.join("shenal_uploads", "detections", os.path.basename(actual_image_path))
                 ]
                 
-                # If we have plate number, also try the plate-based path
                 if plate_number:
                     plate_path = get_image_path_from_plate(plate_number)
                     if plate_path and plate_path not in possible_paths:
@@ -302,7 +295,6 @@ async def detect_fire(image_path: str, plate_number: str = None, max_retries: in
     if not image_path and not plate_number:
         return False, 0.0
 
-    # If we have a plate number, try to get the image from the plate mapping first
     actual_image_path = image_path
     if plate_number and not image_path:
         plate_based_path = get_image_path_from_plate(plate_number)
@@ -339,7 +331,6 @@ async def detect_fire(image_path: str, plate_number: str = None, max_retries: in
                     img = cv2.imdecode(arr, -1)
             
             else:
-                # Try multiple possible paths
                 possible_paths = [
                     actual_image_path,
                     os.path.join("shenal_uploads", actual_image_path.lstrip('/').replace('\\', '/')),
@@ -347,7 +338,6 @@ async def detect_fire(image_path: str, plate_number: str = None, max_retries: in
                     os.path.join("shenal_uploads", "detections", os.path.basename(actual_image_path))
                 ]
                 
-                # If we have plate number, also try the plate-based path
                 if plate_number:
                     plate_path = get_image_path_from_plate(plate_number)
                     if plate_path and plate_path not in possible_paths:
@@ -442,12 +432,10 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         
         logger.info(f"Violation details - Plate: {plate_number}, Image Path: {image_path[:100] if image_path else 'None'}...")
         
-        # Check if this is a known plate with a specific image
         if plate_number:
             plate_image = get_image_path_from_plate(plate_number)
             if plate_image:
                 logger.info(f"Found specific image for plate {plate_number}: {plate_image}")
-                # Use this path instead of the one from violation
                 image_path = plate_image
         
         if not image_path:
@@ -456,7 +444,6 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         
         logger.info(f"Checking image: {image_path[:100]}...")
         
-        # Pass plate_number to detection functions for additional path resolution
         is_accident, accident_conf = await detect_accident(image_path, plate_number)
         
         if not is_accident:
