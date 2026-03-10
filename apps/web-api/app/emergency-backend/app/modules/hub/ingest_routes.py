@@ -14,8 +14,8 @@ from app.modules.incidents.service import compute_scores
 from app.modules.incidents.repo import (
     insert_incident, 
     update_incident, 
-    get_incident, 
-    find_nearby_active_incident 
+    get_incident
+    # Removed: find_nearby_active_incident
 )
 from app.modules.incidents.broadcast import broadcast_incident_update
 from app.modules.hub.fire_detector import fire_present_from_image
@@ -95,6 +95,7 @@ async def store_violation_reference(incident_id: str, violation_metadata: Dict[s
 async def ingest(payload: dict = Body(...)):
   
     try:
+        # Handle image URL - convert local paths to API endpoints
         if "media" in payload and isinstance(payload["media"], dict):
             raw_url = payload["media"].get("image_url")
             if raw_url:
@@ -108,14 +109,17 @@ async def ingest(payload: dict = Body(...)):
         db = get_db()
         existing_doc = None
 
+        # Check for existing incident by report_id
         if report_id:
             existing_doc = await db["incidents"].find_one({"report_id": report_id})
 
         fire_status_provided = 'accident' in payload and 'fire_present' in payload['accident']
 
+        # CASE 1: Update existing incident
         if existing_doc:
             was_unverified = existing_doc.get("status") == "unverified"
 
+            # Merge existing data with new payload
             inc_data = {
                 **_sanitize(existing_doc),
                 **payload,
@@ -123,77 +127,46 @@ async def ingest(payload: dict = Body(...)):
             }
             inc = Incident(**inc_data)
 
+            # Recompute scores
             inc = compute_scores(inc)
 
+            # Override score if provided
             if provided_score is not None:
                 inc.score = _coerce_score(provided_score)
 
             current_fire = (inc.accident and inc.accident.fire_present) or False
 
+            # Promote from unverified if conditions met
             if was_unverified and (fire_status_provided or inc.score >= MIN_SCORE_FOR_PROMOTION):
                 if current_fire or inc.score >= MIN_SCORE_FOR_PROMOTION:
                     inc.status = "new"
                     inc.reported_at = utcnow_iso()
 
+            # Prepare update
             doc_to_update = inc.model_dump(exclude={"id"})
 
             if was_unverified and inc.status == "new":
                 doc_to_update["reported_at"] = inc.reported_at
 
+            # Apply update
             await update_incident(inc.id, doc_to_update)
             updated_doc = await get_incident(inc.id)
 
+            # Broadcast if promoted
             if updated_doc and updated_doc["status"] != "unverified":
                 await broadcast_incident_update(updated_doc)
 
             return {"id": inc.id, "action": "updated"}
 
-        if not existing_doc:
-            lat = payload.get("location", {}).get("lat")
-            lng = payload.get("location", {}).get("lng")
-            src = payload.get("source")
-            
-            if lat and lng and src:
-                nearby_parent = await find_nearby_active_incident(
-                    lat, lng, src, max_distance_m=150
-                )
-                
-                if nearby_parent:
-                    logger.info(f"CLUSTERING: Merging report {report_id} into parent {nearby_parent['id']}")
-                    
-                    old_explain = nearby_parent.get("explain", [])
-                    new_note = f"Duplicate confirmed by secondary source ({report_id or 'unknown'})"
-                    
-                    if new_note not in old_explain:
-                        old_explain.append(new_note)
-                        
-                    patch = {
-                        "explain": old_explain,
-                        "duplicate_count": nearby_parent.get("duplicate_count", 0) + 1
-                    }
-
-                    await update_incident(nearby_parent["id"], patch)
-                    
-                    updated_parent = await get_incident(nearby_parent["id"])
-                    await broadcast_incident_update(updated_parent)
-                    
-                    if violation_metadata:
-                        await store_violation_reference(
-                            nearby_parent["id"], 
-                            violation_metadata
-                        )
-                    
-                    return {
-                        "id": nearby_parent["id"], 
-                        "action": "merged",
-                        "parent_id": nearby_parent["id"]
-                    }
-
+        # CASE 2: Create new incident (NO CLUSTERING/DUPLICATE CHECK)
+        # Ensure timestamp exists
         if not payload.get("timestamp_utc") and not payload.get("reported_at"):
             payload["timestamp_utc"] = utcnow_iso()
 
+        # Create incident object
         inc = Incident(**payload)
 
+        # Check for fire in image
         if inc.media and inc.media.image_url:
             if await fire_present_from_image(inc.media.image_url):
                 if inc.accident:
@@ -202,11 +175,14 @@ async def ingest(payload: dict = Body(...)):
                     inc.accident = Accident(vehicles_involved=1, fire_present=True)
                 logger.info(f"🔥 Fire detected in image for new incident")
 
+        # Compute priority score
         inc = compute_scores(inc)
 
+        # Override score if provided
         if provided_score is not None:
             inc.score = _coerce_score(provided_score)
 
+        # Determine initial status based on score/fire
         current_fire = (inc.accident and inc.accident.fire_present) or False
         
         if current_fire or inc.score >= MIN_SCORE_FOR_PROMOTION:
@@ -216,15 +192,20 @@ async def ingest(payload: dict = Body(...)):
             inc.status = "unverified"
             inc.reported_at = payload.get("timestamp_utc", utcnow_iso())
 
+        # Prepare document for insertion
         doc = inc.model_dump(exclude_none=True)
         
+        # Add duplicate tracking (though clustering is disabled)
         doc["duplicate_count"] = 0
         
+        # Insert into database
         inserted_id = await insert_incident(doc)
 
+        # Store violation reference if provided
         if violation_metadata:
             await store_violation_reference(str(inserted_id), violation_metadata)
 
+        # Broadcast if it's a new (verified) incident
         if inc.status == "new":
             out = _sanitize({**doc, "id": str(inserted_id)})
             await broadcast_incident_update(out)

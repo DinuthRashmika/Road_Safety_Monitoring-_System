@@ -139,7 +139,7 @@ async def force_ignore_normal():
         logger.info(f"🗑️ Removed false positive detection: {latest['_id']}")
         return {"success": True, "ignored": str(latest["_id"])}
     
-    logger.info("⚠️ No violations to ignore")
+    logger.info("⚠️ No accident in violation incident")
     return {"success": False, "message": "No violations to ignore"}
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
