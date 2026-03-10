@@ -340,7 +340,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         violation_id = violation.get("_id")
         
         if violation.get("emergency_permanent_ignore") is True:
-            logger.info(f"⏭️ Violation {violation_id} is PERMANENTLY ignored - skipping forever")
+            logger.info(f"Violation {violation_id} is PERMANENTLY ignored - skipping forever")
             return False
         
         logger.info(f"Processing violation: {violation_id}")
@@ -371,7 +371,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         is_accident, accident_conf = await detect_accident(image_path)
         
         if not is_accident:
-            logger.info(f"⏭️ Not an accident (conf: {accident_conf:.2f}) - skipping violation {violation_id}")
+            logger.info(f"Not an accident (conf: {accident_conf:.2f}) - skipping violation {violation_id}")
             return False
         
         logger.info(f"✅ Accident detected! Confidence: {accident_conf:.2f}")
@@ -387,7 +387,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         )
         
         if existing:
-            logger.info(f"🔄 Duplicate found - merging with incident {existing['_id']}")
+            logger.info(f"Duplicate found - merging with incident {existing['_id']}")
             
             explain = existing.get("explain", [])
             new_note = f"Duplicate confirmed by secondary source (violation: {violation_id})"
@@ -473,7 +473,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
 
 async def poll_shenal_database_once():
     """Run one cycle of the database poller manually - processes ALL violations but respects permanent ignores"""
-    logger.info("🔄 FORCE REFRESH: Processing all violations")
+    logger.info("FORCE REFRESH: Processing all violations")
     
     try:
         client = get_client()
@@ -534,6 +534,7 @@ async def poll_shenal_database():
     logger.info("🚀 Starting database poller...")
     
     consecutive_errors = 0
+    poll_count = 0
     
     while True:
         try:
@@ -549,9 +550,13 @@ async def poll_shenal_database():
             permanently_ignored = await violations_collection.count_documents({"emergency_permanent_ignore": True})
             cameras_count = await cameras_collection.count_documents({})
             
-            logger.info(f"📊 Violations: {violations_count} (Ignored: {permanently_ignored}), Cameras: {cameras_count}")
+            poll_count += 1
+            if poll_count % 10 == 0:
+                logger.info(f"📊 Violations: {violations_count} (Ignored: {permanently_ignored}), Cameras: {cameras_count}")
             
             if violations_count == 0:
+                if poll_count % 10 == 0:
+                    logger.warning("No violations found in Shenal's database")
                 await asyncio.sleep(30)
                 continue
             
@@ -591,13 +596,15 @@ async def poll_shenal_database():
             else:
                 total = await violations_collection.count_documents({})
                 emergency_processed = await violations_collection.count_documents({"emergency_processed": True})
-                logger.info(f"Processed: {emergency_processed}/{total}")
+                if poll_count % 10 == 0:
+                    logger.info(f"Processed: {emergency_processed}/{total}")
             
             await asyncio.sleep(10)
             
         except Exception as e:
             consecutive_errors += 1
-            logger.error(f"Polling error: {e}")
+            if consecutive_errors % 3 == 0:
+                logger.error(f"Polling error: {e}")
             await asyncio.sleep(min(30 * (2 ** consecutive_errors), 300))
 
 async def start_scheduler():

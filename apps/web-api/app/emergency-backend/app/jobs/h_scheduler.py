@@ -68,6 +68,7 @@ async def poll_human_database():
     logger.info("🚀 Starting human behavior database poller...")
     
     consecutive_errors = 0
+    poll_count = 0
     
     while True:
         try:
@@ -82,10 +83,14 @@ async def poll_human_database():
             
             # Check if collection exists and has data
             alerts_count = await alerts_collection.count_documents({})
-            logger.info(f"📊 Human behavior alerts: {alerts_count} documents")
+            
+            poll_count += 1
+            if poll_count % 10 == 0:
+                logger.info(f"📊 Human behavior alerts: {alerts_count} documents")
             
             if alerts_count == 0:
-                logger.warning("No alerts found in human behavior database")
+                if poll_count % 10 == 0:
+                    logger.warning("No alerts found in human behavior database")
                 await asyncio.sleep(30)
                 continue
             
@@ -123,13 +128,15 @@ async def poll_human_database():
             else:
                 total = await alerts_collection.count_documents({})
                 emergency_processed = await alerts_collection.count_documents({"emergency_processed": True})
-                logger.info(f"Human behavior - Processed: {emergency_processed}/{total}")
+                if poll_count % 10 == 0:
+                    logger.info(f"Human behavior - Processed: {emergency_processed}/{total}")
             
             await asyncio.sleep(10)
             
         except Exception as e:
             consecutive_errors += 1
-            logger.error(f"❌ Human behavior polling error (attempt {consecutive_errors}): {e}")
+            if consecutive_errors % 3 == 0:
+                logger.error(f"❌ Human behavior polling error (attempt {consecutive_errors}): {e}")
             await asyncio.sleep(min(30 * (2 ** consecutive_errors), 300))
 
 async def start_human_scheduler():
