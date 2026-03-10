@@ -10,7 +10,6 @@ import logging
 import os
 from datetime import datetime
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -25,11 +24,10 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# --- CORS CONFIGURATION ---
 origins = [
-    "http://localhost:5173",    # Frontend
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "http://localhost:8000",    # Backend self
+    "http://localhost:8000",
     "*"
 ]
 
@@ -41,16 +39,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create uploads directory
 ensure_dir(settings.UPLOAD_DIR)
 app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
 
 @app.on_event("startup")
 async def startup():
-    """Initialize application on startup"""
     logger.info("Starting Road Safety Monitoring System...")
-    
-    # Create directories
+
     try:
         ensure_dir(settings.UPLOAD_DIR)
         ensure_dir(os.path.join(settings.UPLOAD_DIR, "owners"))
@@ -59,23 +54,19 @@ async def startup():
         logger.info(f"✓ Upload directory: {settings.UPLOAD_DIR}")
     except Exception as e:
         logger.error(f"✗ Failed to create upload directories: {e}")
-    
-    # Connect to MongoDB
+
     try:
         connected = await connect_to_mongo()
         if connected:
             logger.info("✓ Connected to MongoDB")
-            
-            # --- SEED ADMIN USER & OWNER PROFILE ---
+
             database = get_database()
             if database is not None:
-                # Use a standard email format to pass validation
-                admin_email = "admin@example.com" 
-                
+                admin_email = "admin@example.com"
+
                 try:
-                    # 1. Check/Create User Account (in 'users' collection)
                     admin_user = await database.users.find_one({"email": admin_email})
-                    
+
                     admin_id = None
                     if not admin_user:
                         logger.info("Creating System Admin user...")
@@ -95,12 +86,9 @@ async def startup():
                         admin_id = admin_user["_id"]
                         logger.info("✓ Admin user already exists")
 
-                    # 2. Check/Create Owner Profile (in 'owners' collection)
-                    # THIS IS THE FIX: Ensuring admin exists in 'owners' table too
                     if admin_id:
-                        # Check by user_id link
                         existing_owner_profile = await database.owners.find_one({"user_id": str(admin_id)})
-                        
+
                         if not existing_owner_profile:
                             logger.info("Creating Admin Owner Profile (Critical for API)...")
                             owner_profile = {
@@ -118,26 +106,22 @@ async def startup():
                             logger.info("✅ Admin owner profile created successfully")
                         else:
                             logger.info("✓ Admin owner profile already exists")
-                    
+
                 except Exception as e:
                     logger.error(f"Error seeding admin user: {e}")
-            # -----------------------------
-
         else:
             logger.error("✗ Failed to connect to MongoDB")
     except Exception as e:
         logger.error(f"✗ MongoDB connection error: {e}")
-    
+
     logger.info("✅ Application startup complete")
 
 @app.on_event("shutdown")
 async def shutdown():
-    """Cleanup on shutdown"""
     logger.info("Shutting down...")
     await close_mongo_connection()
     logger.info("✅ Application shutdown complete")
 
-# Import routers
 from app.routes.auth import router as auth_router
 from app.routes.owners import router as owners_router
 from app.routes.vehicles import router as vehicles_router
@@ -150,9 +134,6 @@ from app.routes.payments import router as payments_router
 from app.routes import sessions_rest, sessions_ws, debug_yolo
 from app.routes.protective_alerts import router as protective_alerts_router
 
-
-
-# Include routers
 app.include_router(auth_router)
 app.include_router(owners_router)
 app.include_router(vehicles_router)
@@ -166,7 +147,6 @@ app.include_router(sessions_rest.router)
 app.include_router(sessions_ws.router)
 app.include_router(debug_yolo.router)
 app.include_router(protective_alerts_router)
-
 
 logger.info("✓ All routers loaded successfully")
 

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/notification_model.dart';
-import '../services/payment_service.dart';
-import './pay_fine_screen.dart'; // Import the PayFineScreen
-import '../core/api_client.dart'; // ✅ NEW: use same baseUrl as Dio
+import './pay_fine_screen.dart';
+import '../core/api_client.dart';
 
 class ViolationDetailsScreen extends StatefulWidget {
   final NotificationModel notification;
 
-  const ViolationDetailsScreen({super.key, required this.notification});
+  const ViolationDetailsScreen({
+    super.key,
+    required this.notification,
+  });
 
   @override
   State<ViolationDetailsScreen> createState() => _ViolationDetailsScreenState();
@@ -23,47 +25,42 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
   void initState() {
     super.initState();
     _violationDetails = _parseViolationDetails();
-    // _isPaid = widget.notification.isPaid; // Uncomment if your model has this
   }
 
-  // ✅ Build full evidence image URL safely
   String? _buildViolationImageUrl() {
     final rel = widget.notification.violationImage;
     if (rel == null || rel.trim().isEmpty) return null;
 
-    // 1) Convert Windows path slashes to URL slashes
-    final normalized = rel.replaceAll("\\", "/").replaceAll(RegExp(r'^/+'), '');
+    String normalized = rel.replaceAll('\\', '/').trim();
+    normalized = normalized.replaceFirst(RegExp(r'^/+'), '');
 
-    // 2) If backend already returns full URL, encode and return
-    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
       return Uri.encodeFull(normalized);
     }
 
-    // 3) Use the same base URL as your API client
     final base = ApiClient.dio.options.baseUrl.replaceAll(RegExp(r'\/+$'), '');
 
-    // 4) Build final URL
-    final url = normalized.startsWith("static/")
-        ? "$base/$normalized"
-        : "$base/static/$normalized";
+    final url = normalized.startsWith('static/')
+        ? '$base/$normalized'
+        : '$base/static/$normalized';
 
-    // 5) Encode spaces and special characters
     return Uri.encodeFull(url);
   }
 
-  // --- Parse violation details from notification message ---
   Map<String, dynamic> _parseViolationDetails() {
     final message = widget.notification.message;
-    final details = {
-      'violationType': 'Speeding',
+
+    final details = <String, dynamic>{
+      'violationType': widget.notification.violationType ?? 'Violation',
       'detectedSpeed': 84,
       'speedLimit': 50,
       'cameraId': 'CCTV-CMB-104',
       'confidence': 98,
     };
 
-    // Extract violation type from message
-    if (message.contains("'")) {
+    if ((widget.notification.violationType ?? '').trim().isNotEmpty) {
+      details['violationType'] = widget.notification.violationType!;
+    } else if (message.contains("'")) {
       final start = message.indexOf("'") + 1;
       final end = message.lastIndexOf("'");
       if (start > 0 && end > start) {
@@ -71,14 +68,12 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
       }
     }
 
-    // Try to extract speed values if available in message
     final speedRegex = RegExp(r'(\d+)\s*km/h');
     final match = speedRegex.firstMatch(message);
     if (match != null) {
       details['detectedSpeed'] = int.tryParse(match.group(1)!) ?? 84;
     }
 
-    // Extract camera ID if available
     if (message.contains('CCTV')) {
       final cameraRegex = RegExp(r'CCTV-[A-Z]+-\d+');
       final cameraMatch = cameraRegex.firstMatch(message);
@@ -90,30 +85,31 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
     return details;
   }
 
-  // --- Logic Helpers ---
   double _getFineAmountValue() {
+    if (widget.notification.fineAmount != null && widget.notification.fineAmount! > 0) {
+      return widget.notification.fineAmount!;
+    }
+
     final regex = RegExp(r'([0-9]+)');
     final match = regex.firstMatch(widget.notification.message);
     if (match != null) {
       return double.tryParse(match.group(1)!) ?? 12500.0;
     }
+
     return 12500.0;
   }
 
   String _extractFineDisplay() {
+    if (widget.notification.fineAmount != null) {
+      final value = widget.notification.fineAmount!;
+      return 'LKR ${value.toStringAsFixed(0)}';
+    }
+
     final regex = RegExp(r'LKR\s*([0-9.,]+)');
     final match = regex.firstMatch(widget.notification.message);
     return match != null ? 'LKR ${match.group(1)}' : 'LKR 12,500';
   }
 
-  String _getSeverityColor() {
-    final message = widget.notification.message.toLowerCase();
-    if (message.contains('critical') || message.contains('5000')) return '#DC2626';
-    if (message.contains('high') || message.contains('2000')) return '#EA580C';
-    return '#CA8A04';
-  }
-
-  // Navigate to PayFineScreen
   Future<void> _navigateToPayFineScreen() async {
     final amount = _getFineAmountValue();
 
@@ -151,9 +147,8 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
     final fineString = _extractFineDisplay();
     final dateStr = DateFormat('MMM d, yyyy').format(widget.notification.createdAt);
     final timeStr = DateFormat('h:mm a').format(widget.notification.createdAt);
-    final overSpeed = _violationDetails['detectedSpeed'] - _violationDetails['speedLimit'];
-
-    // ✅ Evidence URL
+    final overSpeed =
+        (_violationDetails['detectedSpeed'] as int) - (_violationDetails['speedLimit'] as int);
     final evidenceUrl = _buildViolationImageUrl();
 
     return Scaffold(
@@ -168,7 +163,11 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
         ),
         title: const Text(
           'Violation Details',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
         ),
         actions: [
           IconButton(
@@ -182,12 +181,11 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
           child: Column(
             children: [
-              // 1. Badges Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _buildBadge(
-                    _violationDetails['violationType'].toUpperCase(),
+                    _violationDetails['violationType'].toString().toUpperCase(),
                     const Color(0xFF1E3A8A),
                     const Color(0xFF60A5FA),
                   ),
@@ -201,7 +199,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 2. Context Info
               Text(
                 '${widget.notification.vehiclePlate} • $dateStr • $timeStr • ${widget.notification.location}',
                 textAlign: TextAlign.center,
@@ -213,7 +210,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 3. Stats Row
               Row(
                 children: [
                   Expanded(
@@ -237,14 +233,14 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                       '+$overSpeed',
                       'over',
                       'Over by',
-                      valueColor: overSpeed > 0 ? const Color(0xFFF87171) : const Color(0xFF60A5FA),
+                      valueColor:
+                          overSpeed > 0 ? const Color(0xFFF87171) : const Color(0xFF60A5FA),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // 4. Fine Details Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -279,7 +275,8 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                               children: [
                                 const TextSpan(text: 'Severity: '),
                                 TextSpan(
-                                  text: _violationDetails['violationType'] == 'Speeding' && overSpeed > 30
+                                  text: _violationDetails['violationType'] == 'Speeding' &&
+                                          overSpeed > 30
                                       ? 'High'
                                       : 'Medium',
                                   style: const TextStyle(
@@ -302,7 +299,7 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Case ID: ${widget.notification.id.substring(0, 6).toUpperCase()}',
+                          'Case ID: ${widget.notification.id.length >= 6 ? widget.notification.id.substring(0, 6).toUpperCase() : widget.notification.id.toUpperCase()}',
                           style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                         ),
                       ],
@@ -312,7 +309,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // ✅ NEW: Evidence Image
               if (evidenceUrl != null) ...[
                 Container(
                   width: double.infinity,
@@ -356,9 +352,29 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                               return Center(
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
-                                  child: Text(
-                                    'Failed to load image',
-                                    style: TextStyle(color: Colors.grey.shade400),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.broken_image,
+                                        color: Colors.white54,
+                                        size: 40,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Failed to load image',
+                                        style: TextStyle(color: Colors.grey.shade400),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        evidenceUrl,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );
@@ -372,7 +388,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                 const SizedBox(height: 24),
               ],
 
-              // 5. Violation Details Card
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -392,53 +407,90 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildDetailRow('Type:', _violationDetails['violationType']),
+                    _buildDetailRow('Type:', _violationDetails['violationType'].toString()),
                     _buildDetailRow('Vehicle:', widget.notification.vehiclePlate),
                     _buildDetailRow('Location:', widget.notification.location),
                     _buildDetailRow('Date & Time:', '$dateStr at $timeStr'),
-                    _buildDetailRow('Camera ID:', _violationDetails['cameraId']),
+                    _buildDetailRow('Camera ID:', _violationDetails['cameraId'].toString()),
                     _buildDetailRow('Confidence:', '${_violationDetails['confidence']}%'),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
-              // 6. Buttons
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isPaid ? null : _handlePayment,
+                      onPressed: _isPaid || _isLoading ? null : _handlePayment,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isPaid ? Colors.grey.shade700 : const Color(0xFF2563EB),
+                        backgroundColor:
+                            _isPaid ? Colors.grey.shade700 : const Color(0xFF2563EB),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
-                      child: _isPaid
-                          ? const Text(
-                              'Paid',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Pay Fine',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                                color: Colors.white,
-                              ),
-                            ),
+                          : _isPaid
+                              ? const Text(
+                                  'Paid',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Pay Fine',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        // Handle view evidence
+                        if (evidenceUrl == null) return;
+
+                        showDialog(
+                          context: context,
+                          builder: (context) => Dialog(
+                            backgroundColor: Colors.black,
+                            insetPadding: const EdgeInsets.all(12),
+                            child: InteractiveViewer(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  evidenceUrl,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Padding(
+                                      padding: EdgeInsets.all(24),
+                                      child: Center(
+                                        child: Text(
+                                          'Failed to load image',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -460,7 +512,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
               ),
               const SizedBox(height: 24),
 
-              // 7. Footer
               Center(
                 child: TextButton(
                   onPressed: () {},
@@ -489,8 +540,6 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
     );
   }
 
-  // --- Widget Builders ---
-
   Widget _buildBadge(String text, Color bgColor, Color textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -500,7 +549,11 @@ class _ViolationDetailsScreenState extends State<ViolationDetailsScreen> {
       ),
       child: Text(
         text,
-        style: TextStyle(color: textColor, fontWeight: FontWeight.w700, fontSize: 12),
+        style: TextStyle(
+          color: textColor,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
       ),
     );
   }

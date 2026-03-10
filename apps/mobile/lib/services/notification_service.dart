@@ -14,7 +14,9 @@ class NotificationService {
       return list;
     } on DioException catch (e) {
       throw Exception(
-        e.response?.data['detail']?.toString() ?? 'Failed to fetch notifications',
+        e.response?.data is Map<String, dynamic>
+            ? e.response?.data['detail']?.toString() ?? 'Failed to fetch notifications'
+            : 'Failed to fetch notifications',
       );
     }
   }
