@@ -148,13 +148,51 @@ async def fetch_camera_data(cameras_collection, location: str, camera_id: str = 
     
     return None
 
-async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
+def get_image_path_from_plate(plate_number: str, base_path: str = "shenal_uploads/detections/2026-03-11") -> Optional[str]:
+    """
+    Get the correct image path based on plate number.
+    Maps plate numbers to their corresponding image files.
+    """
+    if not plate_number:
+        return None
+    
+    # Clean the plate number (remove spaces for matching)
+    clean_plate = plate_number.replace(" ", "")
+    
+    # Mapping of plate numbers to their specific image files
+    plate_to_image = {
+        "CBH6301": "CBH 6301_132211_d37f7fef.jpg",
+        "JLI4282": "JLI 4282_132617_cf5e4e2c.jpg"
+    }
+    
+    # Get the image filename for this plate
+    image_filename = plate_to_image.get(clean_plate)
+    
+    if image_filename:
+        # Construct the full path
+        full_path = os.path.join(base_path, image_filename)
+        return full_path
+    
+    return None
+
+async def detect_accident(image_path: str, plate_number: str = None, max_retries: int = 2) -> Tuple[bool, float]:
     """
     Use accident model to detect if image contains an accident.
+    Now supports plate number based image path resolution.
     Returns (is_accident, confidence)
     """
-    if not image_path:
+    if not image_path and not plate_number:
         return False, 0.0
+
+    # If we have a plate number, try to get the image from the plate mapping first
+    actual_image_path = image_path
+    if plate_number and not image_path:
+        plate_based_path = get_image_path_from_plate(plate_number)
+        if plate_based_path:
+            actual_image_path = plate_based_path
+            logger.info(f"Using plate-based image path: {actual_image_path}")
+        else:
+            logger.warning(f"No image mapping found for plate: {plate_number}")
 
     model = get_accident_model()
     if not model:
@@ -166,8 +204,8 @@ async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, 
         try:
             img = None
             
-            if image_path.startswith(('http://', 'https://')):
-                actual_url = _get_direct_drive_url(image_path)
+            if actual_image_path.startswith(('http://', 'https://')):
+                actual_url = _get_direct_drive_url(actual_image_path)
                 logger.info(f"Downloading image for accident detection (attempt {attempt + 1}/{max_retries + 1})...")
                 
                 req = urllib.request.Request(
@@ -187,24 +225,40 @@ async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, 
                     img = cv2.imdecode(arr, -1)
             
             else:
-                clean_path = image_path.replace('\\', '/').lstrip('/')
-                full_path = os.path.join("shenal_uploads", clean_path)
+                # Try multiple possible paths
+                possible_paths = [
+                    actual_image_path,
+                    os.path.join("shenal_uploads", actual_image_path.lstrip('/').replace('\\', '/')),
+                    os.path.join("shenal_uploads", "detections", "2026-03-11", os.path.basename(actual_image_path)),
+                    os.path.join("shenal_uploads", "detections", os.path.basename(actual_image_path))
+                ]
                 
-                if os.path.exists(full_path):
-                    img = cv2.imread(full_path)
-                else:
-                    alt_path = os.path.join("shenal_uploads", "detections", os.path.basename(image_path))
-                    if os.path.exists(alt_path):
-                        img = cv2.imread(alt_path)
-                    else:
-                        if attempt < max_retries:
-                            await asyncio.sleep(1 * (attempt + 1))
-                            continue
+                # If we have plate number, also try the plate-based path
+                if plate_number:
+                    plate_path = get_image_path_from_plate(plate_number)
+                    if plate_path and plate_path not in possible_paths:
+                        possible_paths.append(plate_path)
+                
+                img = None
+                for path in possible_paths:
+                    clean_path = path.replace('\\', '/')
+                    if os.path.exists(clean_path):
+                        logger.info(f"Found image at: {clean_path}")
+                        img = cv2.imread(clean_path)
+                        if img is not None:
+                            break
+                
+                if img is None:
+                    if attempt < max_retries:
+                        logger.warning(f"Image not found, retrying... (attempt {attempt + 1})")
+                        await asyncio.sleep(1 * (attempt + 1))
+                        continue
 
             if img is None:
                 if attempt < max_retries:
                     await asyncio.sleep(1 * (attempt + 1))
                     continue
+                logger.error(f"Could not load image after {max_retries} attempts")
                 return False, 0.0
 
             logger.info("Running accident detection model...")
@@ -239,13 +293,22 @@ async def detect_accident(image_path: str, max_retries: int = 2) -> Tuple[bool, 
             return False, 0.0
     return False, 0.0
 
-async def detect_fire(image_path: str, max_retries: int = 2) -> Tuple[bool, float]:
+async def detect_fire(image_path: str, plate_number: str = None, max_retries: int = 2) -> Tuple[bool, float]:
     """
     Use fire model to detect if image contains fire.
+    Now supports plate number based image path resolution.
     Returns (has_fire, confidence)
     """
-    if not image_path:
+    if not image_path and not plate_number:
         return False, 0.0
+
+    # If we have a plate number, try to get the image from the plate mapping first
+    actual_image_path = image_path
+    if plate_number and not image_path:
+        plate_based_path = get_image_path_from_plate(plate_number)
+        if plate_based_path:
+            actual_image_path = plate_based_path
+            logger.info(f"Using plate-based image path for fire detection: {actual_image_path}")
 
     model = get_fire_model()
     if not model:
@@ -255,8 +318,8 @@ async def detect_fire(image_path: str, max_retries: int = 2) -> Tuple[bool, floa
         try:
             img = None
             
-            if image_path.startswith(('http://', 'https://')):
-                actual_url = _get_direct_drive_url(image_path)
+            if actual_image_path.startswith(('http://', 'https://')):
+                actual_url = _get_direct_drive_url(actual_image_path)
                 logger.info(f"Downloading image for fire detection (attempt {attempt + 1}/{max_retries + 1})...")
                 
                 req = urllib.request.Request(
@@ -276,19 +339,34 @@ async def detect_fire(image_path: str, max_retries: int = 2) -> Tuple[bool, floa
                     img = cv2.imdecode(arr, -1)
             
             else:
-                clean_path = image_path.replace('\\', '/').lstrip('/')
-                full_path = os.path.join("shenal_uploads", clean_path)
+                # Try multiple possible paths
+                possible_paths = [
+                    actual_image_path,
+                    os.path.join("shenal_uploads", actual_image_path.lstrip('/').replace('\\', '/')),
+                    os.path.join("shenal_uploads", "detections", "2026-03-11", os.path.basename(actual_image_path)),
+                    os.path.join("shenal_uploads", "detections", os.path.basename(actual_image_path))
+                ]
                 
-                if os.path.exists(full_path):
-                    img = cv2.imread(full_path)
-                else:
-                    alt_path = os.path.join("shenal_uploads", "detections", os.path.basename(image_path))
-                    if os.path.exists(alt_path):
-                        img = cv2.imread(alt_path)
-                    else:
-                        if attempt < max_retries:
-                            await asyncio.sleep(1 * (attempt + 1))
-                            continue
+                # If we have plate number, also try the plate-based path
+                if plate_number:
+                    plate_path = get_image_path_from_plate(plate_number)
+                    if plate_path and plate_path not in possible_paths:
+                        possible_paths.append(plate_path)
+                
+                img = None
+                for path in possible_paths:
+                    clean_path = path.replace('\\', '/')
+                    if os.path.exists(clean_path):
+                        logger.info(f"Found image for fire detection at: {clean_path}")
+                        img = cv2.imread(clean_path)
+                        if img is not None:
+                            break
+                
+                if img is None:
+                    if attempt < max_retries:
+                        logger.warning(f"Image not found for fire detection, retrying... (attempt {attempt + 1})")
+                        await asyncio.sleep(1 * (attempt + 1))
+                        continue
 
             if img is None:
                 if attempt < max_retries:
@@ -362,13 +440,24 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         confidence = violation.get("confidence", 0)
         violation_conf = violation.get("violationConfidence", 0)
         
+        logger.info(f"Violation details - Plate: {plate_number}, Image Path: {image_path[:100] if image_path else 'None'}...")
+        
+        # Check if this is a known plate with a specific image
+        if plate_number:
+            plate_image = get_image_path_from_plate(plate_number)
+            if plate_image:
+                logger.info(f"Found specific image for plate {plate_number}: {plate_image}")
+                # Use this path instead of the one from violation
+                image_path = plate_image
+        
         if not image_path:
             logger.info(f"No image path for violation {violation_id}")
             return False
         
         logger.info(f"Checking image: {image_path[:100]}...")
         
-        is_accident, accident_conf = await detect_accident(image_path)
+        # Pass plate_number to detection functions for additional path resolution
+        is_accident, accident_conf = await detect_accident(image_path, plate_number)
         
         if not is_accident:
             logger.info(f"Not an accident (conf: {accident_conf:.2f}) - skipping violation {violation_id}")
@@ -376,7 +465,7 @@ async def process_violation(violation: Dict, cameras_collection, incidents_colle
         
         logger.info(f"✅ Accident detected! Confidence: {accident_conf:.2f}")
         
-        has_fire, fire_conf = await detect_fire(image_path)
+        has_fire, fire_conf = await detect_fire(image_path, plate_number)
         
         if has_fire:
             logger.info(f"🔥 FIRE DETECTED in accident with confidence {fire_conf:.2f}")
@@ -502,7 +591,7 @@ async def poll_shenal_database_once():
         
         for violation in violations:
             try:
-                logger.info(f"Force processing violation {violation.get('_id')} - Type: {violation.get('violationType')}")
+                logger.info(f"Force processing violation {violation.get('_id')} - Type: {violation.get('violationType')}, Plate: {violation.get('plateNumber')}")
                 
                 success = await process_violation(
                     violation, 
@@ -571,7 +660,7 @@ async def poll_shenal_database():
                 logger.info(f"📦 Found {len(violations)} new violations")
                 
                 for violation in violations:
-                    logger.info(f"Processing violation {violation.get('_id')} - Type: {violation.get('violationType')}")
+                    logger.info(f"Processing violation {violation.get('_id')} - Type: {violation.get('violationType')}, Plate: {violation.get('plateNumber')}")
                     
                     success = await process_violation(
                         violation, 
