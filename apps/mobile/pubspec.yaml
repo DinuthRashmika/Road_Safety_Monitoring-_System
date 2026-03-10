@@ -40,6 +40,12 @@ flutter:
     - assets/images/
     - assets/icon/
     - assets/sounds/alarm.mp3
+    - assets/sounds/drowsiness.mp3
+    - assets/sounds/headpose.mp3
+    - assets/sounds/phone.mp3
+    - assets/sounds/seatbelt.mp3
+    - assets/sounds/yawning.mp3
+
 
 flutter_launcher_icons:
   android: true
