@@ -3,8 +3,8 @@ YOLOv8 inference for seatbelt / phone using your trained weights (best.pt).
 - We only compute two outputs: phone_conf (max) and seatbelt_present (bool).
 """
 import numpy as np
-from ultralytics import YOLO
 from app.core.config import settings
+from ultralytics import YOLO
 
 class SeatbeltPhoneDetector:
     def __init__(self):

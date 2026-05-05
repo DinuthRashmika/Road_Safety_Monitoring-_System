@@ -1,6 +1,22 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Literal, Dict
+from typing import Literal, Dict, Optional
 import os
+from pathlib import Path
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+
+
+def configure_ultralytics_dir() -> None:
+    """Keep Ultralytics runtime settings inside the backend workspace."""
+    config_dir = os.environ.get("YOLO_CONFIG_DIR")
+    if not config_dir:
+        config_dir = str(BASE_DIR / ".ultralytics")
+        os.environ["YOLO_CONFIG_DIR"] = config_dir
+    os.makedirs(config_dir, exist_ok=True)
+
+
+configure_ultralytics_dir()
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -53,6 +69,9 @@ class Settings(BaseSettings):
     # API Server
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
+
+    # Payments
+    STRIPE_SECRET_KEY: Optional[str] = None
 
 # ---- DMS (seatbelt/phone stage) ----
     YOLO_MODEL: str = "weights/best.pt"  # path to your trained model

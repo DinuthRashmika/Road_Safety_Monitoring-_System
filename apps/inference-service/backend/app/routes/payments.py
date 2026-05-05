@@ -1,14 +1,19 @@
-import stripe
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from app.core.config import settings
 from app.db.mongodb import get_database
 from bson import ObjectId
 from datetime import datetime
 
+try:
+    import stripe
+except ImportError:
+    stripe = None
+
 router = APIRouter(prefix="/api/payments", tags=["Payments"])
 
-# Initialize Stripe with your Secret Key
-stripe.api_key = "sk_test_51ShA9KBSOx34RK9GAbFBNMBbjdyg1CgKDRtmwoE9iVBI1Lqx6Lc1WVhPa2soy6CzQiSElJTekcvOBg6vLGHPopeg00yvcmcmF9"
+if stripe and settings.STRIPE_SECRET_KEY:
+    stripe.api_key = settings.STRIPE_SECRET_KEY
 
 class PaymentIntentRequest(BaseModel):
     amount: float
@@ -21,6 +26,17 @@ async def create_payment_intent(data: PaymentIntentRequest):
     to the Flutter app.
     """
     try:
+        if stripe is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Stripe package is not installed. Run: pip install stripe",
+            )
+        if not settings.STRIPE_SECRET_KEY:
+            raise HTTPException(
+                status_code=503,
+                detail="STRIPE_SECRET_KEY is not configured.",
+            )
+
         # Stripe expects amounts in the smallest currency unit (e.g., cents).
         # For LKR, we multiply by 100.
         amount_in_cents = int(data.amount * 100)
@@ -33,6 +49,8 @@ async def create_payment_intent(data: PaymentIntentRequest):
         )
         
         return {"clientSecret": intent['client_secret']}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Stripe Error: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
